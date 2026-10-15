@@ -1,1 +1,3 @@
 # trainer
+
+Personal study app.
