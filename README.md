@@ -110,6 +110,7 @@ Listen options:
   - The passphrase is asked once per device; the derived key is then kept on that device.
 - Progress (review state, rehearsals, tests and settings) stays in the browser's local storage on each device.
   - It moves between devices with an export/import code in Settings.
+  - *Reset progress* (Settings → Save) clears the review schedule, learned lines, rehearsals, tests and daily counts, after typing a confirmation word. Answers, edits, settings, audio and the passphrase stay. A backup is kept on the device, so the reset can be undone.
 - **Answer updates are merged**, not replaced:
   - new answers and lines are added;
   - lines changed upstream replace the old ones;
