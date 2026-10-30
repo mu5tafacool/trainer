@@ -49,7 +49,7 @@ Three modes:
 
 - **A · Shadowing**: English N times (2/3/5/7), repeat after each. The text hides after the second pass.
 - **B · Spoken recall**:
-  - Turkish, then a 4-second gap to say the English yourself, then English N times (1/2/3/5).
+  - Turkish, then a thinking gap to say the English yourself, then English N times (1/2/3/5). The gap follows the length of the English line (about 1.5 s plus 0.45 s per word, 3–12 s), can be set to short, normal or long, and counts down on the card.
   - After the English starts, two boxes in the card's top corners grade the recall:
     - **✓ known**: moves on and pushes the next review out.
     - **✗ not known**: the card returns later in the session.
@@ -96,7 +96,7 @@ Listen options:
 
 ### Audio
 
-- English clips use the Kokoro *Fenrir* voice and Turkish clips use the macOS Siri voice. Both are pre-generated and play at the chosen speed (default 0.9).
+- English clips use the Kokoro *Fenrir* voice and Turkish clips use the macOS Siri voice. Both are pre-generated. Separate English and Turkish speed sliders apply to the clips and to the device voice, keeping the pitch (English default 0.9).
 - A line without a clip falls back to the device voice.
 - Optional on-device voicing: new or edited English lines are generated in the browser with Kokoro.
   - Turned on once in Settings.
