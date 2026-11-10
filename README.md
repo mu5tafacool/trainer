@@ -20,6 +20,8 @@ The **Today** tab (Bugün) lays out the day in order:
 - Each answer is a question plus short lines (about 20 words or fewer), each with a Turkish translation.
 - Every answer has a code from the source document: **S0–S12** basics, **S13–S22** preparation set, **H1–H17** second-interview set.
 - Answers carry a group tag, shown as a chip and usable as a filter on every list.
+- Settings uses switch rows: the whole row toggles, with a short line saying what it does.
+- Listen keeps its controls compact so the card stays high on the screen: scope on one row, then value pickers (Turkish first, repeats, thinking time) and on/off chips (text, shuffle, simultaneous) on one or two rows. The idle card explains the current mode. Listen options are remembered.
 - Lines are either **ezber** (word for word: openings, closings and key sentences, marked with a red edge) or **anlam** (meaning: main idea and terms are enough).
 - **Pattern highlight:** each line has one or two reusable English frames (two words or more) shown in blue inside the sentence. It appears only on study screens (learning, review and speed test after reveal, Listen while the English is visible), never on blurred text, the Lines tab or rehearsal. Edited lines keep the frames their text still contains; lines added by hand get common frames picked automatically. Settings → Flow → *Pattern highlight* turns it off.
   - A line without its own frames is matched against every frame already on the device (longest first), then against a short list of common English frames; at most two. As new frames arrive with updates, such lines pick them up automatically.
@@ -34,7 +36,7 @@ The **Today** tab (Bugün) lays out the day in order:
 
 - Each line goes through **listen → meaning → shadow 3× → 5-second image**. The first shadowing pass shows the text; the later passes hide it.
 - A short check every 4–5 lines: see the Turkish, say the English.
-- Leaving a new-answer session (another tab, *Finish*, or closing the app) keeps the place: Today offers *Continue where you left off* at the same line or check, for the rest of the day.
+- Leaving a new-answer session (another tab, *Pause* (*Ara ver*), or closing the app) keeps the place: Today offers *Continue where you left off* at the same line or check, for the rest of the day.
 
 ### Spaced review
 
