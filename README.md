@@ -22,6 +22,8 @@ The **Today** tab (Bugün) lays out the day in order:
 - Answers carry a group tag, shown as a chip and usable as a filter on every list.
 - Lines are either **ezber** (word for word: openings, closings and key sentences, marked with a red edge) or **anlam** (meaning: main idea and terms are enough).
 - **Pattern highlight:** each line has one or two reusable English frames (two words or more) shown in blue inside the sentence. It appears only on study screens (learning, review and speed test after reveal, Listen while the English is visible), never on blurred text, the Lines tab or rehearsal. Edited lines keep the frames their text still contains; lines added by hand get common frames picked automatically. Settings → Flow → *Pattern highlight* turns it off.
+  - A line without its own frames is matched against every frame already on the device (longest first), then against a short list of common English frames; at most two. As new frames arrive with updates, such lines pick them up automatically.
+  - In the edit and add forms, put a frame in **[square brackets]** to set it yourself (at most two, two words or more). Without brackets the app finds them.
 - Answers can include:
   - a key sentence;
   - a skeleton or keywords (used as hints);
@@ -32,6 +34,7 @@ The **Today** tab (Bugün) lays out the day in order:
 
 - Each line goes through **listen → meaning → shadow 3× → 5-second image**. The first shadowing pass shows the text; the later passes hide it.
 - A short check every 4–5 lines: see the Turkish, say the English.
+- Leaving a new-answer session (another tab, *Finish*, or closing the app) keeps the place: Today offers *Continue where you left off* at the same line or check, for the rest of the day.
 
 ### Spaced review
 
@@ -49,6 +52,8 @@ The **Today** tab (Bugün) lays out the day in order:
 Three modes:
 
 - **A · Shadowing**: English N times (2/3/5/7), repeat after each. The text hides after the second pass.
+  - **Turkish first** (*Önce Türkçe*): *Auto* (default) plays the Turkish line once before the English only for lines not learned yet or recently forgotten, as a meaning anchor; learned lines stay English only. *Always* and *Off* are also available. Turkish never plays between passes.
+  - **Simultaneous last pass** (off by default): the last pass has no repeat gap; say it together with the audio, for rhythm and stress.
 - **B · Spoken recall**:
   - Turkish, then a thinking gap to say the English yourself, then English N times (1/2/3/5). The gap follows the length of the English line (about 1.5 s plus 0.45 s per word, 3–12 s), can be set to short, normal or long, and counts down on the card.
   - After the English starts, two boxes in the card's top corners grade the recall:
