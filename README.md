@@ -21,6 +21,7 @@ The **Today** tab (Bugün) lays out the day in order:
 - Every answer has a code from the source document: **S0–S12** basics, **S13–S22** preparation set, **H1–H17** second-interview set.
 - Answers carry a group tag, shown as a chip and usable as a filter on every list.
 - Lines are either **ezber** (word for word: openings, closings and key sentences, marked with a red edge) or **anlam** (meaning: main idea and terms are enough).
+- **Pattern highlight:** each line has one or two reusable English frames (two words or more) shown in blue inside the sentence. It appears only on study screens (learning, review and speed test after reveal, Listen while the English is visible), never on blurred text, the Lines tab or rehearsal. Edited lines keep the frames their text still contains; lines added by hand get common frames picked automatically. Settings → Flow → *Pattern highlight* turns it off.
 - Answers can include:
   - a key sentence;
   - a skeleton or keywords (used as hints);
