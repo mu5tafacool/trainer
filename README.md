@@ -85,6 +85,10 @@ Listen options:
   - *Show hint* reveals the keywords.
   - The result shows every line, the key sentence and the notes.
   - Mark it as fluent or stuck. The target is 60–90 seconds without pausing.
+  - **3 rounds (4/3/2)**: after the first round, tell the same answer again in less time. Round 2 aims for 85% of round 1 and round 3 for 70% (rounded to 5 seconds, never faster than about 170 words a minute). A bar shows the time left; the result lists all rounds.
+  - **Follow-up questions** (on by default): after you mark an answer, a follow-up question an interviewer would ask next comes in, taken from your other answers (up to two). *End chain* stops it and shows a summary.
+- **Mock interview**: a five-question chain like a real interview. It starts with *Tell me about yourself* (or the first answer of the chosen group), and most next questions follow up on the previous answer. In the second-interview group the last question is "Do you have any questions for me?".
+- **Say and check** (🎤, Settings → Flow): on review TR → EN cards and in rehearsal, switch the keyboard to English and dictate with the keyboard microphone (or type). The app compares what you said with the line word by word, shows the percentage and the missing or different words, and on review suggests a grade (90% and up Good, 70–89% Hard, below 70% Again). In rehearsal each line gets its own percentage. Case, punctuation, contractions (*I'm* = *I am*), number words (*fifteen hundred* = *1,500*) and one-letter typos in long words are not counted as errors. The browser's own speech recognition is not used: it is unreliable in Home Screen apps on iPhone, while keyboard dictation works everywhere.
 - **Speed test**:
   - See the Turkish, say the English, reveal.
   - The target is correct and under 3 seconds.
