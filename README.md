@@ -114,6 +114,7 @@ Listen options:
 ### Offline, privacy and updates
 
 - Installable to the home screen. A service worker caches the app shell, so the app works offline.
+- **Screen stays on while studying** (Screen Wake Lock; Home Screen apps on iOS 18.4+): during any study session and while Listen plays. It is let go after 5 minutes without a touch (not while Listen plays) and taken again when the app returns to the front or on the next touch.
 - The answers and audio packs are encrypted with AES-GCM, using a key derived from a passphrase (PBKDF2-SHA256, 200,000 iterations).
   - The passphrase is asked once per device; the derived key is then kept on that device.
 - Progress (review state, rehearsals, tests and settings) stays in the browser's local storage on each device.
