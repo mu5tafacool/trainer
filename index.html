@@ -678,6 +678,55 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     },
     onChange: function (f) { T.subs.push(f); }
   };
+  /* ---- on-device meaning check for the spoken answer (NLI model in the browser; turned on once in Settings) ----
+     judge(reference, said) → { fwd: P(said follows from reference), back: P(reference follows from said) }, each {ent, neu, con}. */
+  var NLICFG = { lib: 'nli/transformers.js', model: 'Xenova/mobilebert-uncased-mnli', dtype: 'q8' };
+  var N = { state: get('__nli_on') ? 'idle' : 'off', pct: 0, err: '', m: null, loadP: null, subs: [] };
+  function nchg() { N.subs.forEach(function (f) { try { f(); } catch (e) {} }); }
+  function loadNli() {
+    if (N.m) return Promise.resolve(N.m);
+    if (N.loadP) return N.loadP;
+    N.state = 'loading'; N.pct = 0; N.err = ''; nchg();
+    var files = {};
+    function progress(p) {
+      if (!p || !p.file || !p.total) return;
+      files[p.file] = [p.loaded || 0, p.total];
+      var a = 0, b = 0; Object.keys(files).forEach(function (k) { a += files[k][0]; b += files[k][1]; });
+      var pct = Math.min(99, Math.floor(100 * a / b)); if (pct !== N.pct) { N.pct = pct; nchg(); }
+    }
+    N.loadP = import(new URL(NLICFG.lib, location.href).href).then(function (T) {
+      T.env.backends.onnx.wasm.wasmPaths = new URL('nli/', location.href).href;
+      T.env.backends.onnx.wasm.numThreads = 1;
+      return Promise.all([
+        T.AutoTokenizer.from_pretrained(NLICFG.model, { progress_callback: progress }),
+        T.AutoModelForSequenceClassification.from_pretrained(NLICFG.model, { dtype: NLICFG.dtype, device: 'wasm', progress_callback: progress })
+      ]);
+    }).then(function (r) {
+      var labels = {}; Object.keys(r[1].config.id2label).forEach(function (i) { labels[+i] = String(r[1].config.id2label[i]).toLowerCase().slice(0, 3); });
+      N.m = { tok: r[0], model: r[1], labels: labels }; N.state = 'ready'; put('__nli_on', true); nchg(); return N.m;
+    }, function (e) {
+      N.state = 'error'; N.err = e && e.message ? String(e.message).slice(0, 140) : 'bilinmeyen hata'; N.loadP = null; nchg(); throw e;
+    });
+    return N.loadP;
+  }
+  function nliOne(m, premise, hypothesis) {
+    return m.model(m.tok(premise, { text_pair: hypothesis, truncation: true })).then(function (o) {
+      var x = Array.prototype.slice.call(o.logits.data), mx = Math.max.apply(null, x), e = x.map(function (v) { return Math.exp(v - mx); }), s = 0, out = {};
+      e.forEach(function (v) { s += v; }); e.forEach(function (v, i) { out[m.labels[i]] = v / s; });
+      return out;
+    });
+  }
+  window.__nli = {
+    info: function () { return { state: N.state, pct: N.pct, err: N.err }; },
+    enable: function () { return loadNli(); },
+    judge: function (ref, said) {
+      if (N.state === 'off') return Promise.reject(new Error('off'));
+      return loadNli().then(function (m) {
+        return nliOne(m, ref, said).then(function (fwd) { return nliOne(m, said, ref).then(function (back) { return { fwd: fwd, back: back }; }); });
+      });
+    },
+    onChange: function (f) { N.subs.push(f); }
+  };
   function autoFill() {
     if (!get('__tts_on') || !PACK.length || !window.__ttsMissing) return;
     var miss = window.__ttsMissing();
@@ -855,14 +904,325 @@ function dictBox(s, okAct, okLabel) {
     '<p class="hint">Önce klavyede 🌐 ile English\'e geç, sonra 🎤.</p>' + (okAct ? '<button class="btn primary wide" data-act="' + okAct + '">' + okLabel + '</button>' : '') + '</div>';
 }
 function dictRes(d, said) {
+  if (d && d.v === 3) return dictRes3(d, said);
   return '<div class="dres"><div><b class="sc ' + scoreCls(d.score) + '">%' + d.score + '</b>' + (d.miss.length ? '' : ' · tam') + '</div>' +
     (d.miss.length ? '<div class="miss">Eksik ya da farklı: <b>' + esc(d.miss.slice(0, 8).join(', ')) + (d.miss.length > 8 ? ' …' : '') + '</b></div>' : '') +
     (d.extra.length ? '<div class="extra">Fazla: <b>' + esc(d.extra.slice(0, 8).join(', ')) + (d.extra.length > 8 ? ' …' : '') + '</b></div>' : '') +
     '<div class="said">Sen: ' + esc(said) + '</div></div>';
 }
-function dictGrade(d) { return !d ? -1 : d.score >= 90 ? 2 : d.score >= 70 ? 1 : 0; }
+function dictGrade(d) { return !d ? -1 : d.v === 3 ? d.grade : d.score >= 90 ? 2 : d.score >= 70 ? 1 : 0; }
 function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t.focus(); var n = t.value.length; t.setSelectionRange(n, n); } catch (e) {} } }
-window.__dict = { score: dictScore, cover: dictCover };
+
+/* ---- spoken check v3 (the card's "Kontrol et"): one normalization for both texts, weighted word error rate for ezber,
+   objective contradictions (number, negation, antonym, from…to order) for both tiers, and — when it is turned on in
+   Settings — the on-device NLI model for meaning. The block between the markers is dev/lib/verify3.js (dev/tools/sync-verify3.cjs). ---- */
+/* verify3:start */
+/* Spoken-answer checker, prototype v3 (plain ES5, no dependencies; works in the page and in node).
+   Layers:
+   1. normalize(): one canonical form for both texts — case, punctuation, contractions, number words → digits,
+      hyphens, fillers and self-corrections, dictation variants from a lexicon (only for terms in the reference).
+   2. align(): weighted word error rate (Levenshtein over tokens) — the standard ASR metric, used for ezber.
+   3. hardChecks(): objective contradictions found without any per-line data — a different number, a lost or
+      added negation, an antonym swap, reversed from…to / instead of / expected…got pairs.
+   4. grade(): combines the above with optional model signals (sentence similarity, NLI) for anlam lines.
+   No sentence text lives in this file. */
+(function (root) {
+  'use strict';
+
+  var CONTR = { "i'm": 'i am', "i've": 'i have', "i'd": 'i would', "i'll": 'i will', "it's": 'it is', "it'd": 'it would', "that's": 'that is', "there's": 'there is', "what's": 'what is', "let's": 'let us',
+    "we're": 'we are', "we've": 'we have', "we'd": 'we would', "we'll": 'we will', "they're": 'they are', "they've": 'they have', "they'd": 'they would', "you're": 'you are', "you'll": 'you will', "you'd": 'you would',
+    "he's": 'he is', "she's": 'she is', "don't": 'do not', "doesn't": 'does not', "didn't": 'did not', "isn't": 'is not', "wasn't": 'was not', "aren't": 'are not', "weren't": 'were not', "can't": 'can not', cannot: 'can not',
+    "won't": 'will not', "wouldn't": 'would not', "couldn't": 'could not', "shouldn't": 'should not', "haven't": 'have not', "hasn't": 'has not', "hadn't": 'had not',
+    dont: 'do not', doesnt: 'does not', didnt: 'did not', isnt: 'is not', wasnt: 'was not', arent: 'are not', cant: 'can not', wont: 'will not', havent: 'have not', hasnt: 'has not', im: 'i am', ive: 'i have', id: 'i would' };
+  var UNITS = { zero: 0, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+  var TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+  var FILLERS = ['um', 'uh', 'er', 'erm', 'hmm', 'like', 'so', 'well', 'you know', 'i mean', 'basically', 'actually', 'okay', 'ok'];
+  var CORRECTION = ['sorry', 'i mean', 'no wait', 'wait', 'rather'];
+  var NEG = { not: 1, no: 1, never: 1, nothing: 1, none: 1, without: 1, nobody: 1, neither: 1, nor: 1 };
+  var FUNC = {};
+  ('a an the of to in on at for by with from and or but so as is are was were be been am do does did have has had i it this that these those my our your their its we they he she you me us them there here which who what when where how if than then also just very really any some each every all both either about into over under up out off').split(' ').forEach(function (w) { FUNC[w] = 1; });
+  var ANTONYMS = [['before', 'after'], ['early', 'late'], ['earlier', 'later'], ['bigger', 'smaller'], ['more', 'less'], ['more', 'fewer'], ['over', 'under'], ['grew', 'shrank'], ['joined', 'left'], ['first', 'last'], ['always', 'never'], ['increase', 'decrease'], ['faster', 'slower'], ['remotely', 'office'], ['small', 'big'], ['small', 'large'], ['few', 'many'], ['only', 'many'], ['all', 'only'], ['hold', 'ship'], ['holding', 'shipping'], ['removed', 'added'], ['real', 'stubbed'], ['stubbed', 'called']];
+
+  function numberize(tokens) {
+    // Folds number words into digits across the token list: "three and a half" → 3.5, "fifteen hundred" → 1500,
+    // "twenty five" → 25, "three point five" → 3.5, "1.5k" → 1500. "one" stays a word unless it is part of a bigger number.
+    var out = [], i = 0;
+    function isNumWord(w) { return UNITS[w] !== undefined || TENS[w] !== undefined || w === 'hundred' || w === 'thousand' || /^\d+(\.\d+)?$/.test(w); }
+    while (i < tokens.length) {
+      var w = tokens[i];
+      var startsNum = UNITS[w] !== undefined || TENS[w] !== undefined || /^\d+(\.\d+)?$/.test(w) || (w === 'one' && i + 1 < tokens.length && (tokens[i + 1] === 'hundred' || tokens[i + 1] === 'thousand' || tokens[i + 1] === 'point'));
+      if (!startsNum) { out.push(w); i++; continue; }
+      var total = 0, cur = 0, j = i, lastTens = false;
+      if (/^\d+(\.\d+)?$/.test(w)) { cur = parseFloat(w); j = i + 1; }
+      else {
+        while (j < tokens.length) {
+          var t = tokens[j];
+          if (t === 'one' && (j === i || lastTens)) { cur += 1; lastTens = false; j++; continue; }
+          if (UNITS[t] !== undefined && (j === i || lastTens)) { cur += UNITS[t]; lastTens = false; j++; continue; }
+          if (TENS[t] !== undefined && cur % 100 === 0) { cur += TENS[t]; lastTens = true; j++; continue; }
+          if (t === 'hundred' && cur > 0) { cur *= 100; lastTens = false; j++; continue; }
+          if (t === 'thousand') { total += (cur || 1) * 1000; cur = 0; lastTens = false; j++; continue; }
+          break;
+        }
+      }
+      var val = total + cur;
+      if (tokens[j] === 'point' && j + 1 < tokens.length && (UNITS[tokens[j + 1]] !== undefined || tokens[j + 1] === 'zero' || /^\d$/.test(tokens[j + 1]))) {
+        val = parseFloat(String(val) + '.' + (UNITS[tokens[j + 1]] !== undefined ? UNITS[tokens[j + 1]] : tokens[j + 1])); j += 2;
+      }
+      if (tokens[j] === 'and' && tokens[j + 1] === 'a' && tokens[j + 2] === 'half') { val += 0.5; j += 3; }
+      else if (tokens[j] === 'and' && tokens[j + 1] === 'half') { val += 0.5; j += 2; }
+      out.push(String(val)); i = j;
+    }
+    return out;
+  }
+
+  function baseTokens(text) {
+    var s = String(text || '').toLowerCase().replace(/[’‘`´]/g, "'").replace(/[“”]/g, '"');
+    s = s.replace(/(\d),(?=\d{3}\b)/g, '$1').replace(/(\d+(?:\.\d+)?)k\b/g, function (m, n) { return String(Math.round(parseFloat(n) * 1000)); });
+    s = s.replace(/(\d)\s*%/g, '$1 percent').replace(/%/g, ' percent').replace(/&/g, ' and ').replace(/[×x](?=\d)/g, ' by ');
+    s = s.replace(/([a-z])(\d)/g, '$1 $2').replace(/(\d)([a-z])/g, '$1 $2');
+    s = s.replace(/(\d)\.(\d)/g, '$1§$2').replace(/[\/\-–—_]+/g, ' ').replace(/[^a-z0-9§' ]+/g, ' ').replace(/§/g, '.');
+    var out = [];
+    s.split(/\s+/).forEach(function (t) {
+      t = t.replace(/^'+|'+$/g, ''); if (!t) return;
+      if (CONTR[t]) { out.push.apply(out, CONTR[t].split(' ')); return; }
+      if (/n't$/.test(t)) { out.push(t.slice(0, -3), 'not'); return; }
+      t = t.replace(/'s$/, '').replace(/'/g, ''); if (t) out.push(t);
+    });
+    return numberize(out);
+  }
+
+  function phraseAt(toks, i, phrase) { for (var k = 0; k < phrase.length; k++) if (toks[i + k] !== phrase[k]) return false; return true; }
+  function hasPhrase(toks, phrase) { for (var i = 0; i + phrase.length <= toks.length; i++) if (phraseAt(toks, i, phrase)) return true; return false; }
+
+  // Prepares a reference once: its tokens and the lexicon entries whose term occurs in it.
+  function prepareRef(en, lexicon) {
+    var ref = baseTokens(en), lex = [];
+    Object.keys(lexicon || {}).forEach(function (term) {
+      if (term.charAt(0) === '_') return;
+      var canon = baseTokens(term);
+      if (!canon.length || !hasPhrase(ref, canon)) return;
+      (lexicon[term] || []).forEach(function (v) { var a = baseTokens(v); if (a.length && a.join(' ') !== canon.join(' ')) lex.push({ from: a, to: canon }); });
+    });
+    lex.sort(function (a, b) { return b.from.length - a.from.length; });
+    var vocab = {}; ref.forEach(function (t) { vocab[t] = 1; });
+    return { en: en, tokens: ref, lex: lex, vocab: vocab };
+  }
+
+  function normalizeSaid(said, R) {
+    var t = baseTokens(said), out = [], i, k;
+    // self-corrections: "forty, sorry, fourteen" → keep what follows the marker, drop the word before it
+    for (i = 0; i < t.length; i++) {
+      var hit = null;
+      for (k = 0; k < CORRECTION.length; k++) { var ph = CORRECTION[k].split(' '); if (phraseAt(t, i, ph) && !hasPhrase(R.tokens, ph)) { hit = ph; break; } }
+      if (hit && out.length) { out.pop(); i += hit.length - 1; continue; }
+      out.push(t[i]);
+    }
+    t = out; out = [];
+    // fillers the reference doesn't use
+    for (i = 0; i < t.length; i++) {
+      var f = null;
+      for (k = 0; k < FILLERS.length; k++) { var fp = FILLERS[k].split(' '); if (phraseAt(t, i, fp) && !hasPhrase(R.tokens, fp)) { f = fp; break; } }
+      if (f) { i += f.length - 1; continue; }
+      out.push(t[i]);
+    }
+    t = out; out = [];
+    // dictation variants → canonical term (only terms that are in the reference)
+    for (i = 0; i < t.length; i++) {
+      var rep = null;
+      for (k = 0; k < R.lex.length; k++) if (phraseAt(t, i, R.lex[k].from)) { rep = R.lex[k]; break; }
+      if (rep) { out.push.apply(out, rep.to); i += rep.from.length - 1; continue; }
+      out.push(t[i]);
+    }
+    t = out; out = [];
+    // "type script" → "typescript" when the reference has the joined word; stutters "i i" → "i"
+    for (i = 0; i < t.length; i++) {
+      if (i + 1 < t.length && !R.vocab[t[i]] && R.vocab[t[i] + t[i + 1]]) { out.push(t[i] + t[i + 1]); i++; continue; }
+      if (out.length && out[out.length - 1] === t[i] && !hasPhrase(R.tokens, [t[i], t[i]])) continue;
+      out.push(t[i]);
+    }
+    return out;
+  }
+
+  function lev1(a, b) {
+    var i = 0, j = 0, d = 0;
+    while (i < a.length && j < b.length) {
+      if (a.charAt(i) === b.charAt(j)) { i++; j++; continue; }
+      if (++d > 1) return false;
+      if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+    }
+    return d + (a.length - i) + (b.length - j) <= 1;
+  }
+  function isNum(w) { return /^\d+(\.\d+)?$/.test(w); }
+  function tokEq(a, b) { return a === b || (!isNum(a) && !isNum(b) && a.length >= 5 && b.length >= 5 && lev1(a, b)); }
+  function weight(w, R) { if (isNum(w) || NEG[w]) return 2; if (FUNC[w]) return 0.5; return 1; }
+
+  // Weighted Levenshtein alignment. Returns error weight, reference weight and the edit list.
+  function align(ref, hyp, R) {
+    var n = ref.length, m = hyp.length, D = [], B = [], i, j;
+    for (i = 0; i <= n; i++) { D.push(new Float64Array(m + 1)); B.push(new Uint8Array(m + 1)); }
+    for (i = 1; i <= n; i++) { D[i][0] = D[i - 1][0] + weight(ref[i - 1], R); B[i][0] = 2; }
+    for (j = 1; j <= m; j++) { D[0][j] = D[0][j - 1] + weight(hyp[j - 1], R) * 0.5; B[0][j] = 3; }
+    for (i = 1; i <= n; i++) for (j = 1; j <= m; j++) {
+      var wr = weight(ref[i - 1], R), same = tokEq(ref[i - 1], hyp[j - 1]);
+      var sub = D[i - 1][j - 1] + (same ? 0 : Math.max(wr, weight(hyp[j - 1], R))), del = D[i - 1][j] + wr, ins = D[i][j - 1] + weight(hyp[j - 1], R) * 0.5;
+      if (sub <= del && sub <= ins) { D[i][j] = sub; B[i][j] = same ? 0 : 1; } else if (del <= ins) { D[i][j] = del; B[i][j] = 2; } else { D[i][j] = ins; B[i][j] = 3; }
+    }
+    var edits = []; i = n; j = m;
+    while (i > 0 || j > 0) {
+      var b = B[i][j];
+      if (i > 0 && j > 0 && (b === 0 || b === 1)) { if (b === 1) edits.push({ op: 'sub', ref: ref[i - 1], said: hyp[j - 1] }); i--; j--; }
+      else if (i > 0 && (j === 0 || b === 2)) { edits.push({ op: 'del', ref: ref[i - 1] }); i--; }
+      else { edits.push({ op: 'ins', said: hyp[j - 1] }); j--; }
+    }
+    edits.reverse();
+    var refW = 0; ref.forEach(function (w) { refW += weight(w, R); });
+    return { err: D[n][m], refW: refW, edits: edits };
+  }
+
+  function count(toks, set) { var c = 0; toks.forEach(function (w) { if (set[w]) c++; }); return c; }
+  function nums(toks) { return toks.filter(isNum); }
+  function pairAfter(toks, a, b) { // "from X to Y" → [X, Y] with X, Y the first token after each marker
+    var res = [];
+    for (var i = 0; i < toks.length; i++) if (phraseAt(toks, i, a)) {
+      for (var j = i + a.length + 1; j < Math.min(toks.length, i + a.length + 7); j++) if (phraseAt(toks, j, b)) {
+        var x = toks.slice(i + a.length, j).filter(function (w) { return !FUNC[w]; }), y = toks.slice(j + b.length, j + b.length + 4).filter(function (w) { return !FUNC[w]; });
+        if (x.length && y.length) res.push([x[0], y[0]]);
+        break;
+      }
+    }
+    return res;
+  }
+  function insteadOf(toks) {
+    var res = [];
+    for (var i = 1; i + 2 < toks.length; i++) if (toks[i] === 'instead' && toks[i + 1] === 'of') {
+      var x = toks.slice(Math.max(0, i - 4), i).filter(function (w) { return !FUNC[w]; }), y = toks.slice(i + 2, i + 6).filter(function (w) { return !FUNC[w]; });
+      if (x.length && y.length) res.push([x[x.length - 1], y[0]]);
+    }
+    return res;
+  }
+
+  // Objective contradictions and omissions, no per-line data needed.
+  function hardChecks(R, hyp) {
+    var ref = R.tokens, issues = [];
+    var rn = nums(ref), hn = nums(hyp), left = hn.slice(), missingNums = [];
+    rn.forEach(function (x) { var k = left.indexOf(x); if (k >= 0) left.splice(k, 1); else missingNums.push(x); });
+    if (missingNums.length && left.length) issues.push({ kind: 'number', ref: missingNums.join(', '), said: left.join(', '), hard: true });
+    else if (missingNums.length) issues.push({ kind: 'number-missing', ref: missingNums.join(', ') });
+    var rneg = count(ref, NEG), hneg = count(hyp, NEG);
+    if (rneg !== hneg) issues.push({ kind: 'negation', ref: rneg, said: hneg, hard: true });
+    var hv = {}; hyp.forEach(function (w) { hv[w] = 1; });
+    ANTONYMS.forEach(function (p) {
+      for (var s = 0; s < 2; s++) {
+        var a = p[s], b = p[1 - s];
+        if (R.vocab[a] && !R.vocab[b] && hv[b] && !hv[a]) issues.push({ kind: 'antonym', ref: a, said: b, hard: true });
+      }
+    });
+    var checks = [function (t) { return pairAfter(t, ['from'], ['to']); }, insteadOf, function (t) { return pairAfter(t, ['expected'], ['got']); }];
+    checks.forEach(function (fn) {
+      var rp = fn(ref), hp = fn(hyp);
+      rp.forEach(function (r) { hp.forEach(function (h) { if (tokEq(r[0], h[1]) && tokEq(r[1], h[0])) issues.push({ kind: 'order', ref: r.join(' → '), said: h.join(' → '), hard: true }); }); });
+    });
+    return issues;
+  }
+
+  /* Combines everything into a suggested grade (2 İyi, 1 Zor, 0 Tekrar).
+     sig (optional) = { sim: cosine, nli: { fwd: {ent, neu, con}, back: {ent, neu, con} } }  — fwd: reference ⇒ said, back: said ⇒ reference. */
+  // Chosen on the 85-case eval set (stable across the grid; see the prototype report).
+  var T = { ezberGood: 0.94, ezberOk: 0.7, anlamCon: 0.5, anlamEnt: 0.7, anlamSimGood: 0.8, anlamSimOk: 0.6 };
+  function check(line, said, lexicon, sig, opts) {
+    opts = opts || {};
+    var R = line._prep || prepareRef(line.en, lexicon), hyp = normalizeSaid(said, R);
+    var a = align(R.tokens, hyp, R), acc = Math.max(0, 1 - a.err / (a.refW || 1));
+    var issues = hardChecks(R, hyp), hard = issues.some(function (x) { return x.hard; });
+    var con = 0, entF = null, entB = null;
+    // Contradiction is read only as "reference ⇒ said": the reverse direction raised false alarms on reordered answers.
+    if (sig && sig.nli) { con = sig.nli.fwd.con; entF = sig.nli.fwd.ent; entB = sig.nli.back.ent; }
+    var useNli = sig && sig.nli && opts.nli !== false, useSim = sig && typeof sig.sim === 'number' && opts.sim !== false;
+    var grade, why = [];
+    if (!hyp.length) { grade = 0; why.push('empty'); }
+    else if (line.tier === 'ezber') {
+      grade = acc >= T.ezberGood ? 2 : acc >= T.ezberOk ? 1 : 0;
+      if (hard) { grade = 0; why.push('hard'); }
+      else if (useNli && con >= T.anlamCon && acc < 0.999) { grade = 0; why.push('nli-contradiction'); }
+    } else {
+      if (hard) { grade = 0; why.push('hard'); }
+      else if (useNli && con >= T.anlamCon) { grade = 0; why.push('nli-contradiction'); }
+      else if (acc >= 0.97) grade = 2;
+      else if (useNli) {
+        var both = entF >= T.anlamEnt && entB >= T.anlamEnt, one = entF >= T.anlamEnt || entB >= T.anlamEnt;
+        grade = both ? 2 : one ? 1 : (useSim && sig.sim >= T.anlamSimOk ? 1 : 0);
+        if (grade === 2 && issues.some(function (x) { return x.kind === 'number-missing'; })) grade = 1;
+        why.push('nli');
+      } else if (useSim) {
+        grade = sig.sim >= T.anlamSimGood ? 2 : sig.sim >= T.anlamSimOk ? 1 : 0;
+        if (grade === 2 && issues.some(function (x) { return x.kind === 'number-missing'; })) grade = 1;
+        why.push('sim');
+      } else {
+        // rules only: bag-of-content-words coverage (order ignored), function words ignored
+        var refC = R.tokens.filter(function (w) { return !FUNC[w]; }), hv = {}; hyp.forEach(function (w) { hv[w] = 1; });
+        var cov = refC.length ? refC.filter(function (w) { return hv[w] || hyp.some(function (h) { return tokEq(w, h); }); }).length / refC.length : 1;
+        grade = cov >= 0.85 ? 2 : cov >= 0.6 ? 1 : 0; why.push('coverage ' + cov.toFixed(2));
+      }
+    }
+    return { grade: grade, acc: acc, issues: issues, edits: a.edits, said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
+  }
+
+  var api = { baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.verify3 = api;
+})(typeof window !== 'undefined' ? window : this);
+/* verify3:end */
+// Dictation variants of common technical terms (no names here: names in the data are handled by normalization).
+var DICT_LEX = {
+  SaaS: ['sass', 'sauce', 'sas'], QA: ['q a', 'q&a'], API: ['a p i'], AI: ['a i'], CI: ['c i', 'see i'], 'CI/CD': ['c i c d', 'cicd', 'see i see d'],
+  PR: ['p r', 'pull request'], PRs: ['p r s', 'pull requests'], UI: ['u i', 'you i'], URL: ['u r l'], CSS: ['c s s'], SDET: ['s d e t', 's det'], 'A/B': ['a b'],
+  E2E: ['end to end', 'e to e'], 'end-to-end': ['e2e', 'e to e'], US: ['american', 'u s', 'usa', 'united states'], AED: ['dirhams', 'dirham', 'a e d'],
+  Playwright: ['play right', 'playwrite', 'play write'], TypeScript: ['type script'], JavaScript: ['java script'], PayPal: ['pay pal'],
+  Selenium: ['selena um', 'salinium'], Laravel: ['lara vel', 'lara well', 'laravelle'], Redux: ['re dux', 'reducks'], Azure: ['asher', 'ashore'],
+  'Azure DevOps': ['azure dev ops', 'asher dev ops'], 'Claude Code': ['cloud code', 'clod code'], Kanban: ['can ban', 'conban'], Shopify: ['shop if i'],
+  BasePage: ['base page'], getByLabel: ['get by label'], getByRole: ['get by role'], getByTestId: ['get by test id'], idempotency: ['idem potency', 'item potency'],
+  flaky: ['flakey'], fixtures: ['fixers']
+};
+var dictPrep = {};
+function dictCheck3(l, said, sig) {
+  var line = { en: l.en, tier: l.tier === 'ezber' ? 'ezber' : 'anlam' };
+  line._prep = dictPrep[l.en] || (dictPrep[l.en] = verify3.prepareRef(l.en, DICT_LEX));
+  var r = verify3.check(line, said, DICT_LEX, sig ? { nli: sig } : null, { sim: false });
+  var keep = function (w) { return line.tier === 'ezber' || !verify3.isFunc(w); }, miss = [], extra = [];
+  r.edits.forEach(function (e) { if (e.op !== 'ins' && keep(e.ref)) miss.push(e.ref); if (e.op !== 'del' && keep(e.said)) extra.push(e.said); });
+  return { v: 3, tier: line.tier, grade: r.grade, score: Math.round(100 * r.acc), miss: miss, extra: extra, issues: r.issues, nli: !!sig, con: r.con, entF: r.entF, entB: r.entB, text: said };
+}
+function dictNli(s, l, txt) {
+  var M = window.__nli; if (!M || !String(txt).trim() || M.info().state === 'off') return;
+  s.dict.pending = true;
+  M.judge(l.en, txt).then(function (sig) { if (S.sess === s && s.dictText === txt) { s.dict = dictCheck3(l, txt, sig); render(); } },
+    function () { if (S.sess === s && s.dict && s.dictText === txt) { s.dict.pending = false; s.dict.nliErr = true; render(); } });
+}
+var DICT_ISSUE = {
+  number: function (x) { return 'Sayı farklı: <b>' + esc(x.ref) + '</b> olmalı, sen <b>' + esc(x.said) + '</b> dedin'; },
+  'number-missing': function (x) { return 'Sayı eksik: <b>' + esc(x.ref) + '</b>'; },
+  negation: function (x) { return x.said < x.ref ? 'Olumsuzluk eksik (not, no, never…)' : 'Fazladan olumsuzluk (not, no, never…)'; },
+  antonym: function (x) { return 'Ters anlam: <b>' + esc(x.ref) + '</b> olmalı, sen <b>' + esc(x.said) + '</b> dedin'; },
+  order: function (x) { return 'Sıra ters: <b>' + esc(x.ref) + '</b> olmalı, sen <b>' + esc(x.said) + '</b> dedin'; }
+};
+function dictRes3(d, said) {
+  var cls = ['low', 'mid', 'ok'][d.grade], h = '<div class="dres"><div>';
+  if (d.tier === 'ezber') h += '<b class="sc ' + cls + '">%' + d.score + '</b> · kelime isabeti';
+  else h += '<b class="sc ' + cls + '">' + ['Anlam tutmuyor', 'Anlam eksik', 'Anlam tam'][d.grade] + '</b>';
+  h += '</div>';
+  d.issues.forEach(function (x) { if (DICT_ISSUE[x.kind]) h += '<div class="miss">' + DICT_ISSUE[x.kind](x) + '</div>'; });
+  if (d.nli && d.con >= verify3.THRESHOLDS.anlamCon) h += '<div class="miss">Söylediğin, hedef cümleyle çelişiyor.</div>';
+  else if (d.nli && d.tier !== 'ezber' && d.entB < verify3.THRESHOLDS.anlamEnt) h += '<div class="extra">Hedefteki bilginin bir kısmı eksik görünüyor.</div>';
+  else if (d.nli && d.tier !== 'ezber' && d.entF < verify3.THRESHOLDS.anlamEnt) h += '<div class="extra">Hedefte olmayan ya da farklı bir bilgi var.</div>';
+  if (d.miss.length) h += '<div class="miss">' + (d.tier === 'ezber' ? 'Eksik ya da farklı' : 'Eksik terimler') + ': <b>' + esc(d.miss.slice(0, 8).join(', ')) + (d.miss.length > 8 ? ' …' : '') + '</b></div>';
+  if (d.extra.length) h += '<div class="extra">' + (d.tier === 'ezber' ? 'Fazla' : 'Farklı ya da fazla') + ': <b>' + esc(d.extra.slice(0, 8).join(', ')) + (d.extra.length > 8 ? ' …' : '') + '</b></div>';
+  var M = window.__nli, st = M ? M.info().state : 'off';
+  if (d.pending) h += '<div class="said">Anlam kontrol ediliyor…</div>';
+  else if (d.nliErr) h += '<div class="said">Anlam modeli çalışmadı; sadece kelime ve kural kontrolü yapıldı.</div>';
+  else if (!d.nli && d.tier !== 'ezber' && st === 'off') h += '<div class="said">Anlam modeli kapalı; sadece kelime ve kural kontrolü yapıldı (Ayarlar → Anlam kontrolü).</div>';
+  return h + '<div class="said">Sen: ' + esc(said) + '</div></div>';
+}
+window.__dict = { score: dictScore, cover: dictCover, check: dictCheck3 };
 function swList(rows) { return '<div class="swlist">' + rows.filter(Boolean).join('') + '</div>'; }
 /* ---- pattern highlight (kalıp): mk = 1–2 multi-word chunks of en, in order. Edited text keeps the chunks it still contains;
    a line without chunks (added by hand) gets common English frames picked automatically. ---- */
@@ -2390,6 +2750,17 @@ function ttsPanel() {
     (miss && !i.busy ? '<button class="btn" data-act="ttsFill">Eksikleri şimdi seslendir</button>' : '');
   return h + '</section>';
 }
+function nliPanel() {
+  var M = window.__nli; if (!M) return '';
+  var i = M.info();
+  var h = '<section class="panel set"><div class="ph"><h2>Anlam kontrolü</h2><span class="mono">deneysel</span></div>' +
+    '<p class="hint">Anlam kartlarında 🎤 ile söylediğinin hedef cümleyle aynı şeyi söyleyip söylemediğini bu cihazdaki küçük bir modelle kontrol eder; sırası ya da kelimeleri farklı doğru cevapları kabul eder, çelişen cevabı yakalar. Sonra internetsiz çalışır.</p>';
+  if (i.state === 'off') h += '<p class="hint">İlk açılışta model indirilir (~55 MB, Wi-Fi önerilir). Kapalıyken kelime ve kural kontrolü yapılır.</p><button class="btn" data-act="nliEnable">Modeli indir ve aç</button>';
+  else if (i.state === 'loading') h += '<p class="hint">Model yükleniyor… <span class="mono">%' + i.pct + '</span></p>';
+  else if (i.state === 'error') h += '<p class="hint" style="color:var(--bad)">Model yüklenemedi: ' + esc(i.err) + '</p><button class="btn" data-act="nliEnable">Tekrar dene</button>';
+  else h += '<p class="hint">Açık' + (i.state === 'idle' ? '; ilk kontrolde yüklenir.' : '.') + '</p>';
+  return h + '</section>';
+}
 function renderSettings() {
   var ev = enVoices(), tv = trVoices();
   var h = '<section class="hero"><h1>Ayarlar</h1></section><div class="stack">';
@@ -2399,6 +2770,7 @@ function renderSettings() {
     '<div class="rangehead"><label for="rate-tr">Türkçe</label><span class="mono" id="rate-tr-o">' + U.settings.rateTr.toFixed(2) + '×</span></div><input type="range" id="rate-tr" min="0.8" max="1.3" step="0.05" value="' + U.settings.rateTr + '">' +
     '<div class="row"><button class="btn" data-act="testEn">▶ İngilizce dene</button><button class="btn" data-act="testTr">▶ Türkçe dene</button></div></section>';
   h += ttsPanel();
+  h += nliPanel();
   if (!LOCAL) h += filesPanel();
   h += '<section class="panel set"><h2>İngilizce cihaz sesi (yedek)</h2>';
   if (!synth) h += '<p class="hint">Bu tarayıcı sesli okuma desteklemiyor. Safari ya da Chrome ile aç.</p>';
@@ -2568,7 +2940,8 @@ var ACT = {
     var t = document.getElementById('dict'), txt = t ? t.value : s.dictText;
     if (!txt || !txt.trim()) { toast('Önce söyle ya da yaz.'); dictFocus(); return; }
     try { if (t) t.blur(); } catch (e) {}
-    s.dictText = txt; s.dict = dictScore(s.q[s.i].l.en, txt); reveal();
+    var l = s.q[s.i].l;
+    s.dictText = txt; s.dict = dictCheck3(l, txt); dictNli(s, l, txt); reveal();
   },
   rehSave: function (el) { rehSave(el.dataset.ok === '1'); },
   rehMode: function (el) { S.rehMode = el.dataset.m; render(); },
@@ -2610,6 +2983,7 @@ var ACT = {
   testEn: function () { var l = S.answers[0] && S.answers[0].lines[0]; play(l ? l.en : "I'm a QA automation engineer.", 'en'); },
   testTr: function () { var l = S.answers[0] && S.answers[0].lines[0]; play(l ? l.tr : 'Bir QA otomasyon mühendisiyim.', 'tr'); },
   copyMissing: copyMissing,
+  nliEnable: function () { var M = window.__nli; if (!M) return; M.enable().then(function () { toast('Anlam kontrolü açık.'); }, function () {}); render(); },
   ttsEnable: function () { var T = window.__localTTS; if (!T) return; T.enable().then(function () { T.queue(missingEn()); }, function () {}); render(); },
   ttsFill: function () { var T = window.__localTTS; if (T) { T.queue(missingEn()); render(); } },
   voiceMode: function (el) { stopAudio(); U.settings.voiceMode = el.dataset.m; save('settings'); render(); },
@@ -2699,6 +3073,7 @@ function init() {
     window.__ttsMissing = missingEn;
     window.__toast = toast;
     if (window.__localTTS) window.__localTTS.onChange(function () { if (S.tab === 'settings' && !S.sess) softRender(); });
+    if (window.__nli) window.__nli.onChange(function () { if (S.tab === 'settings' && !S.sess) softRender(); });
     if (window.__LOCAL_AUDIO) window.__setLocalAudio(window.__LOCAL_AUDIO);
   }
   render();

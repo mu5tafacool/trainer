@@ -88,7 +88,13 @@ Listen options:
   - **3 rounds (4/3/2)**: after the first round, tell the same answer again in less time. Round 2 aims for 85% of round 1 and round 3 for 70% (rounded to 5 seconds, never faster than about 170 words a minute). A bar shows the time left; the result lists all rounds.
   - **Follow-up questions** (on by default): after you mark an answer, a follow-up question an interviewer would ask next comes in, taken from your other answers (up to two). *End chain* stops it and shows a summary.
 - **Mock interview**: a five-question chain like a real interview. It starts with *Tell me about yourself* (or the first answer of the chosen group), and most next questions follow up on the previous answer. In the second-interview group the last question is "Do you have any questions for me?".
-- **Say and check** (🎤, Settings → Flow): on review TR → EN cards and in rehearsal, switch the keyboard to English and dictate with the keyboard microphone (or type). The app compares what you said with the line word by word, shows the percentage and the missing or different words, and on review suggests a grade (90% and up Good, 70–89% Hard, below 70% Again). In rehearsal each line gets its own percentage. Case, punctuation, contractions (*I'm* = *I am*), number words (*fifteen hundred* = *1,500*) and one-letter typos in long words are not counted as errors. The browser's own speech recognition is not used: it is unreliable in Home Screen apps on iPhone, while keyboard dictation works everywhere.
+- **Say and check** (🎤, Settings → Flow): on review TR → EN cards and in rehearsal, switch the keyboard to English and dictate with the keyboard microphone (or type). The browser's own speech recognition is not used: it is unreliable in Home Screen apps on iPhone, while keyboard dictation works everywhere.
+  - Both texts are first brought to one form: case, punctuation, contractions (*I'm* = *I am*, also without the apostrophe), number words (*three and a half* = *3.5*, *fifteen hundred* = *1,500*), hyphens, fillers (*um*, *so*), self-corrections (*forty, sorry, fourteen* = *14*), repeated words and common dictation spellings of technical terms (*sauce* = *SaaS*, *play right* = *Playwright*).
+  - **Word-for-word lines**: a weighted word error rate (numbers and negations count double, articles and prepositions half). Good from 94%, Hard from 70%.
+  - **Meaning lines**: word order and wording may differ. With *Meaning check* on, a small on-device model (natural language inference) decides whether what you said says the same as the line: same both ways = Good, part missing = Hard, contradicts = Again. With it off, content-word coverage is used.
+  - **Hard checks on every line**, without any per-line data: a different number, a lost or added negation, a word turned into its opposite (*before*/*after*) and a reversed *from … to*, *instead of* or *expected … got* make the suggestion Again and are named in the result.
+  - On review the result shows the suggestion, the reasons and the missing or different words; the grade stays your choice. In rehearsal each line gets its own percentage.
+- **Meaning check** (Settings, experimental): turned on once; downloads about 55 MB (the model and its runtime), then works offline.
 - **Speed test**:
   - See the Turkish, say the English, reveal.
   - The target is correct and under 3 seconds.
@@ -152,10 +158,26 @@ On AirPods, double and triple tap can be set to next/previous track in the iPhon
 | `sw.js` | Service worker for offline use |
 | `audio.bin`, `audio-*.bin` | Encrypted audio packs |
 | `tts/` | Browser bundle for optional on-device voicing (kokoro-js with the ONNX Runtime Web WebAssembly files) |
+| `nli/` | Transformers.js and its ONNX Runtime Web WebAssembly files for the optional meaning check (the model itself is fetched once from Hugging Face) |
 | `manifest.webmanifest`, `icon-*.png` | Home-screen install |
+| `dev/` | Not used by the app: tests and maintenance tools (below) |
+
+## Development
+
+- `dev/lib/verify3.js` is the spoken check. `index.html` carries a copy between `verify3:start` and `verify3:end`; after changing the file run `node dev/tools/sync-verify3.cjs` (a test fails if they differ).
+- `dev/lib/seed.cjs` decrypts and re-encrypts the answer set the same way the app does. The passphrase is passed in, never stored.
+- Tests use Playwright (`@playwright/test`) and contain no answer text:
+
+  ```
+  cd dev && npm i --no-save @playwright/test@1.63 && npx playwright install chromium && cd ..
+  TRAINER_PASS=<passphrase> dev/node_modules/.bin/playwright test -c dev/playwright.config.cjs
+  ```
+
+  Optional: `TRAINER_MODELS=<folder with Xenova/mobilebert-uncased-mnli>` runs the meaning-model test offline (`TRAINER_MODELS=online` downloads it instead); `TRAINER_DATA=<private folder>` adds private real-sentence fixtures. Tests that need what is not set are skipped.
 
 ## Credits
 
 - [kokoro-js](https://github.com/hexgrad/kokoro) and the Kokoro-82M model (Apache-2.0).
+- [Transformers.js](https://github.com/huggingface/transformers.js) (Apache-2.0) and the MNLI-tuned MobileBERT model [Xenova/mobilebert-uncased-mnli](https://huggingface.co/Xenova/mobilebert-uncased-mnli) (an ONNX export of typeform/mobilebert-uncased-mnli, based on Google's MobileBERT, Apache-2.0; the fine-tuned model card states no license of its own).
 - [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) (MIT).
 - Fonts from Google Fonts: Bricolage Grotesque, IBM Plex Sans and IBM Plex Mono (SIL OFL).
