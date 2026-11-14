@@ -979,9 +979,12 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
   function baseTokens(text) {
     var s = String(text || '').toLowerCase().replace(/[’‘`´]/g, "'").replace(/[“”]/g, '"');
     s = s.replace(/(\d),(?=\d{3}\b)/g, '$1').replace(/(\d+(?:\.\d+)?)k\b/g, function (m, n) { return String(Math.round(parseFloat(n) * 1000)); });
-    s = s.replace(/(\d+)\s*(?:and\s+)?(?:1\/2|½)(?!\d)/g, function (m, n) { return String(parseInt(n, 10) + 0.5); })
-      .replace(/(\d+)\s*(?:and\s+)?(?:1\/4|¼)(?!\d)/g, function (m, n) { return String(parseInt(n, 10) + 0.25); })
-      .replace(/(^|[^\d.])(?:1\/2|½)(?!\d)/g, '$10.5');
+    // fractions: "3 1/2", "3 and 1/2" (a space or "and" is required, so "11/2" stays a date or ratio), "3½", "3 ½";
+    // a lone "1/2" or "½" only at the start or after a space. Any other a/b is left alone.
+    var frac = function (v) { return function (m, n) { return String(parseInt(n, 10) + v); }; };
+    s = s.replace(/(\d+)(?:\s+and)?\s+1\/2(?![\d\/])/g, frac(0.5)).replace(/(\d+)(?:\s+and)?\s+1\/4(?![\d\/])/g, frac(0.25))
+      .replace(/(\d+)(?:\s+and)?\s*½/g, frac(0.5)).replace(/(\d+)(?:\s+and)?\s*¼/g, frac(0.25))
+      .replace(/(^|\s)(?:1\/2(?![\d\/])|½)/g, '$10.5').replace(/(^|\s)(?:1\/4(?![\d\/])|¼)/g, '$10.25');
     s = s.replace(/(\d)\s*%/g, '$1 percent').replace(/%/g, ' percent').replace(/&/g, ' and ').replace(/(\d)\s*[×x](?=\d)/g, '$1 by ');
     s = s.replace(/([a-z])(\d)/g, '$1 $2').replace(/(\d)([a-z])/g, '$1 $2');
     s = s.replace(/(\d)\.(\d)/g, '$1§$2').replace(/[\/\-–—_]+/g, ' ').replace(/[^a-z0-9§' ]+/g, ' ').replace(/§/g, '.');
@@ -1003,7 +1006,16 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     var out = t.slice();
     Object.keys(HOMO).forEach(function (w) {
       var n = HOMO[w], need = cnt(ref, n) - cnt(out, n), extra = cnt(out, w) - cnt(ref, w);
-      for (var i = 0; i < out.length && need > 0 && extra > 0; i++) if (out[i] === w) { out[i] = n; need--; extra--; }
+      while (need > 0 && extra > 0) {
+        // prefer the occurrence with the same neighbour the number has in the reference ("talked to to people" → "to 2")
+        var at = ref.indexOf(n), prev = ref[at - 1], next = ref[at + 1], best = -1, score = -1;
+        for (var i = 0; i < out.length; i++) if (out[i] === w) {
+          var sc = (out[i - 1] === prev ? 2 : 0) + (out[i + 1] === next ? 1 : 0);
+          if (sc > score) { score = sc; best = i; }
+        }
+        if (best < 0) break;
+        out[best] = n; need--; extra--;
+      }
     });
     return out;
   }
@@ -1119,14 +1131,14 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
       if (rep) { out.push.apply(out, rep.to); i += rep.from.length - 1; continue; }
       out.push(t[i]);
     }
-    t = out; out = [];
+    t = fixHomophones(out, R.tokens); out = [];
     // "type script" → "typescript" when the reference has the joined word; stutters "i i" → "i"
     for (i = 0; i < t.length; i++) {
       if (i + 1 < t.length && !R.vocab[t[i]] && R.vocab[t[i] + t[i + 1]]) { out.push(t[i] + t[i + 1]); i++; continue; }
       if (out.length && out[out.length - 1] === t[i] && !hasPhrase(R.tokens, [t[i], t[i]])) continue;
       out.push(t[i]);
     }
-    return fixHomophones(fixNames(out, R), R.tokens);
+    return fixNames(out, R);
   }
 
   function lev1(a, b) {
@@ -1140,25 +1152,32 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
   }
   // Light stemmer for meaning cards only (ezber stays exact): plural, -ed, -ing, -ies and common irregular verbs.
   var IRR = {};
-  ('keep kept|run ran|build built|teach taught|go went gone|do did done|be was were is are been|make made|find found|write wrote written|lead led|leave left|pay paid|sell sold|get got gotten|give gave given|take took taken|see saw seen|say said|tell told|think thought|bring brought|buy bought|catch caught|feel felt|hear heard|hold held|know knew known|mean meant|meet met|send sent|spend spent|stand stood|understand understood|win won|begin began begun|break broke broken|choose chose chosen|drive drove driven|fall fell fallen|grow grew grown|have had has|show shown|split split|set set|cut cut|let let|put put|lose lost|sit sat|speak spoke spoken|fly flew flown|rise rose risen|shake shook shaken|wear wore worn|fight fought|seek sought|deal dealt|learn learnt')
+  ('keep kept|run ran|build built|teach taught|go went gone goes|do did done|be was were is are been|make made|find found|write wrote written|lead led|leave left|pay paid|sell sold|get got gotten|give gave given|take took taken|see saw seen|say said|tell told|think thought|bring brought|buy bought|catch caught|feel felt|hear heard|hold held|know knew known|mean meant|meet met|send sent|spend spent|stand stood|understand understood|win won|begin began begun|break broke broken|choose chose chosen|drive drove driven|fall fell fallen|grow grew grown|have had has|show shown|split split|set set|cut cut|let let|put put|lose lost|sit sat|speak spoke spoken|fly flew flown|rise rose risen|shake shook shaken|wear wore worn|fight fought|seek sought|deal dealt|learn learnt')
     .split('|').forEach(function (g) { var w = g.split(' '); w.forEach(function (x) { IRR[x] = w[0]; }); });
   // Possible base forms of a word: itself, irregular base, and the word without -s/-es/-ies, -d/-ed/-ied, -ing (with an
   // undoubled consonant or an added e). Two words match when their sets meet, so "used/use", "shipping/ship", "verified/verify".
+  var EED = {}; 'need seed feed speed succeed proceed exceed indeed deed breed bleed greed weed'.split(' ').forEach(function (w) { EED[w] = 1; });
   function stems(w) {
     var out = [w];
     if (IRR[w]) out.push(IRR[w]);
     if (w.length <= 3 || /^\d/.test(w)) return out;
-    var add = function (x) { if (x.length >= 2) { out.push(x); if (/([bdgklmnprt])\1$/.test(x)) out.push(x.slice(0, -1)); } };
+    // candidate base forms are at least 3 letters; doubled final consonants are also tried undoubled
+    var add = function (x) { if (x.length >= 3) { out.push(x); if (/([bdgklmnprt])\1$/.test(x) && x.length >= 4) out.push(x.slice(0, -1)); } };
     if (/ies$/.test(w)) add(w.slice(0, -3) + 'y');
-    if (/es$/.test(w)) add(w.slice(0, -2));
-    if (/s$/.test(w) && !/(ss|us|is)$/.test(w)) add(w.slice(0, -1));
-    if (/ied$/.test(w)) add(w.slice(0, -3) + 'y');
-    if (/ed$/.test(w)) { add(w.slice(0, -2)); add(w.slice(0, -1)); }
-    if (/ing$/.test(w) && w.length > 5) { add(w.slice(0, -3)); add(w.slice(0, -3) + 'e'); }
+    else if (/(s|x|z|ch|sh|o)es$/.test(w)) add(w.slice(0, -2)); // boxes → box, goes → go
+    if (/s$/.test(w) && !/(ss|us|is|ies)$/.test(w)) add(w.slice(0, -1)); // notes → note, codes → code
+    if (!EED[w]) {
+      if (/ied$/.test(w)) add(w.slice(0, -3) + 'y');
+      else if (/ed$/.test(w)) { add(w.slice(0, -2)); add(w.slice(0, -1)); }
+    }
+    if (/ing$/.test(w) && w.length >= 5) { add(w.slice(0, -3)); add(w.slice(0, -3) + 'e'); }
     return out;
   }
   function stem(w) { var c = stems(w); return c[c.length - 1]; }
-  function stemEq(a, b) { if (a === b || tokEq(a, b)) return true; var x = stems(a), y = stems(b); return x.some(function (v) { return y.indexOf(v) >= 0; }); }
+  function stemEq(a, b) {
+    if (a === b || tokEq(a, b)) return true;
+    if (FUNC[a] || FUNC[b] || NEG[a] || NEG[b]) return false; // "not", "no", "the"… match only exactly
+    var x = stems(a), y = stems(b); return x.some(function (v) { return y.indexOf(v) >= 0; }); }
   function isNum(w) { return /^\d+(\.\d+)?$/.test(w); }
   function tokEq(a, b) { return a === b || (!isNum(a) && !isNum(b) && a.length >= 5 && b.length >= 5 && lev1(a, b)); }
   function weight(w, R) { if (isNum(w) || NEG[w]) return 2; if (FUNC[w]) return 0.5; return 1; }
