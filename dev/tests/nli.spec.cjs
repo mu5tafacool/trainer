@@ -45,3 +45,21 @@ test('meaning model: enable in Settings, judge, use on a card', async ({ page })
   await expect(page.locator('.dres')).not.toContainText('Anlam modeli kapalı');
   expect(errors).toEqual([]);
 });
+
+test('meaning model is prepared in the background when a review starts', async ({ page }) => {
+  requirePass(test);
+  test.skip(!MODELS_ONLINE && (!MODELS || !fs.existsSync(path.join(MODELS, MODEL, 'onnx', 'model_quantized.onnx'))), 'TRAINER_MODELS with ' + MODEL + ' not available');
+  await page.route('**/audio*.bin', (r) => r.abort());
+  await routeModels(page);
+  const { answers } = await seedOf();
+  await unlock(page);
+  await page.getByRole('button', { name: 'Ayarlar', exact: true }).first().click();
+  await page.locator('[data-act="nliEnable"]').click();
+  await expect.poll(() => page.evaluate(() => window.__nli.info().state), { timeout: 60000 }).toBe('ready');
+  const aid = Object.keys(answers)[0];
+  await makeDue(page, answers, [answers[aid].lines[0].id]);
+  await page.reload();
+  expect(await page.evaluate(() => window.__nli.info().state)).toBe('idle'); // on, not loaded yet
+  await page.locator('[data-act="startReview"]').click();
+  await expect.poll(() => page.evaluate(() => window.__nli.info().state), { timeout: 30000 }).toBe('ready'); // no check needed
+});

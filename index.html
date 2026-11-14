@@ -2012,7 +2012,11 @@ function sessHead(label, endTxt) { return '<div class="sesshead"><button class="
 function tierTxt(l) { return l.tier === 'ezber' ? 'Ezber · kelimesi kelimesine' : 'Anlam · ana fikir ve terimler yeter'; }
 
 /* review */
+/* the meaning model loads on its first use (~2 s on a phone): when a session that can use it starts, load it in the
+   background so the first "Kontrol et" is as fast as the rest (~50 ms) */
+function nliWarm() { var M = window.__nli; if (M && M.info().state === 'idle') setTimeout(function () { M.enable().catch(function () {}); }, 400); }
 function startReview() {
+  nliWarm();
   var items = arrange(shuffle(dueList()));
   if (!items.length) return;
   S.sess = { type: 'review', q: items, i: 0, shown: false, t0: 0, ms: 0, again: 0, n: 0, start: Date.now() };
@@ -2079,6 +2083,7 @@ function splitBatches(nq) {
   return out;
 }
 function startIntro(force) {
+  nliWarm();
   var nq = newQueue(force); if (!nq.length) return;
   if (U.progress.resume) delete U.progress.resume;
   S.sess = { type: 'intro', batches: splitBatches(nq), b: 0, i: 0, step: 0, shadow: 0, shPhase: '', img: 0, phase: 'learn', quiz: null, total: nq.length, start: Date.now() };
@@ -2109,6 +2114,7 @@ function resumeGet() {
 function introPaused() { var s = S.sess; return !!(s && s.type === 'intro' && s.phase !== 'finish'); }
 function resumePos(r) { var n = 0; for (var k = 0; k < r.b; k++) n += r.batches[k].length; return n + (r.phase === 'quiz' ? r.batches[r.b].length : r.i + 1); }
 function resumeIntro() {
+  nliWarm();
   var r = resumeGet(); if (!r) { startIntro(); return; }
   S.sess = { type: 'intro', batches: r.batches, b: r.b, i: r.i, step: 0, shadow: 0, shPhase: '', img: 0, phase: r.phase, quiz: r.phase === 'quiz' ? { q: r.quiz, shown: false } : null, total: r.total, start: Date.now() };
   top();
@@ -3054,7 +3060,7 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v38'; // = V in sw.js (a test checks)
+var APP_VER = 'mt-v39'; // = V in sw.js (a test checks)
 var NLI_TIMES = 'mt1:__nli_ms';
 function nliTimeAdd(ms) { try { var a = JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); a.push(ms); localStorage.setItem(NLI_TIMES, JSON.stringify(a.slice(-20))); } catch (e) {} }
 function nliTimes() { try { return JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); } catch (e) { return []; } }
