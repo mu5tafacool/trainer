@@ -58,5 +58,11 @@ test.describe('grades without models', () => {
   test('ezber: a hard contradiction is Tekrar even with few word errors', () => {
     expect(g('ezber', "I'm not going to the party tonight.", "I'm going to the party tonight")).toBe(0);
   });
+  test('meaning cards list words order-free: a reordered word is neither missing nor extra', () => {
+    const r = v3.check({ en: 'We keep the old recipe in a folder that the whole kitchen can open.', tier: 'anlam' }, 'the whole kitchen can open the folder with the old recipe', LEX, null);
+    expect(r.bag).toEqual({ miss: ['keep'], extra: [] });
+    const s = v3.check({ en: 'We keep the old recipe in a folder that the whole kitchen can open.', tier: 'anlam' }, 'we keep the old receipt in a folder the kitchen can open', LEX, null);
+    expect(s.bag).toEqual({ miss: ['recipe', 'whole'], extra: ['receipt'] });
+  });
   test('empty answer is Tekrar', () => { expect(g('anlam', 'We ship weekly.', '')).toBe(0); });
 });
