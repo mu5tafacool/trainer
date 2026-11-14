@@ -6,7 +6,7 @@ Offline PWA for practising spoken answers. Everything ships from branch `gh-page
 - `index.html` is the whole app (two scripts: platform layer, then UI). The answer set is an encrypted `<script id="seed">` (AES-GCM, PBKDF2-SHA256 200k; passphrase normalized to lowercase a–z0–9).
 - `sw.js` service worker; bump `V` (`mt-vNN`) on every release.
 - `nli/` Transformers.js + ONNX Runtime wasm for the optional meaning check (byte-identical npm files, see README).
-- `audio*.bin` encrypted voice packs, append-only. A line whose text changes needs new clips (EN Kokoro `am_fenrir`, TR macOS Siri Voice 2): `dev/tools/audio-pack.cjs` builds a new pack from a private manifest and registers it; `audio.spec` checks every line has both clips.
+- `audio*.bin` encrypted voice packs, append-only; clips are looked up by `lang|text`. After any seed text change run `TRAINER_PASS=… KOKORO_DIR=… node dev/tools/voices.cjs` (`--dry` to only list): it voices every played text without a clip (EN Kokoro `am_fenrir`; TR `say` with the Mac's system voice set to Turkish Siri Voice 2) and adds one pack via `dev/tools/audio-pack.cjs`. Off macOS (cloud) only EN is made; run it on the Mac later for TR. Languages are rows in `LANGS` there. `audio.spec` checks every played text has a clip; the phone drops clips no line uses (`__pruneAudio`).
 - `dev/` tools and Playwright tests. `dev/lib/verify3.js` is the spoken check; `index.html` carries a copy between `verify3:start` and `verify3:end` — after editing run `node dev/tools/sync-verify3.cjs`.
 
 ## Rules

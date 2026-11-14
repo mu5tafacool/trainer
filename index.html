@@ -727,7 +727,37 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     },
     onChange: function (f) { N.subs.push(f); }
   };
+  /* drop clips no answer uses any more (line text edited, line deleted): shipped pack clips and clips voiced on this
+     device (and device clips a shipped pack now covers). used = { "lang|text": 1 } from the answers. Packs stay "installed", so nothing is downloaded again.
+     Safety: if more than half of the clips look unused, something else is wrong (answers not loaded) and nothing is removed. */
+  function pruneAudio() {
+    var used = window.__usedTexts ? window.__usedTexts() : null;
+    if (!used || Object.keys(used).length < 10) return Promise.resolve(0);
+    var drop = function (lang, text) { return !used[lang + '|' + text]; };
+    var packOut = PACK.filter(function (it) { return drop(it.k.split('.').pop(), it.text); });
+    // a clip voiced on this device is also dropped once a shipped pack has the same text (the pack clip wins anyway)
+    var inPack = {}; PACK.forEach(function (it) { inPack[it.k.split('.').pop() + '|' + it.text] = 1; });
+    var genOut = Object.keys(GEN).filter(function (k) { return !used[k] || inPack[k]; });
+    if (!packOut.length && !genOut.length) return Promise.resolve(0);
+    if (packOut.length > PACK.length / 2) return Promise.resolve(0);
+    return idb().then(function (d) {
+      return new Promise(function (res, rej) {
+        var tx = d.transaction(['clips', 'gen'], 'readwrite');
+        packOut.forEach(function (it) { tx.objectStore('clips').delete(it.k); });
+        genOut.forEach(function (k) { tx.objectStore('gen').delete(k); });
+        tx.oncomplete = res; tx.onerror = function () { rej(tx.error); };
+      });
+    }).then(function () {
+      packOut.forEach(function (it) { if (it.url) URL.revokeObjectURL(it.url); });
+      genOut.forEach(function (k) { if (GEN[k].url) URL.revokeObjectURL(GEN[k].url); delete GEN[k]; });
+      PACK = PACK.filter(function (it) { return packOut.indexOf(it) < 0; });
+      publishAll();
+      return packOut.length + genOut.length;
+    }).catch(function () { return 0; });
+  }
+  window.__pruneAudio = pruneAudio;
   function autoFill() {
+    pruneAudio();
     if (!get('__tts_on') || !PACK.length || !window.__ttsMissing) return;
     var miss = window.__ttsMissing();
     if (miss.length && miss.length <= 40) window.__localTTS.queue(miss);
@@ -2882,6 +2912,17 @@ function importCode(code) {
   clearTimeout(flushT); flush(); pickVoices();
 }
 /* on-device voice for new/edited English lines (offline app only; engine lives in the page shim) */
+/* texts the answers use, for dropping clips of edited or deleted lines (window.__pruneAudio, a few seconds after a change) */
+function usedTexts() {
+  var m = {};
+  (S.answers || []).forEach(function (a) {
+    if (a.q) m['en|' + a.q] = 1; if (a.qtr) m['tr|' + a.qtr] = 1;
+    a.lines.forEach(function (l) { if (l.en) m['en|' + l.en] = 1; if (l.tr) m['tr|' + l.tr] = 1; });
+  });
+  return m;
+}
+var pruneT = null;
+function schedulePrune() { clearTimeout(pruneT); pruneT = setTimeout(function () { if (window.__pruneAudio) window.__pruneAudio(); }, 4000); }
 function missingEn() {
   var out = [];
   S.answers.forEach(function (a) { if (!audIdx['en|' + a.q]) out.push(a.q); a.lines.forEach(function (l) { if (!audIdx['en|' + l.en]) out.push(l.en); }); });
@@ -3225,6 +3266,7 @@ function init() {
   if (LOCAL) {
     window.__setLocalAudio = function (m) { LOCAL_AUD = m || {}; rebuildIdx(); softRender(); };
     window.__ttsMissing = missingEn;
+    window.__usedTexts = usedTexts;
     window.__toast = toast;
     if (window.__localTTS) window.__localTTS.onChange(function () { if (S.tab === 'settings' && !S.sess) softRender(); });
     if (window.__nli) window.__nli.onChange(function () { if (S.tab === 'settings' && !S.sess) softRender(); });
@@ -3257,6 +3299,7 @@ function init() {
       S.dbState = 'ready';
       db.collection('answers').orderBy('order').onSnapshot(function (snap) {
         S.answers = snap.docs.map(function (d) { var x = clone(d.data() || {}); x.id = d.id; x.lines = Array.isArray(x.lines) ? x.lines : []; return x; });
+        schedulePrune();
         softRender();
       }, function () { toast('Bağlantı kesildi; sayfayı yenile.'); });
       if (!LOCAL) try {
