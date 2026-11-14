@@ -75,4 +75,31 @@ async function makeDue(page, answers, lineIds) {
   await writeStore(page, entries);
 }
 
-module.exports = { ROOT, PAGE, PASS, MODELS, MODELS_ONLINE, requirePass, unlock, dumpStore, writeStore, seedOf, privateFixtures, routeModels, makeDue };
+// Speech that ends only when the test says so (window.__speechEnd()), so cards don't move on by themselves.
+function stubSpeech(page) {
+  return page.addInitScript(() => {
+    const pend = []; window.__spoken = [];
+    const fake = { speaking: false, pending: false, paused: false, onvoiceschanged: null,
+      speak(u) { window.__spoken.push(u.text); pend.push(u); }, cancel() { pend.length = 0; }, pause() {}, resume() {},
+      getVoices() { return []; }, addEventListener() {}, removeEventListener() {} };
+    Object.defineProperty(window, 'speechSynthesis', { value: fake, configurable: true });
+    window.__speechEnd = () => { const u = pend.shift(); if (u && u.onend) u.onend({}); return !!u; };
+  });
+}
+// navigator.wakeLock that records whether the screen is held; document.visibilityState follows window.__vis.
+function stubWake(page) {
+  return page.addInitScript(() => {
+    window.__wake = { req: 0, rel: 0, held: false }; window.__vis = 'visible';
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request() {
+      window.__wake.req++; window.__wake.held = true;
+      const l = []; const s = { released: false, addEventListener(t, f) { l.push(f); },
+        release() { if (!s.released) { s.released = true; window.__wake.rel++; window.__wake.held = false; l.forEach((f) => f()); } return Promise.resolve(); } };
+      return Promise.resolve(s);
+    } } });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => window.__vis });
+    window.__setVisible = (v) => { window.__vis = v ? 'visible' : 'hidden'; document.dispatchEvent(new Event('visibilitychange')); };
+  });
+}
+const mmss = (ms) => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+module.exports = { stubSpeech, stubWake, mmss, ROOT, PAGE, PASS, MODELS, MODELS_ONLINE, requirePass, unlock, dumpStore, writeStore, seedOf, privateFixtures, routeModels, makeDue };

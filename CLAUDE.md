@@ -23,6 +23,8 @@ Offline PWA for practising spoken answers. Everything ships from branch `gh-page
 cd dev && npm i --no-save @playwright/test@1.63 && npx playwright install chromium && cd ..
 TRAINER_PASS=<from the user> dev/node_modules/.bin/playwright test -c dev/playwright.config.cjs
 ```
+- Tests run in parallel (`fullyParallel`, 75% of cores; `TRAINER_WORKERS=1` for one at a time), ~10 s for the suite; HTML report in `$TMPDIR/trainer-report`.
+- Speech and the wake lock are stubbed (`stubSpeech`, `stubWake` in helpers) and time is fast-forwarded with `page.clock`, so Dinle, Prova, Mülakat and wake-lock tests don't wait in real time.
 - Without `TRAINER_PASS` the tests that need the seed are skipped.
 - `TRAINER_DATA=<trainer-data checkout>` adds the private real-sentence fixtures.
 - `TRAINER_MODELS=<folder>` serves the meaning model from disk; `TRAINER_MODELS=online` lets it download from Hugging Face.

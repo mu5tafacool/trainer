@@ -13,8 +13,10 @@ module.exports = defineConfig({
   testMatch: /.*\.spec\.cjs$/,
   outputDir: process.env.TRAINER_OUT || require('node:os').tmpdir() + '/trainer-test-results',
   timeout: 90000,
-  workers: 1,
-  reporter: [['list']],
+  // every test gets its own browser context (own storage), so files and tests run side by side
+  fullyParallel: true,
+  workers: process.env.TRAINER_WORKERS || '75%',
+  reporter: [['dot'], ['html', { outputFolder: require('node:os').tmpdir() + '/trainer-report', open: 'never' }]],
   use: {
     baseURL: 'http://127.0.0.1:' + PORT + '/',
     channel: process.env.TRAINER_CHANNEL || undefined,
@@ -22,7 +24,7 @@ module.exports = defineConfig({
     viewport: { width: 390, height: 844 },
   },
   webServer: {
-    command: 'python3 -m http.server ' + PORT + ' --bind 127.0.0.1',
+    command: 'node dev/tools/serve.cjs ' + PORT, // handles many parallel connections (python's http.server dropped some)
     cwd: root,
     url: 'http://127.0.0.1:' + PORT + '/index.html',
     reuseExistingServer: false,
