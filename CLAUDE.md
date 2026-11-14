@@ -6,7 +6,7 @@ Offline PWA for practising spoken answers. Everything ships from branch `gh-page
 - `index.html` is the whole app (two scripts: platform layer, then UI). The answer set is an encrypted `<script id="seed">` (AES-GCM, PBKDF2-SHA256 200k; passphrase normalized to lowercase a–z0–9).
 - `sw.js` service worker; bump `V` (`mt-vNN`) on every release.
 - `nli/` Transformers.js + ONNX Runtime wasm for the optional meaning check (byte-identical npm files, see README).
-- `audio*.bin` encrypted voice packs, append-only.
+- `audio*.bin` encrypted voice packs, append-only. A line whose text changes needs new clips (EN Kokoro `am_fenrir`, TR macOS Siri Voice 2): `dev/tools/audio-pack.cjs` builds a new pack from a private manifest and registers it; `audio.spec` checks every line has both clips.
 - `dev/` tools and Playwright tests. `dev/lib/verify3.js` is the spoken check; `index.html` carries a copy between `verify3:start` and `verify3:end` — after editing run `node dev/tools/sync-verify3.cjs`.
 
 ## Rules
@@ -26,4 +26,5 @@ TRAINER_PASS=<from the user> dev/node_modules/.bin/playwright test -c dev/playwr
 - Without `TRAINER_PASS` the tests that need the seed are skipped.
 - `TRAINER_DATA=<trainer-data checkout>` adds the private real-sentence fixtures.
 - `TRAINER_MODELS=<folder>` serves the meaning model from disk; `TRAINER_MODELS=online` lets it download from Hugging Face.
+- `TRAINER_ONLINE=1` runs `ondevice.spec` (downloads both on-device models, ~2 min).
 - Before publishing, run the private leak scan: `node <trainer-data>/tools/leakscan.cjs . ` (needs `TRAINER_PASS`).
