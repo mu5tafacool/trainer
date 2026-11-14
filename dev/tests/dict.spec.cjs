@@ -44,7 +44,7 @@ test.describe('current dictation scoring', () => {
     const lines = {};
     Object.values(answers).forEach((a) => (a.lines || []).forEach((l) => { lines[l.id] = l; }));
     for (const c of fx.dict) {
-      const d = await page.evaluate(([r, s]) => window.__dict.score(r, s), [lines[c.id].en, c.said]);
+      const d = await page.evaluate(([r, s]) => window.__dict.score(r, s), [c.ref || lines[c.id].en, c.said]); // ref: the text the screenshot showed, if the line changed since
       expect(d.score, c.id).toBe(c.score);
       expect(d.miss, c.id).toEqual(c.miss);
       expect(d.extra, c.id).toEqual(c.extra);
