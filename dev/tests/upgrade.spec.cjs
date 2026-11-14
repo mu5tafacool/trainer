@@ -71,3 +71,41 @@ test('older seed on the device is merged, not replaced', async ({ page }) => {
   expect(after['data/users/local/progress']).toEqual(progress);
   expect(after['data/users/local/srs_' + aid]).toEqual(srs);
 });
+
+// A line split in the current seed: on a device from the previous version the first half keeps its id (and progress),
+// its text updates (it was not edited), and the new second half lands right after it as a new line.
+test('a split line keeps its progress and the new half comes in after it', async ({ page }) => {
+  requirePass(test);
+  const { meta, data, answers } = await seedOf();
+  const order = data.order || [];
+  const prevV = order[order.indexOf(meta.v) - 1];
+  test.skip(!prevV || !data.hist || !data.hist[prevV], 'no previous seed version in hist');
+  const known = new Set(data.hist[prevV]);
+  let aid, first, fresh;
+  for (const id of Object.keys(answers)) {
+    const L = answers[id].lines;
+    for (let i = 1; i < L.length; i++) if (!known.has(L[i].id) && !L[i].rep && known.has(L[i - 1].id)) { aid = id; first = L[i - 1]; fresh = L[i]; break; }
+    if (aid) break;
+  }
+  test.skip(!aid, 'no split line in this seed');
+
+  await unlock(page);
+  const before = await dumpStore(page);
+  const oldFirst = { ...first, en: 'Old text of this line before the split.', tr: 'Bölünmeden önceki eski metin.', mk: [] };
+  const local = answers[aid].lines.filter((l) => l.id !== fresh.id).map((l) => (l.id === first.id ? oldFirst : l));
+  const srs = { c: { [first.id]: { p: { ivl: 5, ease: 2.4, due: '2026-12-05', reps: 3, lapses: 1 } } } };
+  await writeStore(page, {
+    ['answers/' + aid]: { ...before['answers/' + aid], lines: local },
+    ['data/users/local/srs_' + aid]: srs,
+    __seed: { v: prevV, at: '2026-01-01T00:00:00.000Z', from: null },
+  });
+
+  await page.reload();
+  await expect.poll(async () => (await dumpStore(page)).__seed.v, { timeout: 30000 }).toBe(meta.v);
+  const after = await dumpStore(page);
+  const lines = after['answers/' + aid].lines, ids = lines.map((l) => l.id);
+  expect(lines.find((l) => l.id === first.id).en).toBe(first.en);
+  expect(lines.find((l) => l.id === first.id).mk).toEqual(first.mk);
+  expect(ids.indexOf(fresh.id)).toBe(ids.indexOf(first.id) + 1);
+  expect(after['data/users/local/srs_' + aid]).toEqual(srs);
+});
