@@ -60,6 +60,9 @@
   function baseTokens(text) {
     var s = String(text || '').toLowerCase().replace(/[’‘`´]/g, "'").replace(/[“”]/g, '"');
     s = s.replace(/(\d),(?=\d{3}\b)/g, '$1').replace(/(\d+(?:\.\d+)?)k\b/g, function (m, n) { return String(Math.round(parseFloat(n) * 1000)); });
+    s = s.replace(/(\d+)\s*(?:and\s+)?(?:1\/2|½)(?!\d)/g, function (m, n) { return String(parseInt(n, 10) + 0.5); })
+      .replace(/(\d+)\s*(?:and\s+)?(?:1\/4|¼)(?!\d)/g, function (m, n) { return String(parseInt(n, 10) + 0.25); })
+      .replace(/(^|[^\d.])(?:1\/2|½)(?!\d)/g, '$10.5');
     s = s.replace(/(\d)\s*%/g, '$1 percent').replace(/%/g, ' percent').replace(/&/g, ' and ').replace(/[×x](?=\d)/g, ' by ');
     s = s.replace(/([a-z])(\d)/g, '$1 $2').replace(/(\d)([a-z])/g, '$1 $2');
     s = s.replace(/(\d)\.(\d)/g, '$1§$2').replace(/[\/\-–—_]+/g, ' ').replace(/[^a-z0-9§' ]+/g, ' ').replace(/§/g, '.');
@@ -71,6 +74,19 @@
       t = t.replace(/'s$/, '').replace(/'/g, ''); if (t) out.push(t);
     });
     return numberize(out);
+  }
+
+  // Dictation writes some spoken numbers as words that sound the same ("four" → "for"). Fixed only when the reference has
+  // that number, the answer lacks it, and the answer has more of the look-alike word than the reference.
+  var HOMO = { 'for': '4', fore: '4', to: '2', too: '2', ate: '8' };
+  function fixHomophones(t, ref) {
+    var cnt = function (arr, w) { var c = 0; arr.forEach(function (x) { if (x === w) c++; }); return c; };
+    var out = t.slice();
+    Object.keys(HOMO).forEach(function (w) {
+      var n = HOMO[w], need = cnt(ref, n) - cnt(out, n), extra = cnt(out, w) - cnt(ref, w);
+      for (var i = 0; i < out.length && need > 0 && extra > 0; i++) if (out[i] === w) { out[i] = n; need--; extra--; }
+    });
+    return out;
   }
 
   function phraseAt(toks, i, phrase) { for (var k = 0; k < phrase.length; k++) if (toks[i + k] !== phrase[k]) return false; return true; }
@@ -122,7 +138,7 @@
       if (out.length && out[out.length - 1] === t[i] && !hasPhrase(R.tokens, [t[i], t[i]])) continue;
       out.push(t[i]);
     }
-    return out;
+    return fixHomophones(out, R.tokens);
   }
 
   function lev1(a, b) {
@@ -134,6 +150,27 @@
     }
     return d + (a.length - i) + (b.length - j) <= 1;
   }
+  // Light stemmer for meaning cards only (ezber stays exact): plural, -ed, -ing, -ies and common irregular verbs.
+  var IRR = {};
+  ('keep kept|run ran|build built|teach taught|go went gone|do did done|be was were is are been|make made|find found|write wrote written|lead led|leave left|pay paid|sell sold|get got gotten|give gave given|take took taken|see saw seen|say said|tell told|think thought|bring brought|buy bought|catch caught|feel felt|hear heard|hold held|know knew known|mean meant|meet met|send sent|spend spent|stand stood|understand understood|win won|begin began begun|break broke broken|choose chose chosen|drive drove driven|fall fell fallen|grow grew grown|have had has|show shown|split split|set set|cut cut|let let|put put|lose lost|sit sat|speak spoke spoken|fly flew flown|rise rose risen|shake shook shaken|wear wore worn|fight fought|seek sought|deal dealt|learn learnt')
+    .split('|').forEach(function (g) { var w = g.split(' '); w.forEach(function (x) { IRR[x] = w[0]; }); });
+  // Possible base forms of a word: itself, irregular base, and the word without -s/-es/-ies, -d/-ed/-ied, -ing (with an
+  // undoubled consonant or an added e). Two words match when their sets meet, so "used/use", "shipping/ship", "verified/verify".
+  function stems(w) {
+    var out = [w];
+    if (IRR[w]) out.push(IRR[w]);
+    if (w.length <= 3 || /^\d/.test(w)) return out;
+    var add = function (x) { if (x.length >= 2) { out.push(x); if (/([bdgklmnprt])\1$/.test(x)) out.push(x.slice(0, -1)); } };
+    if (/ies$/.test(w)) add(w.slice(0, -3) + 'y');
+    if (/es$/.test(w)) add(w.slice(0, -2));
+    if (/s$/.test(w) && !/(ss|us|is)$/.test(w)) add(w.slice(0, -1));
+    if (/ied$/.test(w)) add(w.slice(0, -3) + 'y');
+    if (/ed$/.test(w)) { add(w.slice(0, -2)); add(w.slice(0, -1)); }
+    if (/ing$/.test(w) && w.length > 5) { add(w.slice(0, -3)); add(w.slice(0, -3) + 'e'); }
+    return out;
+  }
+  function stem(w) { var c = stems(w); return c[c.length - 1]; }
+  function stemEq(a, b) { if (a === b || tokEq(a, b)) return true; var x = stems(a), y = stems(b); return x.some(function (v) { return y.indexOf(v) >= 0; }); }
   function isNum(w) { return /^\d+(\.\d+)?$/.test(w); }
   function tokEq(a, b) { return a === b || (!isNum(a) && !isNum(b) && a.length >= 5 && b.length >= 5 && lev1(a, b)); }
   function weight(w, R) { if (isNum(w) || NEG[w]) return 2; if (FUNC[w]) return 0.5; return 1; }
@@ -213,7 +250,7 @@
     var left = hyp.filter(function (w) { return !FUNC[w]; }), miss = [];
     ref.forEach(function (w) {
       if (FUNC[w]) return;
-      var k = left.indexOf(w); if (k < 0) for (var i = 0; i < left.length && k < 0; i++) if (tokEq(w, left[i])) k = i;
+      var k = left.indexOf(w); if (k < 0) for (var i = 0; i < left.length && k < 0; i++) if (stemEq(w, left[i])) k = i;
       if (k >= 0) left.splice(k, 1); else miss.push(w);
     });
     return { miss: miss, extra: left };
@@ -222,12 +259,13 @@
   /* Combines everything into a suggested grade (2 İyi, 1 Zor, 0 Tekrar).
      sig (optional) = { sim: cosine, nli: { fwd: {ent, neu, con}, back: {ent, neu, con} } }  — fwd: reference ⇒ said, back: said ⇒ reference. */
   // Chosen on the 85-case eval set (stable across the grid; see the prototype report).
-  var T = { ezberGood: 0.94, ezberOk: 0.7, anlamCon: 0.5, anlamEnt: 0.7, anlamSimGood: 0.8, anlamSimOk: 0.6 };
+  var T = { ezberGood: 0.94, ezberOk: 0.7, anlamCon: 0.5, anlamEnt: 0.7, anlamSimGood: 0.8, anlamSimOk: 0.6, anlamCovGood: 0.5 };
   function check(line, said, lexicon, sig, opts) {
     opts = opts || {};
     var R = line._prep || prepareRef(line.en, lexicon), hyp = normalizeSaid(said, R);
     var a = align(R.tokens, hyp, R), acc = Math.max(0, 1 - a.err / (a.refW || 1));
     var issues = hardChecks(R, hyp), hard = issues.some(function (x) { return x.hard; });
+    var bag = bagDiff(R.tokens, hyp), nC = R.tokens.filter(function (w) { return !FUNC[w]; }).length, cov = nC ? 1 - bag.miss.length / nC : 1;
     var con = 0, entF = null, entB = null;
     // Contradiction is read only as "reference ⇒ said": the reverse direction raised false alarms on reordered answers.
     if (sig && sig.nli) { con = sig.nli.fwd.con; entF = sig.nli.fwd.ent; entB = sig.nli.back.ent; }
@@ -246,21 +284,21 @@
         var both = entF >= T.anlamEnt && entB >= T.anlamEnt, one = entF >= T.anlamEnt || entB >= T.anlamEnt;
         grade = both ? 2 : one ? 1 : (useSim && sig.sim >= T.anlamSimOk ? 1 : 0);
         if (grade === 2 && issues.some(function (x) { return x.kind === 'number-missing'; })) grade = 1;
+        // The model can call a short, garbled answer "entailed"; most of the reference's terms must be there for İyi.
+        if (grade === 2 && cov < T.anlamCovGood) { grade = 1; why.push('low-coverage'); }
         why.push('nli');
       } else if (useSim) {
         grade = sig.sim >= T.anlamSimGood ? 2 : sig.sim >= T.anlamSimOk ? 1 : 0;
         if (grade === 2 && issues.some(function (x) { return x.kind === 'number-missing'; })) grade = 1;
         why.push('sim');
       } else {
-        // rules only: bag-of-content-words coverage (order ignored), function words ignored
-        var refC = R.tokens.filter(function (w) { return !FUNC[w]; }), hv = {}; hyp.forEach(function (w) { hv[w] = 1; });
-        var cov = refC.length ? refC.filter(function (w) { return hv[w] || hyp.some(function (h) { return tokEq(w, h); }); }).length / refC.length : 1;
+        // rules only: bag-of-content-words coverage (order and word endings ignored), function words ignored
         grade = cov >= 0.85 ? 2 : cov >= 0.6 ? 1 : 0; why.push('coverage ' + cov.toFixed(2));
       }
     }
-    return { grade: grade, acc: acc, issues: issues, edits: a.edits, bag: bagDiff(R.tokens, hyp), said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
+    return { grade: grade, acc: acc, issues: issues, edits: a.edits, bag: bag, cov: cov, said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
   }
 
-  var api = { baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
+  var api = { baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.verify3 = api;
 })(typeof window !== 'undefined' ? window : this);

@@ -21,6 +21,9 @@ test.describe('normalization', () => {
     ['fillers removed unless the reference uses them', 'I wrote the report.', 'um so I like wrote the report', 'i wrote the report'],
     ['self-correction keeps the corrected value', 'It was fourteen percent.', 'it was forty sorry fourteen percent', 'it was 14 percent'],
     ['stutter collapsed', 'I worked there.', 'I I worked there', 'i worked there'],
+    ['fractions', 'x', '3 1/2 years, 2½ weeks, 1/2 day', '3.5 years 2.5 weeks 0.5 day'],
+    ['number look-alike becomes the number the reference needs', 'We ran four checks for the team.', 'we ran for checks for the team', 'we ran 4 checks for the team'],
+    ['look-alike stays a word when no number is needed', 'We did it for the team.', 'we did it for the team', 'we did it for the team'],
   ];
   for (const [name, ref, said, want] of cases) test(name, () => { expect(norm(ref, said)).toBe(want); });
 });
@@ -63,6 +66,16 @@ test.describe('grades without models', () => {
     expect(r.bag).toEqual({ miss: ['keep'], extra: [] });
     const s = v3.check({ en: 'We keep the old recipe in a folder that the whole kitchen can open.', tier: 'anlam' }, 'we keep the old receipt in a folder the kitchen can open', LEX, null);
     expect(s.bag).toEqual({ miss: ['recipe', 'whole'], extra: ['receipt'] });
+  });
+  test('meaning cards ignore word endings: plural, -ed, -ing, irregular verbs', () => {
+    const r = v3.check({ en: 'The robots kept shipping parcels and verified labels.', tier: 'anlam' }, 'the robot keep ship parcel and verify label', LEX, null);
+    expect(r.bag).toEqual({ miss: [], extra: [] });
+    expect(r.cov).toBe(1);
+  });
+  test('meaning: the model alone cannot give İyi when fewer than half the terms are there', () => {
+    const yes = { fwd: { ent: 0.99, neu: 0.01, con: 0 }, back: { ent: 0.99, neu: 0.01, con: 0 } };
+    expect(v3.check({ en: 'Our gardener waters the tomatoes early and trims the hedges weekly.', tier: 'anlam' }, 'gardener waters early', LEX, { nli: yes }).grade).toBe(1);
+    expect(v3.check({ en: 'Our gardener waters the tomatoes early and trims the hedges weekly.', tier: 'anlam' }, 'the gardener waters tomatoes early and trims hedges every week', LEX, { nli: yes }).grade).toBe(2);
   });
   test('empty answer is Tekrar', () => { expect(g('anlam', 'We ship weekly.', '')).toBe(0); });
 });
