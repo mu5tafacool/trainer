@@ -264,6 +264,8 @@ li.line .tr { font-size: 14.5px; }
 /* spoken check (dictation) */
 .dict { display: grid; gap: 6px; margin: 4px 0 12px; }
 .dict textarea { font: 16px/1.45 var(--body); color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; resize: vertical; min-height: 84px; width: 100%; box-sizing: border-box; }
+.speedbox { margin-top: 12px; display: grid; gap: 8px; }
+.speedbox textarea { font: 12.5px/1.5 var(--mono); color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; width: 100%; box-sizing: border-box; resize: none; }
 .dict textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .dictbtn { margin: 2px 0 12px; }
 .dres { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; display: grid; gap: 4px; font-size: 14px; }
@@ -1438,8 +1440,8 @@ function dictCheck3(l, said, sig) {
 }
 function dictNli(s, l, txt) {
   var M = window.__nli; if (!M || !String(txt).trim() || M.info().state === 'off') return;
-  s.dict.pending = true;
-  M.judge(l.en, txt).then(function (sig) { if (S.sess === s && s.dictText === txt) { s.dict = dictCheck3(l, txt, sig); render(); } },
+  s.dict.pending = true; var t0 = Date.now();
+  M.judge(l.en, txt).then(function (sig) { nliTimeAdd(Date.now() - t0); if (S.sess === s && s.dictText === txt) { s.dict = dictCheck3(l, txt, sig); render(); } },
     function () { if (S.sess === s && s.dict && s.dictText === txt) { s.dict.pending = false; s.dict.nliErr = true; render(); } });
 }
 var DICT_ISSUE = {
@@ -1869,6 +1871,7 @@ function studyOn() {
 }
 function wakeWanted() {
   if (document.visibilityState !== 'visible') return false;
+  if (S.measuring) return true;
   if (S.track && !S.track.paused) return true;
   return studyOn() && Date.now() - lastTouch < WAKE_IDLE;
 }
@@ -3048,6 +3051,68 @@ function modelOff(kind, note) {
   return '<p class="hint">Kapat: model bu cihazda kalır, tekrar açmak indirme gerektirmez. Modeli sil: indirilen dosyalar da silinir. ' + note + ' İlerlemen etkilenmez.</p>' +
     '<div class="row"><button class="btn" data-act="' + kind + 'Off">Kapat</button> <button class="btn" data-act="' + kind + 'Drop">Modeli sil</button></div>';
 }
+/* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
+   version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
+   (milliseconds) are kept on the device, and only while the model is on. ---- */
+var APP_VER = 'mt-v38'; // = V in sw.js (a test checks)
+var NLI_TIMES = 'mt1:__nli_ms';
+function nliTimeAdd(ms) { try { var a = JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); a.push(ms); localStorage.setItem(NLI_TIMES, JSON.stringify(a.slice(-20))); } catch (e) {} }
+function nliTimes() { try { return JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); } catch (e) { return []; } }
+var SPEED_PAIRS = [
+  ['The cat sat on the warm mat.', 'A cat was sitting on a mat.'], ['We repaint the boat every spring.', 'The boat gets new paint each spring.'],
+  ['The train left at nine.', 'The train did not leave at nine.'], ['She painted the fence blue.', 'The fence is red.'],
+  ['Our garden has three apple trees.', 'There are apple trees in the garden.'], ['He forgot his keys at home.', 'He had his keys with him.'],
+  ['The museum opens early on Sundays.', 'On Sundays the museum opens early.'], ['They moved the picnic because of rain.', 'The picnic was moved.'],
+  ['I drink tea every morning.', 'I never drink tea.'], ['The bridge took two years to build.', 'Building the bridge took two years.']
+];
+function median(a) { var b = a.slice().sort(function (x, y) { return x - y; }), n = b.length; return n ? (n % 2 ? b[(n - 1) / 2] : Math.round((b[n / 2 - 1] + b[n / 2]) / 2)) : 0; }
+function secs(ms) { return (ms / 1000).toFixed(1); }
+function deviceTxt() {
+  var ua = navigator.userAgent || '', dev = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'cihaz';
+  var os = (ua.match(/OS (\d+)[_.](\d+)/) || [])[0], osTxt = os ? 'iOS ' + os.slice(3).replace('_', '.') : (ua.match(/Android [\d.]+/) || ua.match(/Mac OS X [\d_]+/) || [''])[0].replace(/_/g, '.');
+  var br = /CriOS|Chrome/.test(ua) ? 'Chrome' : /Firefox|FxiOS/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'tarayıcı';
+  return dev + ' (' + (osTxt ? osTxt + ', ' : '') + br + ')';
+}
+function nliSpeedRun() {
+  var M = window.__nli; if (!M || M.info().state === 'off' || (S.speed && S.speed.busy)) return;
+  var sp = S.speed = { busy: true, step: 'yükleniyor', report: '', err: '' }, cancelled = false;
+  function onHide() { if (document.visibilityState === 'hidden') cancelled = true; }
+  document.addEventListener('visibilitychange', onHide); S.measuring = true; wakeSync(); render();
+  var loadTxt, first, runs = [];
+  var cached = window.caches ? caches.open('transformers-cache').then(function (c) { return c.keys(); }).then(function (ks) { return ks.some(function (r) { return r.url.indexOf('mobilebert-uncased-mnli') >= 0; }); }).catch(function () { return false; }) : Promise.resolve(false);
+  var was = M.info().state;
+  cached.then(function (hit) {
+    var t0 = Date.now();
+    return M.enable().then(function () { loadTxt = was === 'ready' ? 'zaten yüklü' : secs(Date.now() - t0) + ' sn (' + (hit ? 'önbellekten' : 'ilk indirme') + ')'; });
+  }).then(function () {
+    var k = 0;
+    function next() {
+      if (cancelled) throw new Error('cancel');
+      if (k >= SPEED_PAIRS.length) return;
+      sp.step = (k + 1) + '/' + SPEED_PAIRS.length; render();
+      var t0 = Date.now(), p = SPEED_PAIRS[k];
+      return M.judge(p[0], p[1]).then(function () { var ms = Date.now() - t0; if (k === 0) first = ms; else runs.push(ms); k++; return next(); });
+    }
+    return next();
+  }).then(function () {
+    var real = nliTimes();
+    sp.report = 'trainer ' + APP_VER + ' · ' + deviceTxt() + ' · model mobilebert-mnli\n' +
+      'yükleme: ' + loadTxt + '   ilk kontrol: ' + secs(first) + ' sn\n' +
+      runs.length + ' kontrol: medyan ' + median(runs) + ' ms · en yavaş ' + Math.max.apply(null, runs) + ' ms\n' +
+      (real.length ? 'gerçek kullanım (son ' + real.length + '): medyan ' + median(real) + ' ms' : 'gerçek kullanım: henüz yok');
+  }, function (e) { sp.err = cancelled ? 'Ölçüm yarıda kaldı (uygulama arka plana geçti). Tekrar ölç.' : 'Ölçülemedi: ' + (e && e.message ? String(e.message).slice(0, 120) : 'hata'); })
+    .then(function () { sp.busy = false; S.measuring = false; document.removeEventListener('visibilitychange', onHide); wakeSync(); render(); });
+}
+function speedBox() {
+  var M = window.__nli, off = !M || M.info().state === 'off', sp = S.speed;
+  var h = '<div class="speedbox"><button class="btn" data-act="nliSpeed"' + (off || (sp && sp.busy) ? ' disabled' : '') + '>Hızı ölç</button>';
+  if (off) h += '<p class="hint">Önce Anlam kontrolünü aç.</p>';
+  else if (sp && sp.busy) h += '<p class="hint">Ölçülüyor… <span class="mono">' + esc(sp.step) + '</span> · ekranı açık tut.</p>';
+  else if (sp && sp.err) h += '<p class="hint" style="color:var(--bad)">' + esc(sp.err) + '</p>';
+  else if (sp && sp.report) h += '<textarea id="nlirep" class="mono" rows="4" readonly>' + esc(sp.report) + '</textarea><button class="btn" data-act="nliCopy">Kopyala</button>';
+  else h += '<p class="hint">Uydurma 10 cümle çiftiyle modelin bu cihazdaki hızını ölçer; çıkan kısa metni kopyalayıp Claude\'a yapıştır.</p>';
+  return h + '</div>';
+}
 function nliPanel() {
   var M = window.__nli; if (!M) return '';
   var i = M.info();
@@ -3057,7 +3122,7 @@ function nliPanel() {
   else if (i.state === 'loading') h += '<p class="hint">Model yükleniyor… <span class="mono">%' + i.pct + '</span></p>';
   else if (i.state === 'error') h += '<p class="hint" style="color:var(--bad)">Model yüklenemedi: ' + esc(i.err) + '</p><button class="btn" data-act="nliEnable">Tekrar dene</button>';
   else h += '<p class="hint">Açık' + (i.state === 'idle' ? '; ilk kontrolde yüklenir.' : '.') + '</p>' + modelOff('nli', 'Kapalıyken kelime ve kural kontrolü yapılır.');
-  return h + '</section>';
+  return h + speedBox() + '</section>';
 }
 function renderSettings() {
   var ev = enVoices(), tv = trVoices();
@@ -3293,6 +3358,13 @@ var ACT = {
   testTr: function () { var l = S.answers[0] && S.answers[0].lines[0]; play(l ? l.tr : 'Bir QA otomasyon mühendisiyim.', 'tr'); },
   copyMissing: copyMissing,
   nliEnable: function () { var M = window.__nli; if (!M) return; M.enable().then(function () { toast('Anlam kontrolü açık.'); }, function () {}); render(); },
+  nliSpeed: function () { nliSpeedRun(); },
+  nliCopy: function () {
+    var t = document.getElementById('nlirep'), txt = S.speed && S.speed.report; if (!txt) return;
+    var ok = function () { toast('Kopyalandı.'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, function () { if (t) { t.select(); try { document.execCommand('copy'); ok(); } catch (e) {} } });
+    else if (t) { t.select(); try { document.execCommand('copy'); ok(); } catch (e) {} }
+  },
   nliOff: function () { var M = window.__nli; if (!M) return; M.disable(false).then(function () { toast('Anlam kontrolü kapalı.'); render(); }); },
   nliDrop: function () { var M = window.__nli; if (!M || !confirm('Anlam modeli bu cihazdan silinsin mi? Tekrar açınca yeniden indirilir (~55 MB).')) return; M.disable(true).then(function () { toast('Anlam modeli silindi.'); render(); }); },
   ttsOff: function () { var T = window.__localTTS; if (!T) return; T.disable(false).then(function () { toast('Otomatik seslendirme kapalı.'); render(); }); },

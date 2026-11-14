@@ -96,6 +96,7 @@ Listen options:
   - **Hard checks on every line**, without any per-line data: a different number, a lost or added negation, a word turned into its opposite (*before*/*after*) and a reversed *from … to*, *instead of* or *expected … got* make the suggestion Again and are named in the result.
   - On review the result shows the suggestion, the reasons and the missing or different words; the grade stays your choice. In rehearsal each line gets its own percentage.
 - **Meaning check** (Settings, experimental): turned on once; downloads about 55 MB (the model and its runtime), then works offline.
+  - *Hızı ölç* (Settings → Meaning check) measures the model on this device with ten made-up sentence pairs and gives a short report to copy: app version, OS and browser version, load time, first check, median and slowest of the other nine, and the median of the last 20 real checks (only their durations are kept, only while the model is on). No sentences, no names.
 - **Speed test**:
   - See the Turkish, say the English, reveal.
   - The target is correct and under 3 seconds.
