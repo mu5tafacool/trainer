@@ -618,6 +618,15 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     return idbEntries('gen').then(function (rows) { rows.forEach(function (r) { GEN[r[0]] = r[1]; }); if (rows.length) publishAll(); }).catch(function () {});
   }
 
+  /* model files downloaded by Transformers.js (Kokoro uses it too) sit in Cache Storage 'transformers-cache', one entry per
+     file URL; only this model's entries are removed, plus the cached library files (mt-tts / mt-nli). */
+  function dropModelFiles(modelId, libCache) {
+    if (!window.caches) return Promise.resolve();
+    return caches.open('transformers-cache').then(function (c) {
+      return c.keys().then(function (ks) { return Promise.all(ks.filter(function (r) { return r.url.indexOf(modelId) >= 0; }).map(function (r) { return c.delete(r); })); });
+    }).then(function () { return caches.delete(libCache); }).catch(function () {});
+  }
+
   /* ---- on-device voice for new/edited English lines (Kokoro in the browser; experimental) ---- */
   var TTSCFG = { lib: 'tts/kokoro.mjs', model: 'onnx-community/Kokoro-82M-v1.0-ONNX', voice: 'am_fenrir', dtype: 'q8' };
   var T = { state: get('__tts_on') ? 'idle' : 'off', pct: 0, err: '', tts: null, q: [], busy: false, subs: [], loadP: null };
@@ -671,6 +680,12 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   window.__localTTS = {
     info: function () { return { state: T.state, pct: T.pct, err: T.err, busy: T.busy, pending: T.q.length }; },
     enable: function () { return loadModel(); },
+    // off: stops and forgets the model in memory (files stay, turning it on again needs no download);
+    // remove: also deletes the downloaded model files. Clips already voiced on this device stay.
+    disable: function (remove) {
+      T.state = 'off'; T.q = []; T.tts = null; T.loadP = null; T.pct = 0; T.err = ''; del('__tts_on'); tchg();
+      return remove ? dropModelFiles(TTSCFG.model, 'mt-tts') : Promise.resolve();
+    },
     queue: function (texts) {
       if (T.state === 'off') return;
       (texts || []).forEach(function (t) { if (t && !MAP['en|' + t] && T.q.indexOf(t) < 0) T.q.push(t); });
@@ -719,6 +734,11 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   window.__nli = {
     info: function () { return { state: N.state, pct: N.pct, err: N.err }; },
     enable: function () { return loadNli(); },
+    // off: back to the word and rule check (files stay); remove: also deletes the downloaded model files.
+    disable: function (remove) {
+      N.state = 'off'; N.m = null; N.loadP = null; N.pct = 0; N.err = ''; del('__nli_on'); nchg();
+      return remove ? dropModelFiles(NLICFG.model, 'mt-nli') : Promise.resolve();
+    },
     judge: function (ref, said) {
       if (N.state === 'off') return Promise.reject(new Error('off'));
       return loadNli().then(function (m) {
@@ -2942,8 +2962,13 @@ function ttsPanel() {
   else if (i.state === 'loading') h += '<p class="hint">Model yükleniyor… <span class="mono">%' + i.pct + '</span></p>';
   else if (i.state === 'error') h += '<p class="hint" style="color:var(--bad)">Model yüklenemedi: ' + esc(i.err) + '</p><button class="btn" data-act="ttsEnable">Tekrar dene</button>';
   else h += '<p class="hint">Açık. Sesi eksik satır: <span class="mono">' + miss + '</span>' + (i.busy ? ' · sırada: <span class="mono">' + i.pending + '</span>' : '') + '</p>' +
-    (miss && !i.busy ? '<button class="btn" data-act="ttsFill">Eksikleri şimdi seslendir</button>' : '');
+    (miss && !i.busy ? '<button class="btn" data-act="ttsFill">Eksikleri şimdi seslendir</button>' : '') + modelOff('tts', 'Üretilmiş sesler kalır.');
   return h + '</section>';
+}
+// "Kapat" keeps the downloaded files (turning it on again is instant); "Modeli sil" also frees the space. Progress is not touched.
+function modelOff(kind, note) {
+  return '<p class="hint">Kapat: model bu cihazda kalır, tekrar açmak indirme gerektirmez. Modeli sil: indirilen dosyalar da silinir. ' + note + ' İlerlemen etkilenmez.</p>' +
+    '<div class="row"><button class="btn" data-act="' + kind + 'Off">Kapat</button> <button class="btn" data-act="' + kind + 'Drop">Modeli sil</button></div>';
 }
 function nliPanel() {
   var M = window.__nli; if (!M) return '';
@@ -2953,7 +2978,7 @@ function nliPanel() {
   if (i.state === 'off') h += '<p class="hint">İlk açılışta model indirilir (~55 MB, Wi-Fi önerilir). Kapalıyken kelime ve kural kontrolü yapılır.</p><button class="btn" data-act="nliEnable">Modeli indir ve aç</button>';
   else if (i.state === 'loading') h += '<p class="hint">Model yükleniyor… <span class="mono">%' + i.pct + '</span></p>';
   else if (i.state === 'error') h += '<p class="hint" style="color:var(--bad)">Model yüklenemedi: ' + esc(i.err) + '</p><button class="btn" data-act="nliEnable">Tekrar dene</button>';
-  else h += '<p class="hint">Açık' + (i.state === 'idle' ? '; ilk kontrolde yüklenir.' : '.') + '</p>';
+  else h += '<p class="hint">Açık' + (i.state === 'idle' ? '; ilk kontrolde yüklenir.' : '.') + '</p>' + modelOff('nli', 'Kapalıyken kelime ve kural kontrolü yapılır.');
   return h + '</section>';
 }
 function renderSettings() {
@@ -3179,6 +3204,10 @@ var ACT = {
   testTr: function () { var l = S.answers[0] && S.answers[0].lines[0]; play(l ? l.tr : 'Bir QA otomasyon mühendisiyim.', 'tr'); },
   copyMissing: copyMissing,
   nliEnable: function () { var M = window.__nli; if (!M) return; M.enable().then(function () { toast('Anlam kontrolü açık.'); }, function () {}); render(); },
+  nliOff: function () { var M = window.__nli; if (!M) return; M.disable(false).then(function () { toast('Anlam kontrolü kapalı.'); render(); }); },
+  nliDrop: function () { var M = window.__nli; if (!M || !confirm('Anlam modeli bu cihazdan silinsin mi? Tekrar açınca yeniden indirilir (~55 MB).')) return; M.disable(true).then(function () { toast('Anlam modeli silindi.'); render(); }); },
+  ttsOff: function () { var T = window.__localTTS; if (!T) return; T.disable(false).then(function () { toast('Otomatik seslendirme kapalı.'); render(); }); },
+  ttsDrop: function () { var T = window.__localTTS; if (!T || !confirm('Ses modeli bu cihazdan silinsin mi? Üretilmiş sesler kalır; tekrar açınca model yeniden indirilir (~115 MB).')) return; T.disable(true).then(function () { toast('Ses modeli silindi.'); render(); }); },
   ttsEnable: function () { var T = window.__localTTS; if (!T) return; T.enable().then(function () { T.queue(missingEn()); }, function () {}); render(); },
   ttsFill: function () { var T = window.__localTTS; if (T) { T.queue(missingEn()); render(); } },
   voiceMode: function (el) { stopAudio(); U.settings.voiceMode = el.dataset.m; save('settings'); render(); },
