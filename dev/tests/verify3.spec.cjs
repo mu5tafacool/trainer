@@ -115,5 +115,17 @@ test.describe('grades without models', () => {
     expect(v3.check({ en: 'Our gardener waters the tomatoes early and trims the hedges weekly.', tier: 'anlam' }, 'gardener waters early', LEX, { nli: yes }).grade).toBe(1);
     expect(v3.check({ en: 'Our gardener waters the tomatoes early and trims the hedges weekly.', tier: 'anlam' }, 'the gardener waters tomatoes early and trims hedges every week', LEX, { nli: yes }).grade).toBe(2);
   });
+  test('pattern chunks: ezber needs every word of them for İyi; anlam only lists the missing ones', () => {
+    const ez = { en: 'Second, check the boat early, especially where wind and rain are strong.', tier: 'ezber', mk: ['Second, check', 'especially where'] };
+    const r = v3.check(ez, 'second check the boat early especially wind and rain are strong', LEX, null);
+    expect(r.mkMiss).toEqual(['where']);
+    expect(r.acc).toBeGreaterThan(0.94);
+    expect(r.grade).toBe(1);
+    expect(v3.check(ez, 'second check the boat early especially where wind and rain are strong', LEX, null).grade).toBe(2);
+    const an = { en: 'That is the craft behind a map that both a sailor and a farmer can read.', tier: 'anlam', mk: ['That is the craft behind'] };
+    const s = v3.check(an, 'it is behind a map that both a sailor and a farmer can read', LEX, null);
+    expect(s.mkMiss).toEqual(['craft']);
+    expect(s.grade).toBe(2);
+  });
   test('empty answer is Tekrar', () => { expect(g('anlam', 'We ship weekly.', '')).toBe(0); });
 });

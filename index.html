@@ -1322,6 +1322,14 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     var R = line._prep || prepareRef(line.en, lexicon), hyp = normalizeSaid(said, R);
     var a = align(R.tokens, hyp, R), acc = Math.max(0, 1 - a.err / (a.refW || 1));
     var issues = hardChecks(R, hyp), hard = issues.some(function (x) { return x.hard; });
+    // pattern chunks (line.mk, the phrases the card highlights): words of them that were not said. Ezber needs them all
+    // for İyi; on anlam cards they are only shown (requiring them there marked many right paraphrases down).
+    var mkMiss = [];
+    (line.mk || []).forEach(function (m) {
+      baseTokens(m).forEach(function (w) {
+        if (line.tier === 'ezber' ? hyp.indexOf(w) < 0 : (!FUNC[w] && !hyp.some(function (h) { return stemEq(w, h); }))) if (mkMiss.indexOf(w) < 0) mkMiss.push(w);
+      });
+    });
     var bag = bagDiff(R.tokens, hyp), nC = R.tokens.filter(function (w) { return !FUNC[w]; }).length, cov = nC ? 1 - bag.miss.length / nC : 1;
     var con = 0, entF = null, entB = null;
     // Contradiction is read only as "reference ⇒ said": the reverse direction raised false alarms on reordered answers.
@@ -1331,6 +1339,7 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     if (!hyp.length) { grade = 0; why.push('empty'); }
     else if (line.tier === 'ezber') {
       grade = acc >= T.ezberGood ? 2 : acc >= T.ezberOk ? 1 : 0;
+      if (grade === 2 && mkMiss.length) { grade = 1; why.push('pattern'); }
       if (hard) { grade = 0; why.push('hard'); }
       else if (useNli && con >= T.anlamCon && acc < 0.999) { grade = 0; why.push('nli-contradiction'); }
     } else {
@@ -1353,7 +1362,7 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
         grade = cov >= 0.85 ? 2 : cov >= 0.6 ? 1 : 0; why.push('coverage ' + cov.toFixed(2));
       }
     }
-    return { grade: grade, acc: acc, issues: issues, edits: a.edits, bag: bag, cov: cov, said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
+    return { grade: grade, acc: acc, issues: issues, edits: a.edits, bag: bag, cov: cov, mkMiss: mkMiss, said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
   }
 
   var api = { baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, findNames: findNames, sound: sound, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
@@ -1379,7 +1388,7 @@ function dictNameSet() {
   return dictNames;
 }
 function dictCheck3(l, said, sig) {
-  var line = { en: l.en, tier: l.tier === 'ezber' ? 'ezber' : 'anlam' };
+  var line = { en: l.en, tier: l.tier === 'ezber' ? 'ezber' : 'anlam', mk: l.mk || [] };
   line._prep = dictPrep[l.en] || (dictPrep[l.en] = verify3.prepareRef(l.en, DICT_LEX, dictNameSet()));
   var r = verify3.check(line, said, DICT_LEX, sig ? { nli: sig } : null, { sim: false });
   var miss = [], extra = [];
@@ -1389,7 +1398,7 @@ function dictCheck3(l, said, sig) {
     // a word said, but in another place, shows once as "moved" instead of in both lists
     miss = miss.filter(function (w) { var k = extra.indexOf(w); if (k < 0) return true; extra.splice(k, 1); moved.push(w); return false; });
   } else { miss = r.bag.miss; extra = r.bag.extra; }
-  return { v: 3, tier: line.tier, grade: r.grade, score: Math.round(100 * r.acc), cov: Math.round(100 * r.cov), miss: miss, extra: extra, moved: moved, issues: r.issues, nli: !!sig, con: r.con, entF: r.entF, entB: r.entB, text: said };
+  return { v: 3, tier: line.tier, grade: r.grade, score: Math.round(100 * r.acc), cov: Math.round(100 * r.cov), mkMiss: r.mkMiss, miss: miss, extra: extra, moved: moved, issues: r.issues, nli: !!sig, con: r.con, entF: r.entF, entB: r.entB, text: said };
 }
 function dictNli(s, l, txt) {
   var M = window.__nli; if (!M || !String(txt).trim() || M.info().state === 'off') return;
@@ -1415,6 +1424,7 @@ function dictRes3(d, said) {
   else if (d.nli && d.tier !== 'ezber' && d.entB < verify3.THRESHOLDS.anlamEnt) h += '<div class="extra">Hedefteki bilginin bir kısmı eksik görünüyor.</div>';
   else if (d.nli && d.tier !== 'ezber' && d.entF < verify3.THRESHOLDS.anlamEnt) h += '<div class="extra">Hedefte olmayan ya da farklı bir bilgi var.</div>';
   if (d.miss.length) h += '<div class="miss">' + (d.tier === 'ezber' ? 'Eksik ya da farklı' : 'Eksik terimler') + ': <b>' + esc(d.miss.slice(0, 8).join(', ')) + (d.miss.length > 8 ? ' …' : '') + '</b></div>';
+  if (d.mkMiss && d.mkMiss.length) h += '<div class="miss">Kalıpta eksik: <b>' + esc(d.mkMiss.join(', ')) + '</b>' + (d.tier === 'ezber' ? '' : ' <span class="said">(puanı değiştirmez)</span>') + '</div>';
   if (d.moved && d.moved.length) h += '<div class="extra">Yeri farklı: <b>' + esc(d.moved.slice(0, 8).join(', ')) + '</b></div>';
   if (d.extra.length) h += '<div class="extra">' + (d.tier === 'ezber' ? 'Fazla' : 'Farklı ya da fazla') + ': <b>' + esc(d.extra.slice(0, 8).join(', ')) + (d.extra.length > 8 ? ' …' : '') + '</b></div>';
   var M = window.__nli, st = M ? M.info().state : 'off';

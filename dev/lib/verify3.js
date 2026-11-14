@@ -353,6 +353,14 @@
     var R = line._prep || prepareRef(line.en, lexicon), hyp = normalizeSaid(said, R);
     var a = align(R.tokens, hyp, R), acc = Math.max(0, 1 - a.err / (a.refW || 1));
     var issues = hardChecks(R, hyp), hard = issues.some(function (x) { return x.hard; });
+    // pattern chunks (line.mk, the phrases the card highlights): words of them that were not said. Ezber needs them all
+    // for İyi; on anlam cards they are only shown (requiring them there marked many right paraphrases down).
+    var mkMiss = [];
+    (line.mk || []).forEach(function (m) {
+      baseTokens(m).forEach(function (w) {
+        if (line.tier === 'ezber' ? hyp.indexOf(w) < 0 : (!FUNC[w] && !hyp.some(function (h) { return stemEq(w, h); }))) if (mkMiss.indexOf(w) < 0) mkMiss.push(w);
+      });
+    });
     var bag = bagDiff(R.tokens, hyp), nC = R.tokens.filter(function (w) { return !FUNC[w]; }).length, cov = nC ? 1 - bag.miss.length / nC : 1;
     var con = 0, entF = null, entB = null;
     // Contradiction is read only as "reference ⇒ said": the reverse direction raised false alarms on reordered answers.
@@ -362,6 +370,7 @@
     if (!hyp.length) { grade = 0; why.push('empty'); }
     else if (line.tier === 'ezber') {
       grade = acc >= T.ezberGood ? 2 : acc >= T.ezberOk ? 1 : 0;
+      if (grade === 2 && mkMiss.length) { grade = 1; why.push('pattern'); }
       if (hard) { grade = 0; why.push('hard'); }
       else if (useNli && con >= T.anlamCon && acc < 0.999) { grade = 0; why.push('nli-contradiction'); }
     } else {
@@ -384,7 +393,7 @@
         grade = cov >= 0.85 ? 2 : cov >= 0.6 ? 1 : 0; why.push('coverage ' + cov.toFixed(2));
       }
     }
-    return { grade: grade, acc: acc, issues: issues, edits: a.edits, bag: bag, cov: cov, said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
+    return { grade: grade, acc: acc, issues: issues, edits: a.edits, bag: bag, cov: cov, mkMiss: mkMiss, said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
   }
 
   var api = { baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, findNames: findNames, sound: sound, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
