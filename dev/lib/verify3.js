@@ -63,7 +63,7 @@
     s = s.replace(/(\d+)\s*(?:and\s+)?(?:1\/2|½)(?!\d)/g, function (m, n) { return String(parseInt(n, 10) + 0.5); })
       .replace(/(\d+)\s*(?:and\s+)?(?:1\/4|¼)(?!\d)/g, function (m, n) { return String(parseInt(n, 10) + 0.25); })
       .replace(/(^|[^\d.])(?:1\/2|½)(?!\d)/g, '$10.5');
-    s = s.replace(/(\d)\s*%/g, '$1 percent').replace(/%/g, ' percent').replace(/&/g, ' and ').replace(/[×x](?=\d)/g, ' by ');
+    s = s.replace(/(\d)\s*%/g, '$1 percent').replace(/%/g, ' percent').replace(/&/g, ' and ').replace(/(\d)\s*[×x](?=\d)/g, '$1 by ');
     s = s.replace(/([a-z])(\d)/g, '$1 $2').replace(/(\d)([a-z])/g, '$1 $2');
     s = s.replace(/(\d)\.(\d)/g, '$1§$2').replace(/[\/\-–—_]+/g, ' ').replace(/[^a-z0-9§' ]+/g, ' ').replace(/§/g, '.');
     var out = [];
@@ -89,11 +89,72 @@
     return out;
   }
 
+  // Dictation spells names it doesn't know by sound ("Solar tricks" for a name like "Zoltrix"). A said word (or two said
+  // words written together) that sounds like a name of this line becomes that name; a number right after a name's
+  // letter head becomes the name's number (product codes are not quizzed as numbers).
+  function fixNames(t, R) {
+    var names = Object.keys(R.names || {}); if (!names.length && !Object.keys(R.nameHeads || {}).length) return t;
+    var out = [];
+    for (var i = 0; i < t.length; i++) {
+      var w = t[i], done = false;
+      if (!R.vocab[w] && !FUNC[w] && !isNum(w)) {
+        for (var k = 0; k < names.length && !done; k++) {
+          var n = names[k];
+          if (i + 1 < t.length && !R.vocab[t[i + 1]] && !isNum(t[i + 1]) && soundsLike(w + t[i + 1], n) && !soundsLike(w, n)) { out.push(n); i++; done = true; }
+          else if (soundsLike(w, n)) { out.push(n); done = true; }
+        }
+      }
+      if (done) continue;
+      if (isNum(w) && out.length && R.nameHeads && R.nameHeads[out[out.length - 1]] && !R.nameNums[w]) {
+        var head = out[out.length - 1], k2 = R.tokens.indexOf(head);
+        if (k2 >= 0 && isNum(R.tokens[k2 + 1] || '')) { out.push(R.tokens[k2 + 1]); continue; }
+      }
+      out.push(w);
+    }
+    return out;
+  }
+
   function phraseAt(toks, i, phrase) { for (var k = 0; k < phrase.length; k++) if (toks[i + k] !== phrase[k]) return false; return true; }
   function hasPhrase(toks, phrase) { for (var i = 0; i + phrase.length <= toks.length; i++) if (phraseAt(toks, i, phrase)) return true; return false; }
 
+  // Proper names, found from the texts themselves (no list in code): a word written with a capital in the middle of a
+  // sentence (not after . : ; ! ? or a quote), or a word mixing letters and digits. Returns lowercase name words.
+  var NAME_RE = /(^|[.:;!?"(\u201c]\s*)?\b([A-Z][A-Za-z]*[A-Za-z0-9]*|[A-Za-z]+\d+[A-Za-z0-9]*)\b/g;
+  function findNames(texts) {
+    var out = {};
+    (texts || []).forEach(function (t) {
+      var m; NAME_RE.lastIndex = 0;
+      while ((m = NAME_RE.exec(String(t || '')))) {
+        var w = m[2], initial = m.index === 0 || (m[1] !== undefined && m[1] !== '');
+        if (w === 'I' || w.length < 2) continue;
+        if (/\d/.test(w) || !initial) out[w.toLowerCase()] = 1;
+      }
+    });
+    return out;
+  }
+  // A rough sound key (Metaphone-like): similar-sounding spellings of a name get the same or a close key.
+  function sound(w) {
+    var s = String(w).toLowerCase().replace(/[^a-z]/g, '').replace(/^(kn|gn|pn|wr)/, function (m) { return m.charAt(1); })
+      .replace(/ch/g, 'x').replace(/sh/g, 'x').replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/qu?/g, 'k').replace(/x/g, 'ks')
+      .replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/dg/g, 'j').replace(/gh/g, '').replace(/z/g, 's');
+    if (!s) return '';
+    return (s.charAt(0) + s.slice(1).replace(/[aeiouyhw]/g, '')).replace(/(.)\1+/g, '$1');
+  }
+  function levN(a, b) {
+    var d = [], i, j; for (i = 0; i <= a.length; i++) { d.push([i]); }
+    for (j = 1; j <= b.length; j++) d[0][j] = j;
+    for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  function soundsLike(a, b) {
+    var x = sound(a), y = sound(b);
+    if (x.length < 3 || y.length < 3) return false;
+    return x === y || levN(x, y) <= 1;
+  }
+
   // Prepares a reference once: its tokens and the lexicon entries whose term occurs in it.
-  function prepareRef(en, lexicon) {
+  // names (optional): lowercase name words found across all lines (findNames); names in this line are added too.
+  function prepareRef(en, lexicon, names) {
     var ref = baseTokens(en), lex = [];
     Object.keys(lexicon || {}).forEach(function (term) {
       if (term.charAt(0) === '_') return;
@@ -103,7 +164,15 @@
     });
     lex.sort(function (a, b) { return b.from.length - a.from.length; });
     var vocab = {}; ref.forEach(function (t) { vocab[t] = 1; });
-    return { en: en, tokens: ref, lex: lex, vocab: vocab };
+    // name tokens of this line; for letter+digit names (ab360) the letters are the head and the digits a name number
+    var own = findNames([en]), all = {}, nm = {}, heads = {}, nameNums = {};
+    Object.keys(names || {}).forEach(function (k) { all[k] = 1; }); Object.keys(own).forEach(function (k) { all[k] = 1; });
+    (String(en).match(/[A-Za-z0-9]+/g) || []).forEach(function (w) {
+      if (!all[w.toLowerCase()]) return;
+      var parts = baseTokens(w);
+      parts.forEach(function (p, i) { if (isNum(p)) { if (i > 0) { heads[parts[i - 1]] = 1; nameNums[p] = 1; } } else if (!FUNC[p]) nm[p] = 1; });
+    });
+    return { en: en, tokens: ref, lex: lex, vocab: vocab, names: nm, nameHeads: heads, nameNums: nameNums };
   }
 
   function normalizeSaid(said, R) {
@@ -138,7 +207,7 @@
       if (out.length && out[out.length - 1] === t[i] && !hasPhrase(R.tokens, [t[i], t[i]])) continue;
       out.push(t[i]);
     }
-    return fixHomophones(out, R.tokens);
+    return fixHomophones(fixNames(out, R), R.tokens);
   }
 
   function lev1(a, b) {
@@ -299,6 +368,6 @@
     return { grade: grade, acc: acc, issues: issues, edits: a.edits, bag: bag, cov: cov, said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
   }
 
-  var api = { baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
+  var api = { baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, findNames: findNames, sound: sound, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.verify3 = api;
 })(typeof window !== 'undefined' ? window : this);

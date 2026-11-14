@@ -43,6 +43,27 @@ test.describe('objective contradictions', () => {
   for (const [name, ref, said, want] of cases) test(name, () => { expect(issues(ref, said)).toEqual(want); });
 });
 
+test.describe('proper names (found from the texts, none in code)', () => {
+  const texts = ['We moved to Zoltrix Corp last year.', 'The app Bx40 runs on Kelvaro.', 'First we tested it.'];
+  const names = v3.findNames(texts);
+  const R = v3.prepareRef('Zoltrix Corp builds games, and their best seller, Bx40, is a platform for chess clubs.', {}, names);
+  const fix = (said) => v3.normalizeSaid(said, R).join(' ');
+  test('names: capitalized mid-sentence or letter+digit; sentence-initial words are not names', () => {
+    expect(names).toEqual({ zoltrix: 1, corp: 1, bx40: 1, kelvaro: 1 });
+  });
+  test('a name spelled by sound becomes the name (one word or two)', () => {
+    expect(fix('zoltrex corp builds games')).toBe('zoltrix corp builds games');
+    expect(fix('solar tricks corp builds games')).toBe('zoltrix corp builds games');
+  });
+  test('the number of a product code is not quizzed as a number', () => {
+    expect(fix('their best seller bx 50 is a platform')).toBe('their best seller bx 40 is a platform');
+    expect(v3.hardChecks(R, v3.normalizeSaid('their best seller bx 50 is a platform', R)).filter((x) => x.hard)).toEqual([]);
+  });
+  test('ordinary words are left alone', () => {
+    expect(fix('a platform for chess clubs')).toBe('a platform for chess clubs');
+  });
+});
+
 test('index.html carries the same verify3 as dev/lib/verify3.js', () => {
   const fs = require('node:fs'), path = require('node:path');
   const root = path.resolve(__dirname, '..', '..');
