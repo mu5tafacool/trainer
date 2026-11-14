@@ -604,18 +604,51 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
       });
     });
   }
+  /* Clips stay in IndexedDB. Memory holds only which text has which clip ("lang|text" → "idb:<key>" for shipped packs,
+     "gen:<key>" for clips voiced on this device); the list itself is kept in __clipidx so opening the app reads no clips.
+     A clip is read when it is played (window.__clipUrl) and the last few stay ready. Works offline as before. */
   var PACK = [], GEN = {}, MAP = {};
-  function urlOf(it) { if (!it.url) it.url = URL.createObjectURL(new Blob([it.buf], { type: it.type || 'audio/mpeg' })); return it.url; }
   function publishAll() {
     var m = {};
-    PACK.forEach(function (it) { var lang = it.k.split('.').pop(); m[lang + '|' + it.text] = urlOf(it); });
-    Object.keys(GEN).forEach(function (k) { if (!m[k]) m[k] = urlOf(GEN[k]); });
+    PACK.forEach(function (it) { m[it.k.split('.').pop() + '|' + it.text] = 'idb:' + it.k; });
+    Object.keys(GEN).forEach(function (k) { if (!m[k]) m[k] = 'gen:' + k; });
     MAP = m; window.__LOCAL_AUDIO = m;
     if (window.__setLocalAudio) window.__setLocalAudio(m);
   }
-  function publish(items) { PACK = items || []; publishAll(); return items; }
+  function publish(items) {
+    PACK = (items || []).map(function (it) { return { k: it.k, text: it.text }; });
+    put('__clipidx', { v: AUDIO.v, items: PACK }); publishAll(); return PACK;
+  }
+  function idbGet(store, k) {
+    return idb().then(function (d) { return new Promise(function (res, rej) { var q = d.transaction(store).objectStore(store).get(k); q.onsuccess = function () { res(q.result); }; q.onerror = function () { rej(q.error); }; }); });
+  }
+  function idbKeys(store) {
+    return idb().then(function (d) {
+      return new Promise(function (res, rej) {
+        var out = [], tx = d.transaction(store), cur = tx.objectStore(store).openKeyCursor();
+        cur.onsuccess = function () { var c = cur.result; if (c) { out.push(c.key); c.continue(); } };
+        tx.oncomplete = function () { res(out); }; tx.onerror = function () { rej(tx.error); };
+      });
+    });
+  }
+  // which clips the shipped packs hold, without keeping the sound (read once after an install or if the list is missing)
+  function idbIndex() { return idbAll().then(function (items) { return items.map(function (it) { return { k: it.k, text: it.text }; }); }); }
+  var URLS = [], URL_KEEP = 8;
+  window.__clipUrl = function (ref) {
+    var m = /^(idb|gen):([\s\S]*)$/.exec(ref || ''); if (!m) return Promise.resolve(ref);
+    for (var i = 0; i < URLS.length; i++) if (URLS[i].ref === ref) { var hit = URLS.splice(i, 1)[0]; URLS.push(hit); return Promise.resolve(hit.url); }
+    return idbGet(m[1] === 'idb' ? 'clips' : 'gen', m[2]).then(function (v) {
+      if (!v || !v.buf) throw new Error('clip missing');
+      var url = URL.createObjectURL(new Blob([v.buf], { type: v.type || 'audio/mpeg' }));
+      URLS.push({ ref: ref, url: url });
+      while (URLS.length > URL_KEEP) URL.revokeObjectURL(URLS.shift().url);
+      return url;
+    });
+  };
+  window.__clipUrlsKept = function () { return URLS.length; };
+  function dropUrl(ref) { URLS = URLS.filter(function (u) { if (u.ref !== ref) return true; URL.revokeObjectURL(u.url); return false; }); }
   function loadGen() {
-    return idbEntries('gen').then(function (rows) { rows.forEach(function (r) { GEN[r[0]] = r[1]; }); if (rows.length) publishAll(); }).catch(function () {});
+    return idbKeys('gen').then(function (ks) { ks.forEach(function (k) { GEN[k] = 1; }); if (ks.length) publishAll(); }).catch(function () {});
   }
 
   /* model files downloaded by Transformers.js (Kokoro uses it too) sit in Cache Storage 'transformers-cache', one entry per
@@ -671,7 +704,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
         var text = T.q[0];
         return tts.generate(sayEn(text), { voice: TTSCFG.voice, speed: 1 }).then(function (audio) {
           var rec = { text: text, type: 'audio/wav', buf: wav16(audio.audio, audio.sampling_rate) };
-          return idbPut('gen', 'en|' + text, rec).then(function () { GEN['en|' + text] = rec; publishAll(); });
+          return idbPut('gen', 'en|' + text, rec).then(function () { GEN['en|' + text] = 1; publishAll(); });
         }).catch(function (e) { console.warn('voice generation failed', e); }).then(function () { T.q.shift(); tchg(); return next(); });
       }
       return next();
@@ -768,10 +801,9 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
         tx.oncomplete = res; tx.onerror = function () { rej(tx.error); };
       });
     }).then(function () {
-      packOut.forEach(function (it) { if (it.url) URL.revokeObjectURL(it.url); });
-      genOut.forEach(function (k) { if (GEN[k].url) URL.revokeObjectURL(GEN[k].url); delete GEN[k]; });
-      PACK = PACK.filter(function (it) { return packOut.indexOf(it) < 0; });
-      publishAll();
+      packOut.forEach(function (it) { dropUrl('idb:' + it.k); });
+      genOut.forEach(function (k) { dropUrl('gen:' + k); delete GEN[k]; });
+      publish(PACK.filter(function (it) { return packOut.indexOf(it) < 0; }));
       return packOut.length + genOut.length;
     }).catch(function () { return 0; });
   }
@@ -785,18 +817,22 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   /* download only the packs this device does not have yet (a device from before packs had ids holds the legacy pack as __audio.v) */
   function installAudio(key) {
     var st = get('__audio') || {}, have = st.packs || (st.v ? [st.v] : []), legacy = st.legacy || (st.packs ? null : st.v) || null;
-    return idbAll().then(function (cur) {
+    return idbKeys('clips').then(function (cur) {
       if (!cur.length) have = [];
       var need = AUDIO.packs.filter(function (p) { return have.indexOf(p.v) < 0; });
       return need.reduce(function (pr, p) { return pr.then(function () { return fetchPack(key, p).then(idbPutItems); }); }, Promise.resolve());
     }).then(function () {
       var keep = AUDIO.packs.map(function (p) { return p.v; });
-      return idbPrune(keep, legacy).then(function () { put('__audio', { v: AUDIO.v, packs: keep, legacy: legacy, n: AUDIO.n }); return idbAll(); });
+      return idbPrune(keep, legacy).then(function () { put('__audio', { v: AUDIO.v, packs: keep, legacy: legacy, n: AUDIO.n }); return idbIndex(); });
     }).then(publish);
   }
   function loadPack() {
     var meta = get('__audio');
-    if (meta && meta.v === AUDIO.v) return idbAll().then(function (items) { if (items.length) return publish(items); del('__audio'); return loadPack(); });
+    if (meta && meta.v === AUDIO.v) {
+      var ix = get('__clipidx');
+      if (ix && ix.v === AUDIO.v && ix.items && ix.items.length) { PACK = ix.items; publishAll(); return Promise.resolve(PACK); }
+      return idbIndex().then(function (items) { if (items.length) return publish(items); del('__audio'); return loadPack(); });
+    }
     return storedKey().then(function (key) { return key ? installAudio(key) : null; });
   }
   function loadAudio() {
@@ -1745,6 +1781,11 @@ function unlockAudio() {
   try { var a = audioEl(); a.src = SILENT; var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
 }
 function playFile(id, rate) {
+  // shipped and device clips are read from the phone's storage only now (window.__clipUrl); other ids play as before
+  var ready = window.__clipUrl ? window.__clipUrl(id) : Promise.resolve(id);
+  return ready.then(function (src) { return playSrc(src, rate); });
+}
+function playSrc(id, rate) {
   return new Promise(function (res, rej) {
     var a = audioEl(), done = false;
     var to = setTimeout(function () { fin(true); }, 45000);

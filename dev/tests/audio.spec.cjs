@@ -86,3 +86,43 @@ test('clips no line uses any more are removed from the device', async ({ page })
   expect(await page.evaluate(([e, t]) => [!!window.__LOCAL_AUDIO['en|' + e], !!window.__LOCAL_AUDIO['tr|' + t]], [line.en, line.tr])).toEqual([false, false]);
   expect(fetched).toEqual([]);
 });
+
+// 9A: opening the app reads no clips (only the list of which text has which clip); a clip is read from the phone's
+// storage when it is played, offline too, and only the last few stay in memory.
+test('clips are read only when played, offline too, and few stay in memory', async ({ page, context }) => {
+  requirePass(test);
+  await page.addInitScript(() => {
+    HTMLMediaElement.prototype.play = function () { window.__played = (window.__played || []).concat(this.src); return Promise.resolve(); };
+    // count full reads of the clip store (each one walks every clip with its sound)
+    const oc = IDBObjectStore.prototype.openCursor;
+    IDBObjectStore.prototype.openCursor = function () { if (this.name === 'clips') window.__clipScans = (window.__clipScans || 0) + 1; return oc.apply(this, arguments); };
+  });
+  await unlock(page);
+  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 120000 });
+
+  await page.reload(); // a normal opening, packs already installed
+  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 60000 });
+  const refs = await page.evaluate(() => Object.values(window.__LOCAL_AUDIO));
+  expect(refs.every((r) => /^(idb|gen):/.test(r))).toBe(true);
+  expect(await page.evaluate(() => window.__clipUrlsKept())).toBe(0);
+  expect(await page.evaluate(() => window.__clipScans || 0)).toBe(0); // no clip was read to open the app
+  expect((await dumpStore(page)).__clipidx.items.length).toBeGreaterThan(META.n - 50);
+
+  // a phone from before this change has no list yet: it is built once, then openings read nothing again
+  await page.evaluate(() => localStorage.removeItem('mt1:__clipidx'));
+  await page.reload();
+  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 60000 });
+  expect(await page.evaluate(() => window.__clipScans || 0)).toBe(1);
+  await page.reload();
+  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 60000 });
+  expect(await page.evaluate(() => window.__clipScans || 0)).toBe(0);
+
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Dinle', exact: true }).first().click();
+  await page.locator('[data-act="trackPlay"]').click();
+  await expect.poll(() => page.evaluate(() => (window.__played || []).filter((s) => s.startsWith('blob:')).length)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__clipUrlsKept())).toBeGreaterThan(0);
+
+  const kept = await page.evaluate((r) => Promise.all(r.map((x) => window.__clipUrl(x))).then(() => window.__clipUrlsKept()), refs.slice(0, 20));
+  expect(kept).toBeLessThanOrEqual(8);
+});
