@@ -207,6 +207,18 @@
     return issues;
   }
 
+  // Order-free word lists for meaning cards: content words of the reference not said, and said content words not in the reference.
+  // Each said word matches at most one reference word, so a reordered word is never listed as both missing and extra.
+  function bagDiff(ref, hyp) {
+    var left = hyp.filter(function (w) { return !FUNC[w]; }), miss = [];
+    ref.forEach(function (w) {
+      if (FUNC[w]) return;
+      var k = left.indexOf(w); if (k < 0) for (var i = 0; i < left.length && k < 0; i++) if (tokEq(w, left[i])) k = i;
+      if (k >= 0) left.splice(k, 1); else miss.push(w);
+    });
+    return { miss: miss, extra: left };
+  }
+
   /* Combines everything into a suggested grade (2 İyi, 1 Zor, 0 Tekrar).
      sig (optional) = { sim: cosine, nli: { fwd: {ent, neu, con}, back: {ent, neu, con} } }  — fwd: reference ⇒ said, back: said ⇒ reference. */
   // Chosen on the 85-case eval set (stable across the grid; see the prototype report).
@@ -246,7 +258,7 @@
         grade = cov >= 0.85 ? 2 : cov >= 0.6 ? 1 : 0; why.push('coverage ' + cov.toFixed(2));
       }
     }
-    return { grade: grade, acc: acc, issues: issues, edits: a.edits, said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
+    return { grade: grade, acc: acc, issues: issues, edits: a.edits, bag: bagDiff(R.tokens, hyp), said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
   }
 
   var api = { baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
