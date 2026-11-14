@@ -22,6 +22,10 @@ test.describe('normalization', () => {
     ['self-correction keeps the corrected value', 'It was fourteen percent.', 'it was forty sorry fourteen percent', 'it was 14 percent'],
     ['stutter collapsed', 'I worked there.', 'I I worked there', 'i worked there'],
     ['fractions', 'x', '3 1/2 years, 2½ weeks, 1/2 day', '3.5 years 2.5 weeks 0.5 day'],
+    ['fraction with "and"', 'x', '3 and 1/2 years', '3.5 years'],
+    ['a number glued to /2 is not a fraction', 'x', 'on 11/2 we met', 'on 11 2 we met'],
+    ['other slashes are left alone', 'x', 'support 24/7', 'support 24 7'],
+    ['number look-alike next to a stutter', 'I talked to 2 people.', 'I talked to to people', 'i talked to 2 people'],
     ['number look-alike becomes the number the reference needs', 'We ran four checks for the team.', 'we ran for checks for the team', 'we ran 4 checks for the team'],
     ['look-alike stays a word when no number is needed', 'We did it for the team.', 'we did it for the team', 'we did it for the team'],
   ];
@@ -41,6 +45,19 @@ test.describe('objective contradictions', () => {
     ['correct paraphrase has no hard issue', 'The bus ride went from nine hours to under seven.', 'the trip went from 9 hours to under 7', []],
   ];
   for (const [name, ref, said, want] of cases) test(name, () => { expect(issues(ref, said)).toEqual(want); });
+});
+
+test.describe('meaning stems', () => {
+  const MUST = ['used/use', 'using/use', 'shipping/ship', 'verified/verify', 'stories/story', 'parcels/parcel', 'notes/note', 'codes/code', 'lines/line', 'boxes/box', 'goes/go', 'agreed/agree', 'kept/keep', 'built/build', 'taught/teach'];
+  const NEVER = ['notes/not', 'seed/see', 'seed/saw', 'need/ne', 'codes/cod', 'lines/lin', 'bus/bu', 'not/note', 'never/ever', 'no/not'];
+  for (const p of MUST) test('match ' + p, () => { expect(v3.stemEq(...p.split('/'))).toBe(true); });
+  for (const p of NEVER) test('no match ' + p, () => { expect(v3.stemEq(...p.split('/'))).toBe(false); });
+  test('a negation does not hide a missing term', () => {
+    const r = v3.check({ en: 'I added notes to the ticket.', tier: 'anlam' }, 'I did not add the ticket', LEX, null);
+    expect(r.bag.miss).toContain('notes');
+    expect(r.cov).toBeLessThan(1);
+    expect(r.grade).toBe(0);
+  });
 });
 
 test.describe('proper names (found from the texts, none in code)', () => {
