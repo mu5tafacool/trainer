@@ -34,7 +34,8 @@ The **Today** tab (Bugün) lays out the day in order:
 
 ### Learning new answers
 
-- Each line goes through **listen → meaning → shadow 3× → 5-second image**. The first shadowing pass shows the text; the later passes hide it.
+- Each line goes through **listen → meaning → shadow 3× → 5-second image → recall**. The first shadowing pass shows the text; the later passes hide it, and the third is said together with the voice (no gap after it).
+- **Recall** (*Hatırla*): only the Turkish is shown; say the English yourself within the thinking time (the same as Listen B, by sentence length). When it runs out, or on *Show*, the English opens (patterns highlighted) and plays. *Again* repeats the step. The optional 🎤 check shows the percentage and missing words only: no suggested grade, nothing saved to the schedule. *Skip steps* skips it too.
 - A short check every 4–5 lines: see the Turkish, say the English.
 - Leaving a new-answer session (another tab, *Pause* (*Ara ver*), or closing the app) keeps the place: Today offers *Continue where you left off* at the same line or check, for the rest of the day.
 

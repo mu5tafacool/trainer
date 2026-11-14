@@ -2124,7 +2124,16 @@ function runShadow() {
     if (S.sess !== s || tok !== audioTok) return;
     k++;
     if (k > 3) { return imagery(); }
-    s.shadow = k; s.shPhase = 'listen'; render();
+    s.shadow = k;
+    if (k === 3) {
+      // last round together with the voice, no gap after it (same as Dinle A's "Son tur eşzamanlı")
+      s.shPhase = 'with'; render();
+      wait(700, tok).then(function () { return speak(it.l.en, 'en', tok); }).then(function () { return wait(500, tok); }).then(function () {
+        if (S.sess !== s || tok !== audioTok) return; imagery();
+      });
+      return;
+    }
+    s.shPhase = 'listen'; render();
     wait(60, tok).then(function () { return speak(it.l.en, 'en', tok); }).then(function (ms) {
       if (S.sess !== s || tok !== audioTok) return;
       s.shPhase = 'you'; render();
@@ -2135,13 +2144,27 @@ function runShadow() {
     s.step = 3; s.img = 5; render();
     function tickImg() {
       if (S.sess !== s || tok !== audioTok) return;
-      if (s.img <= 0) { s.step = 4; render(); return; }
+      if (s.img <= 0) { recallEnter(); return; }
       wait(1000, tok).then(function () { if (S.sess !== s || tok !== audioTok) return; s.img--; render(); tickImg(); });
     }
     tickImg();
   }
   cycle();
 }
+/* Hatırla (step 4): only the Turkish is shown; say the English yourself within the thinking time of Dinle B (thinkMs),
+   then (or on Göster) the English opens and plays. Optional 🎤 check shows the percentage only: no grade, nothing saved. */
+function recallEnter() {
+  var s = S.sess; if (!s || s.type !== 'intro') return;
+  stopAudio(); var tok = audioTok, it = curIntro(), ms = thinkMs(it.l.en);
+  s.step = 4; s.rec = { end: Date.now() + ms, shown: false }; s.dictOpen = false; s.dictText = ''; s.dict = null; render();
+  wait(ms, tok).then(function () { if (S.sess === s && tok === audioTok && s.step === 4 && !s.rec.shown) recallShow(); });
+}
+function recallShow() {
+  var s = S.sess; if (!s || s.step !== 4 || s.rec.shown) return;
+  stopAudio(); s.rec.shown = true; render(); play(curIntro().l.en, 'en');
+}
+function recallLeft() { var s = S.sess; return s && s.rec ? Math.max(0, Math.ceil((s.rec.end - Date.now()) / 1000)) + ' sn' : ''; }
+setInterval(function () { var e = document.getElementById('recleft'), s = S.sess; if (e && s && s.type === 'intro' && s.step === 4 && s.rec && !s.rec.shown) e.textContent = recallLeft(); }, 250);
 function introNext() {
   var s = S.sess; stopAudio(); s.i++;
   if (s.i >= s.batches[s.b].length) { s.phase = 'quiz'; s.quiz = { q: shuffle(s.batches[s.b].slice()), shown: false }; quizEnter(); }
@@ -2189,18 +2212,22 @@ function renderIntro() {
     return h;
   }
   var it2 = curIntro(), last = s.i === s.batches[s.b].length - 1;
-  var stepNames = ['Dinle', 'Anlam', 'Gölgele 3×', 'İmge'];
-  var active = s.step === 0 ? 0 : s.step === 1 ? 1 : s.step === 2 ? 2 : s.step === 3 ? 3 : 4;
+  var stepNames = ['Dinle', 'Anlam', 'Gölgele 3×', 'İmge', 'Hatırla'];
+  var active = Math.min(s.step, 5);
   var h2 = sessHead('Yeni · ' + introPos() + '/' + s.total, 'Ara ver');
   h2 += '<div class="steps">' + stepNames.map(function (n, k) { return '<span class="' + (k < active ? 'did' : k === active ? 'on' : '') + '">' + n + '</span>'; }).join('') + '</div>';
-  var masked = s.step === 2 && s.shadow >= 2;
-  h2 += '<article class="icard"><div class="ctx"><span>' + esc(qLabel(it2.a)) + '</span></div><p class="en' + (masked ? ' masked' : '') + '">' + (masked ? esc(it2.l.en) : hlEn(it2.l)) + '</p>';
-  if (s.step >= 1) h2 += '<p class="tr">' + esc(it2.l.tr) + '</p>';
-  if (s.step === 2) h2 += '<p>' + (s.shPhase === 'you' ? '<span class="say">Şimdi sen söyle</span>' : '<span class="hint">Dinle</span>') + ' <span class="mono hint">· gölge ' + s.shadow + '/3 · ' + (s.shadow === 1 ? 'metinle' : 'metinsiz') + '</span></p>';
+  var masked = s.step === 2 && s.shadow >= 2, recall = s.step === 4, hideEn = recall && !s.rec.shown;
+  h2 += '<article class="icard"><div class="ctx"><span>' + esc(qLabel(it2.a)) + '</span>' + (recall ? '<span>TR → EN · sesli söyle</span>' : '') + '</div>' +
+    (hideEn ? '' : '<p class="en' + (masked ? ' masked' : '') + '">' + (masked ? esc(it2.l.en) : hlEn(it2.l)) + '</p>');
+  if (s.step >= 1) h2 += '<p class="tr' + (recall ? ' big' : '') + '">' + esc(it2.l.tr) + '</p>';
+  if (s.step === 2) h2 += '<p>' + (s.shPhase === 'with' ? '<span class="say">Sesle birlikte söyle</span>' : s.shPhase === 'you' ? '<span class="say">Şimdi sen söyle</span>' : '<span class="hint">Dinle</span>') + ' <span class="mono hint">· gölge ' + s.shadow + '/3 · ' + (s.shadow === 1 ? 'metinle' : 'metinsiz') + '</span></p>';
+  if (hideEn) h2 += '<p><span class="say">İngilizcesini sen söyle</span>' + (s.dictOpen ? ' <span class="hint">· sonra Kontrol et</span>' : ' <span class="mono hint" id="recleft">' + recallLeft() + '</span>') + '</p>';
   if (s.step === 3) h2 += '<p class="hint">Bu cümleyi kendi hayatından bir sahneye bağla.</p><p class="count">' + s.img + '</p>';
   h2 += '<div class="cardfoot"><span class="tier ' + esc(it2.l.tier) + '">' + tierTxt(it2.l) + '</span></div></article>' + siriHint();
   if (s.step <= 1) h2 += '<div class="row"><button class="btn ghost" data-act="replayIntro">▶ Dinle</button><button class="btn primary" data-act="shadow"' + (s.step === 0 ? ' disabled' : '') + '>Gölgele 3×</button></div><button class="link" data-act="introSkip">Adımları atla →</button>';
   else if (s.step === 2 || s.step === 3) h2 += '<div class="row"><button class="btn ghost" data-act="introSkip">Atla →</button></div>';
+  else if (recall && !s.rec.shown) h2 += (dictOn() ? dictBox(s, 'recCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="recShow">Göster</button></div>';
+  else if (recall) h2 += (s.dict ? dictRes(s.dict, s.dictText) : '') + '<div class="row"><button class="btn ghost" data-act="recAgain">↺ Bir daha</button><button class="btn primary" data-act="introNext">' + (last ? 'Kontrole geç' : 'Sonraki satır') + '</button></div>';
   else h2 += '<div class="row"><button class="btn ghost" data-act="shadow">↺ Tekrar gölgele</button><button class="btn primary" data-act="introNext">' + (last ? 'Kontrole geç' : 'Sonraki satır') + '</button></div>';
   return h2;
 }
@@ -3131,7 +3158,8 @@ function helpPanel() {
       'Kodlar dokümandakiyle aynı: ' + gCodes.join(', ') + '.'
     ]), true) +
     d('Yeni cevap nasıl öğrenilir', ul([
-      'Her satır: <b>Dinle → Anlam → 3× gölgele → 5 sn imge</b>. Gölgelemenin ilk turu metinle, sonrakiler metinsiz.',
+      'Her satır: <b>Dinle → Anlam → 3× gölgele → 5 sn imge → Hatırla</b>. Gölgelemenin ilk turu metinle, sonrakiler metinsiz; 3. turda <b>sesle birlikte söyle</b> (boşluk yok).',
+      '<b>Hatırla</b>: Türkçeye bakıp İngilizcesini kendin söyle; süre bitince (ya da <b>Göster</b> ile) doğrusu açılır ve çalar. Bilemediysen <b>Bir daha</b>. 🎤 ile kontrol edebilirsin; yüzde gösterilir, puan verilmez.',
       'Her 4–5 satırda kısa kontrol: Türkçeyi gör, İngilizcesini söyle.',
       'Yarıda bırakırsan (başka sekme, <b>Ara ver</b> ya da uygulamayı kapatma) yer kaybolmaz: Bugün → Yeni\'de <b>Kaldığın yerden devam</b> aynı satır ya da kontrolden sürdürür (o gün içinde).',
       '<b>Kırmızı kenarlı satır = ezber</b> (kelimesi kelimesine; açılış, kapanış, ana cümle). Diğerleri <b>anlam</b>: ana fikir ve terimler yeter.',
@@ -3190,7 +3218,17 @@ var ACT = {
   grade: function (el) { grade(+el.dataset.g); },
   replayIntro: function () { var s = S.sess, it = curIntro(); play(it.l.en, 'en').then(function () { if (S.sess === s && s.step === 0) { s.step = 1; render(); } }); },
   shadow: runShadow,
-  introSkip: function () { var s = S.sess; stopAudio(); s.step = 4; render(); },
+  introSkip: function () { var s = S.sess; stopAudio(); s.step = 5; render(); },
+  recShow: function () { recallShow(); },
+  recAgain: function () { recallEnter(); },
+  // 🎤 on Hatırla: the percentage and missing words only; no grade suggestion, nothing written to the schedule
+  recCheck: function () {
+    var s = S.sess; if (!s || s.type !== 'intro' || s.step !== 4 || s.rec.shown) return;
+    var t = document.getElementById('dict'), txt = t ? t.value : s.dictText;
+    if (!txt || !txt.trim()) { toast('Önce söyle ya da yaz.'); dictFocus(); return; }
+    try { if (t) t.blur(); } catch (e) {}
+    var l = curIntro().l; s.dictText = txt; s.dict = dictCheck3(l, txt); dictNli(s, l, txt); recallShow();
+  },
   introNext: introNext,
   quizReveal: quizReveal,
   replayQuizTr: function () { play(S.sess.quiz.q[0].l.tr, 'tr'); },
@@ -3325,7 +3363,8 @@ document.addEventListener('keydown', function (e) {
   } else if (s.type === 'intro' && s.phase === 'quiz') {
     if (!s.quiz.shown && go) { e.preventDefault(); quizReveal(); }
     else if (s.quiz.shown && (e.key === '1' || e.key === '2')) quizMark(e.key === '2');
-  } else if (s.type === 'intro' && s.phase === 'learn' && s.step === 4 && go) { e.preventDefault(); introNext(); }
+  } else if (s.type === 'intro' && s.phase === 'learn' && s.step === 4 && s.rec && !s.rec.shown && go) { e.preventDefault(); recallShow(); }
+  else if (s.type === 'intro' && s.phase === 'learn' && (s.step === 5 || (s.step === 4 && s.rec && s.rec.shown)) && go) { e.preventDefault(); introNext(); }
 });
 setInterval(function () {
   var s = S.sess, el = document.getElementById('timer'); if (!s || !el) return;
