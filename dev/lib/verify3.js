@@ -347,7 +347,7 @@
   /* Combines everything into a suggested grade (2 İyi, 1 Zor, 0 Tekrar).
      sig (optional) = { sim: cosine, nli: { fwd: {ent, neu, con}, back: {ent, neu, con} } }  — fwd: reference ⇒ said, back: said ⇒ reference. */
   // Chosen on the 85-case eval set (stable across the grid; see the prototype report).
-  var T = { ezberGood: 0.94, ezberOk: 0.7, anlamCon: 0.5, anlamEnt: 0.7, anlamSimGood: 0.8, anlamSimOk: 0.6, anlamCovGood: 0.5 };
+  var T = { ezberGood: 0.94, ezberOk: 0.7, anlamCon: 0.5, anlamEnt: 0.7, anlamSimGood: 0.8, anlamSimOk: 0.6, anlamCovGood: 0.5, anlamCovSome: 0.4 };
   function check(line, said, lexicon, sig, opts) {
     opts = opts || {};
     var R = line._prep || prepareRef(line.en, lexicon), hyp = normalizeSaid(said, R);
@@ -380,6 +380,8 @@
       else if (useNli) {
         var both = entF >= T.anlamEnt && entB >= T.anlamEnt, one = entF >= T.anlamEnt || entB >= T.anlamEnt;
         grade = both ? 2 : one ? 1 : (useSim && sig.sim >= T.anlamSimOk ? 1 : 0);
+        // the model is sure of neither direction but sees no contradiction, and part of the terms were said: Zor, not Tekrar
+        if (grade === 0 && con < T.anlamCon && cov >= T.anlamCovSome) { grade = 1; why.push('unsure-partial'); }
         if (grade === 2 && issues.some(function (x) { return x.kind === 'number-missing'; })) grade = 1;
         // The model can call a short, garbled answer "entailed"; most of the reference's terms must be there for İyi.
         if (grade === 2 && cov < T.anlamCovGood) { grade = 1; why.push('low-coverage'); }

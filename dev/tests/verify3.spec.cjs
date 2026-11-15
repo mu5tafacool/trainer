@@ -127,5 +127,12 @@ test.describe('grades without models', () => {
     expect(s.mkMiss).toEqual(['craft']);
     expect(s.grade).toBe(2);
   });
+  test('meaning: model unsure both ways, no contradiction, some terms said → Zor; few terms or a contradiction → Tekrar', () => {
+    const unsure = (con) => ({ fwd: { ent: 0.5, neu: 0.5 - con, con }, back: { ent: 0.05, neu: 0.9, con: 0.05 } });
+    const line = { en: 'Our gardener waters the tomatoes early and trims the hedges every week.', tier: 'anlam' };
+    expect(v3.check(line, 'the gardener waters tomatoes and cuts grass', LEX, { nli: unsure(0.4) }).grade).toBe(1);
+    expect(v3.check(line, 'the gardener sleeps', LEX, { nli: unsure(0.4) }).grade).toBe(0);
+    expect(v3.check(line, 'the gardener waters tomatoes and cuts grass', LEX, { nli: unsure(0.6) }).grade).toBe(0);
+  });
   test('empty answer is Tekrar', () => { expect(g('anlam', 'We ship weekly.', '')).toBe(0); });
 });
