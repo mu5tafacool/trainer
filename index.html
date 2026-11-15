@@ -202,6 +202,18 @@ nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset
 .anshead .num { color: var(--muted); font-size: 12px; }
 .anshead .q { font-weight: 600; }
 .anshead .cnt { color: var(--muted); font-size: 12px; }
+/* progress per answer: green = settled (interval 7+ days, as in Prova), blue = learned and in review, grey = not started */
+.lbar { grid-column: 2 / 4; height: 5px; border-radius: 3px; background: var(--rule); display: flex; overflow: hidden; }
+.lbar i { display: block; height: 100%; }
+.lbar .ok { background: var(--ok); }
+.lbar .lr { background: var(--accent); }
+.anshead .lmeta { grid-column: 2 / 4; color: var(--muted); font-size: 12px; margin-top: -4px; }
+.lsum { margin: 0 0 14px; display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.lsum b { color: var(--ink); font-weight: 600; }
+.lsum .lbar { grid-column: auto; }
+.lleg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+.lleg span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--rule); }
+.lleg .ok::before { background: var(--ok); } .lleg .lr::before { background: var(--accent); }
 .qtr { color: var(--muted); font-size: 13.5px; margin: -6px 0 10px 44px; }
 ol.lines { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
 li.line { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 12px 10px 14px; display: grid; gap: 6px; }
@@ -2752,22 +2764,36 @@ function renderLines() {
   var total = totalLines(), flags = 0;
   S.answers.forEach(function (a) { a.lines.forEach(function (l) { if (l.flag) flags++; }); });
   var g = curGrp(), list = grpAnswers();
-  var h = '<section class="hero"><h1>Cümleler</h1><p class="sub">' + total + ' satır, ' + S.answers.length + ' cevap. Kırmızı kenarlı satırlar ezber; kalanında ana fikir yeter. Sağda: ✓ öğrenildi, +N yeni satır, #N yeni cevap sırası, sonra satır sayısı.' +
+  var h = '<section class="hero"><h1>Cümleler</h1><p class="sub">' + total + ' satır, ' + S.answers.length + ' cevap. Kırmızı kenarlı satırlar ezber; kalanında ana fikir yeter. Bar: yeşil oturdu (tekrar aralığı 7+ gün), mavi öğrenildi, gri henüz yok; sağda öğrenilen/toplam satır.' +
     (flags ? ' <b style="color:var(--warn)">⚑ ' + flags + ' satır senden bilgi bekliyor.</b>' : '') + '</p></section>';
   h += grpChips();
+  var sumN = 0, sumL = 0, sumM = 0;
+  list.forEach(function (a) { sumN += a.lines.length; sumL += a.lines.filter(function (l) { return lineStarted(a, l); }).length; sumM += mastered(a); });
+  h += '<div class="lsum"><span>' + esc(grpLabel(g)) + (g === 'all' ? '' : ' grubu') + ' · <b class="mono">' + sumL + '/' + sumN + '</b> satır öğrenildi · <b class="mono">' + sumM + '</b> oturdu</span>' + lbar(sumM, sumL, sumN) +
+    '<span class="lleg"><span class="ok">oturdu</span><span class="lr">öğrenildi, tekrarda</span><span>henüz yok</span></span></div>';
   h += '<section class="panel" style="margin-bottom:16px"><div class="ph"><h2>Notlar\'a aktar</h2><span class="mono">isteğe bağlı</span></div>' +
     '<p class="hint">İnternetsiz dinlemek için: metni Notlar\'a yapıştır, notu açıp iki parmakla ekranın tepesinden aşağı kaydır; Speak Screen Siri sesiyle okur.' + (g !== 'all' ? ' Yalnızca seçili grup: ' + esc(grpLabel(g)) + '.' : '') + '</p>' +
     '<div class="row"><button class="btn" data-act="exportNotes" data-tr="0">Sadece İngilizce</button><button class="btn" data-act="exportNotes" data-tr="1">Türkçe + İngilizce</button></div><div id="notesbox"></div></section>';
   list.forEach(function (a) {
     var open = !!S.openAns[a.id];
     var fl = a.lines.some(function (l) { return l.flag; });
-    h += '<section class="ans"><button class="anshead" data-act="toggleAns" data-id="' + a.id + '" aria-expanded="' + open + '"><span class="mono num">' + esc(a.code || '') + '</span><span class="q">' + esc(a.q) + tagHtml(a) + (fl ? ' <span style="color:var(--warn)">⚑</span>' : '') + '</span><span class="mono cnt">' + (statusTxt(a) ? statusTxt(a) + ' · ' : '') + a.lines.length + '</span></button>';
+    h += '<section class="ans"><button class="anshead" data-act="toggleAns" data-id="' + a.id + '" aria-expanded="' + open + '"><span class="mono num">' + esc(a.code || '') + '</span><span class="q">' + esc(a.q) + tagHtml(a) + (fl ? ' <span style="color:var(--warn)">⚑</span>' : '') + '</span><span class="mono cnt">' + (started(a) ? learnedN(a) + '/' : '') + a.lines.length + '</span>' + lbar(mastered(a), learnedN(a), a.lines.length) + '<span class="lmeta">' + esc(rowMeta(a)) + '</span></button>';
     if (open) {
       h += '<p class="qtr">' + esc(a.qtr) + '</p>' + infoHtml(a, ['key', 'kw', 'clear', 'notes']) + '<ol class="lines">' + a.lines.map(function (l) { return lineRow(a, l); }).join('') + '</ol>' + addForm(a);
     }
     h += '</section>';
   });
   return h;
+}
+function learnedN(a) { return a.lines.filter(function (l) { return lineStarted(a, l); }).length; }
+function lbar(settled, learned, total) {
+  var pct = function (n) { return total ? Math.round(1000 * n / total) / 10 : 0; };
+  return '<span class="lbar" aria-hidden="true"><i class="ok" style="width:' + pct(settled) + '%"></i><i class="lr" style="width:' + pct(Math.max(0, learned - settled)) + '%"></i></span>';
+}
+function rowMeta(a) {
+  if (!started(a)) { var p = queuePos(a); return p === 1 ? 'sıradaki yeni cevap' : p ? 'yeni cevap sırası: ' + p : 'henüz başlanmadı'; }
+  var m = mastered(a), rest = a.lines.length - learnedN(a);
+  return m + ' oturdu' + (rest ? ' · ' + rest + ' yeni satır' : '');
 }
 function lineRow(a, l) {
   if (S.edit && S.edit.lid === l.id) return editRow(a, l);
@@ -3067,7 +3093,7 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v42'; // = V in sw.js (a test checks)
+var APP_VER = 'mt-v43'; // = V in sw.js (a test checks)
 var NLI_TIMES = 'mt1:__nli_ms';
 function nliTimeAdd(ms) { try { var a = JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); a.push(ms); localStorage.setItem(NLI_TIMES, JSON.stringify(a.slice(-20))); } catch (e) {} }
 function nliTimes() { try { return JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); } catch (e) { return []; } }
