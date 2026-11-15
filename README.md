@@ -4,6 +4,26 @@ A personal, offline study app for memorising spoken interview answers, so that r
 
 It is a single-page progressive web app (PWA) served from this repository with GitHub Pages. The answer texts and the audio are encrypted; this repository only holds the built site.
 
+## At a glance
+
+Hear the answer, say it, recall it from Turkish, and let spaced review keep it. Everything runs on the phone, offline.
+
+```mermaid
+flowchart LR
+  R["Review<br/>due lines · TR → say EN · 🎤 check"] --> N["New<br/>4–5 lines at a time"]
+  N --> P["Rehearse<br/>whole answer, timed rounds"]
+  P --> M["Mock interview<br/>5 questions in a row"]
+  L["Listen on the go<br/>shadow or recall"] -.-> R
+  subgraph N2["Each new line"]
+    direction LR
+    a[Listen] --> b[Meaning] --> c["Shadow 3×<br/>3rd with the voice"] --> d["Image<br/>5 s"] --> e["Recall<br/>from Turkish"]
+  end
+  N --- N2
+  e --> k["Check<br/>every 4–5 lines, mixed"]
+```
+
+Why this order: listening and meaning introduce a line, shadowing sets its sound, the image ties it to your own life and leaves a short pause, so recall comes from memory; the check calls the lines back later and mixed, and review keeps spacing them out (1 → 3 → 8 → 20 days).
+
 ## How a day works
 
 The **Today** tab (Bugün) lays out the day in order:
