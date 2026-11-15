@@ -2,6 +2,10 @@
 // and adds one new pack (dev/tools/audio-pack.cjs). Nothing to do → exits without changes.
 //
 //   TRAINER_PASS=... KOKORO_DIR=<folder with kokoro-v1.0.onnx + voices-v1.0.bin> node dev/tools/voices.cjs [--dry] [--langs=en,tr]
+//   [--redo=audio-<hash>.bin]  voice that pack's texts again (selected languages) into a new pack that replaces them
+//
+// Turkish uses the Mac's system voice. Before making any Turkish clip, a known-good shipped clip (TR_REF, made with
+// Turkish Siri Voice 2) is voiced again and the lengths are compared; if the voice is a different one, nothing is made.
 //
 // Languages: one row each in LANGS. A language whose engine is not available here (e.g. `say` off macOS, in a cloud
 // session) is skipped and reported; run the script again on the Mac later and only those clips are added.
@@ -29,15 +33,28 @@ const ENGINES = {
   say: () => process.platform === 'darwin' && has('say') && has('afconvert'),
 };
 
-function packTexts(html, key) {
+const TR_REF = process.env.TR_REF || 'disagree-02.tr'; // shipped in audio-fc1fce8096.bin, made with Turkish Siri Voice 2
+async function readPacks(html, key) {
   const meta = JSON.parse(html.match(/<script id="audio-meta" type="application\/json">([\s\S]*?)<\/script>/)[1]);
-  const have = new Set();
-  return Promise.all(meta.packs.map(async (p) => {
+  const have = new Set(), byPack = {}, clip = {};
+  for (const p of meta.packs) {
     const buf = fs.readFileSync(path.join(ROOT, p.file));
     const pt = Buffer.from(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.subarray(0, 12) }, key, buf.subarray(12)));
-    const hl = pt.readUInt32BE(0);
-    JSON.parse(pt.subarray(4, 4 + hl).toString()).items.forEach((it) => have.add(it.k.split('.').pop() + '|' + it.text));
-  })).then(() => have);
+    const hl = pt.readUInt32BE(0), items = JSON.parse(pt.subarray(4, 4 + hl).toString()).items;
+    byPack[p.file] = items.map((it) => ({ k: it.k, text: it.text }));
+    items.forEach((it) => { have.add(it.k.split('.').pop() + '|' + it.text); clip[it.k] = { text: it.text, buf: pt.subarray(4 + hl + it.off, 4 + hl + it.off + it.len) }; });
+  }
+  return { have, byPack, clip };
+}
+function seconds(file) { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]).toString()); }
+// The system voice must be the one the shipped Turkish clips were made with: voice a known clip again and compare lengths.
+function checkTurkishVoice(ref, dir) {
+  if (!ref) throw new Error('reference clip ' + TR_REF + ' not found in the packs');
+  const shipped = path.join(dir, 'ref-shipped.mp3'); fs.writeFileSync(shipped, ref.buf);
+  voiceSay([{ k: 'ref-now', text: ref.text }], dir);
+  const a = seconds(shipped), b = seconds(path.join(dir, 'ref-now.mp3')), diff = Math.abs(a - b) / a;
+  if (diff > 0.08) throw new Error('The Mac\'s system voice is not the Turkish Siri voice the clips were made with (reference ' + a.toFixed(2) + ' s, now ' + b.toFixed(2) + ' s). Set System Settings → Accessibility → Spoken Content → System voice → Turkish → Siri Voice 2, then run again.');
+  console.log('Turkish voice check: ok (' + a.toFixed(2) + ' s vs ' + b.toFixed(2) + ' s)');
 }
 
 async function seedKey(html, pass) {
@@ -91,7 +108,11 @@ function voiceSay(jobs, dir) {
   const only = (process.argv.find((a) => a.startsWith('--langs=')) || '').slice(8).split(',').filter(Boolean);
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const { data } = await decryptSeed(html, pass);
-  const have = await packTexts(html, await seedKey(html, pass));
+  const packs = await readPacks(html, await seedKey(html, pass));
+  const redo = (process.argv.find((a) => a.startsWith('--redo=')) || '').slice(7);
+  if (redo && !packs.byPack[redo]) throw new Error(redo + ' is not a shipped pack');
+  // with --redo, that pack's texts count as missing so they are voiced again (same keys → the new pack replaces them)
+  const have = redo ? new Set([...packs.have].filter((t) => !packs.byPack[redo].some((it) => it.k.split('.').pop() + '|' + it.text === t))) : packs.have;
 
   // every text in use, once, with a stable key
   const want = {};
@@ -112,6 +133,7 @@ function voiceSay(jobs, dir) {
     for (const [lang, list] of Object.entries(byLang)) {
       const eng = LANGS[lang].engine;
       if (!ENGINES[eng]()) { waiting.push(lang); continue; }
+      if (eng === 'say') checkTurkishVoice(packs.clip[TR_REF], dir);
       if (eng === 'kokoro') voiceKokoro(list, dir, lang, sayEnFrom(html)); else voiceSay(list, dir);
       list.forEach((j) => done.push({ k: j.k, text: j.text, file: path.join(dir, j.k + '.mp3') }));
     }

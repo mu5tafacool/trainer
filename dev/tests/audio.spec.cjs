@@ -5,6 +5,10 @@ const { test, expect } = require('@playwright/test');
 const { requirePass, unlock, dumpStore, writeStore, seedOf } = require('./helpers.cjs');
 const fs = require('node:fs'), path = require('node:path');
 
+// ready = this build's packs are installed (__audio.v) and the clip list is published. (META.n counts every clip in
+// every pack; a re-voicing pack repeats keys, so the number of distinct clips is lower.)
+const ready = (page, timeout) => page.waitForFunction((v) => { try { return JSON.parse(localStorage.getItem('mt1:__audio') || '{}').v === v && Object.keys(window.__LOCAL_AUDIO || {}).length > 100; } catch (e) { return false; } }, META_V(), { timeout: timeout || 120000 });
+const META_V = () => META.v;
 const META = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8').match(/<script id="audio-meta" type="application\/json">([\s\S]*?)<\/script>/)[1]);
 
 // What the app plays: English questions, English and Turkish lines (dev/tools/voices.cjs voices the same set).
@@ -12,7 +16,7 @@ test('every line has shipped clips in both languages', async ({ page }) => {
   requirePass(test);
   const { answers } = await seedOf();
   await unlock(page);
-  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 120000 });
+  await ready(page, 120000);
   const texts = [];
   Object.values(answers).forEach((a) => { texts.push('en|' + a.q); a.lines.forEach((l) => { texts.push('en|' + l.en); texts.push('tr|' + l.tr); }); });
   const missing = await page.evaluate((t) => t.filter((k) => !window.__LOCAL_AUDIO[k]), texts);
@@ -46,7 +50,7 @@ test('a device with the older packs downloads only the new pack', async ({ page 
   expect(fetched).toEqual([newest.file]);
 
   // the new pack's lines play its clips, not the device voice
-  await page.waitForFunction((n) => Object.keys(window.__LOCAL_AUDIO || {}).length >= n, META.n - 50, { timeout: 60000 });
+  await ready(page, 60000);
   const texts = [];
   Object.values(answers).forEach((a) => a.lines.forEach((l) => { texts.push('en|' + l.en); texts.push('tr|' + l.tr); }));
   expect(await page.evaluate((t) => t.filter((k) => !window.__LOCAL_AUDIO[k]), texts)).toEqual([]);
@@ -57,7 +61,7 @@ test('clips no line uses any more are removed from the device', async ({ page })
   requirePass(test);
   const { answers } = await seedOf();
   await unlock(page);
-  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 120000 });
+  await ready(page, 120000);
   const count = (store) => page.evaluate((st) => new Promise((res) => { const r = indexedDB.open('mt-audio', 2); r.onsuccess = () => { const q = r.result.transaction(st).objectStore(st).count(); q.onsuccess = () => res(q.result); }; }), store);
   await expect.poll(() => page.evaluate(() => window.__pruneAudio()).then(() => count('clips')), { timeout: 30000 }).toBeLessThan(META.n + 1);
   const before = await count('clips');
@@ -70,7 +74,7 @@ test('clips no line uses any more are removed from the device', async ({ page })
       st.put({ text: t1, type: 'audio/wav', buf: new ArrayBuffer(8) }, 'en|' + t1); st.put({ text: t2, type: 'audio/wav', buf: new ArrayBuffer(8) }, 'en|' + t2); tx.oncomplete = res; };
   }), ['A sentence that no answer has any more.', line.en]);
   await page.reload();
-  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 120000 });
+  await ready(page, 120000);
 
   // the user edits a line: its old clips (en + tr) go a few seconds later
   const fetched = [];
@@ -98,23 +102,23 @@ test('clips are read only when played, offline too, and few stay in memory', asy
     IDBObjectStore.prototype.openCursor = function () { if (this.name === 'clips') window.__clipScans = (window.__clipScans || 0) + 1; return oc.apply(this, arguments); };
   });
   await unlock(page);
-  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 120000 });
+  await ready(page, 120000);
 
   await page.reload(); // a normal opening, packs already installed
-  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 60000 });
+  await ready(page, 60000);
   const refs = await page.evaluate(() => Object.values(window.__LOCAL_AUDIO));
   expect(refs.every((r) => /^(idb|gen):/.test(r))).toBe(true);
   expect(await page.evaluate(() => window.__clipUrlsKept())).toBe(0);
   expect(await page.evaluate(() => window.__clipScans || 0)).toBe(0); // no clip was read to open the app
-  expect((await dumpStore(page)).__clipidx.items.length).toBeGreaterThan(META.n - 50);
+  expect((await dumpStore(page)).__clipidx.items.length).toBe(refs.filter((r) => r.startsWith('idb:')).length); // the cached list = the clips on the device
 
   // a phone from before this change has no list yet: it is built once, then openings read nothing again
   await page.evaluate(() => localStorage.removeItem('mt1:__clipidx'));
   await page.reload();
-  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 60000 });
+  await ready(page, 60000);
   expect(await page.evaluate(() => window.__clipScans || 0)).toBe(1);
   await page.reload();
-  await page.waitForFunction((n) => window.__LOCAL_AUDIO && Object.keys(window.__LOCAL_AUDIO).length >= n, META.n - 50, { timeout: 60000 });
+  await ready(page, 60000);
   expect(await page.evaluate(() => window.__clipScans || 0)).toBe(0);
 
   await context.setOffline(true);
@@ -125,4 +129,19 @@ test('clips are read only when played, offline too, and few stay in memory', asy
 
   const kept = await page.evaluate((r) => Promise.all(r.map((x) => window.__clipUrl(x))).then(() => window.__clipUrlsKept()), refs.slice(0, 20));
   expect(kept).toBeLessThanOrEqual(8);
+});
+
+// A pack that re-voices texts of an older pack (dev/tools/voices.cjs --redo) wins: the clip stored for that key is the newer one.
+test('a re-voicing pack replaces the older clips of the same lines', async ({ page }) => {
+  requirePass(test);
+  const newest = META.packs[META.packs.length - 1];
+  await unlock(page);
+  await ready(page, 120000);
+  const stored = await page.evaluate(() => new Promise((res) => {
+    const r = indexedDB.open('mt-audio', 2);
+    r.onsuccess = () => { const out = {}, cur = r.result.transaction('clips').objectStore('clips').openCursor();
+      cur.onsuccess = () => { const c = cur.result; if (c) { out[c.key] = c.value.p; c.continue(); } else res(out); }; };
+  }));
+  const fromNewest = Object.keys(stored).filter((k) => stored[k] === newest.v);
+  expect(fromNewest.length).toBe(newest.n); // every clip of the newest pack is the one kept for its key
 });
