@@ -276,7 +276,7 @@ li.line .tr { font-size: 14.5px; }
 .dres .said { color: var(--muted); font-size: 13.5px; }
 .dres .miss b { color: var(--bad); font-weight: 600; }
 .dres .extra b { color: var(--warn); font-weight: 600; }
-.grade.sugg { outline: 3px solid var(--accent); outline-offset: 2px; }
+.grade.sugg, .btn.sugg { outline: 3px solid var(--accent); outline-offset: 2px; }
 .cov { font: 600 12px var(--mono); margin-left: 6px; white-space: nowrap; }
 .tbar { height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; margin-top: 10px; }
 .tbar i { display: block; height: 100%; width: 0; background: var(--accent); }
@@ -2183,7 +2183,7 @@ function introNext() {
   top();
 }
 function quizEnter() {
-  var s = S.sess; s.quiz.shown = false; resumeSave(); render(); stopAudio();
+  var s = S.sess; s.quiz.shown = false; s.dictOpen = false; s.dictText = ''; s.dict = null; resumeSave(); render(); stopAudio();
   var tok = audioTok, it = s.quiz.q[0];
   if (U.settings.trAuto) wait(60, tok).then(function () { return speak(it.l.tr, 'tr', tok); });
 }
@@ -2218,8 +2218,12 @@ function renderIntro() {
     var h = sessHead('Kontrol · ' + q.q.length + ' kaldı', 'Ara ver');
     h += '<article class="icard"><div class="ctx"><b>Kontrol</b><span>TR → EN · sesli söyle</span></div><p class="tr big">' + esc(it.l.tr) + '</p>' +
       (q.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') + '<div class="cardfoot"><span class="tier ' + esc(it.l.tier) + '">' + tierTxt(it.l) + '</span></div></article>' + (q.shown ? siriHint() : '');
-    h += q.shown ? '<div class="row"><button class="btn" data-act="quizAgain">↺ Tekrar sor</button><button class="btn primary" data-act="quizOk">✓ Söyledim</button></div>'
-      : '<div class="row"><button class="btn ghost" data-act="replayQuizTr">▶ TR dinle</button><button class="btn primary" data-act="quizReveal">Göster</button></div>';
+    // 🎤: the result suggests one of the two buttons (İyi → ✓, Tekrar → ↺; Zor → none); the choice stays yours
+    var qg = q.shown && s.dict ? dictGrade(s.dict) : -1;
+    if (q.shown) h += (s.dict ? dictRes(s.dict, s.dictText) : '') +
+      '<div class="row"><button class="btn' + (qg === 0 ? ' sugg' : '') + '" data-act="quizAgain">↺ Tekrar sor</button><button class="btn primary' + (qg === 2 ? ' sugg' : '') + '" data-act="quizOk">✓ Söyledim</button></div>' +
+      (qg >= 0 ? '<p class="hint">Çerçeveli düğme söylediğine göre öneri; karar senin.</p>' : '');
+    else h += (dictOn() ? dictBox(s, 'quizCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn ghost" data-act="replayQuizTr">▶ TR dinle</button><button class="btn primary" data-act="quizReveal">Göster</button></div>';
     return h;
   }
   var it2 = curIntro(), last = s.i === s.batches[s.b].length - 1;
@@ -2232,6 +2236,7 @@ function renderIntro() {
     (hideEn ? '' : '<p class="en' + (masked ? ' masked' : '') + '">' + (masked ? esc(it2.l.en) : hlEn(it2.l)) + '</p>');
   if (s.step >= 1) h2 += '<p class="tr' + (recall ? ' big' : '') + '">' + esc(it2.l.tr) + '</p>';
   if (s.step === 2) h2 += '<p>' + (s.shPhase === 'with' ? '<span class="say">Sesle birlikte söyle</span>' : s.shPhase === 'you' ? '<span class="say">Şimdi sen söyle</span>' : '<span class="hint">Dinle</span>') + ' <span class="mono hint">· gölge ' + s.shadow + '/3 · ' + (s.shadow === 1 ? 'metinle' : 'metinsiz') + '</span></p>';
+  if (hideEn) h2 += '<p class="hint">Önce imgeni düşün; cümle oradan gelir.</p>';
   if (hideEn) h2 += '<p><span class="say">İngilizcesini sen söyle</span>' + (s.dictOpen ? ' <span class="hint">· sonra Kontrol et</span>' : ' <span class="mono hint" id="recleft">' + recallLeft() + '</span>') + '</p>';
   if (s.step === 3) h2 += '<p class="hint">Bu cümleyi kendi hayatından bir sahneye bağla.</p><p class="count">' + s.img + '</p>';
   h2 += '<div class="cardfoot"><span class="tier ' + esc(it2.l.tier) + '">' + tierTxt(it2.l) + '</span></div></article>' + siriHint();
@@ -3062,7 +3067,7 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v41'; // = V in sw.js (a test checks)
+var APP_VER = 'mt-v42'; // = V in sw.js (a test checks)
 var NLI_TIMES = 'mt1:__nli_ms';
 function nliTimeAdd(ms) { try { var a = JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); a.push(ms); localStorage.setItem(NLI_TIMES, JSON.stringify(a.slice(-20))); } catch (e) {} }
 function nliTimes() { try { return JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); } catch (e) { return []; } }
@@ -3233,7 +3238,8 @@ function helpPanel() {
     d('Yeni cevap nasıl öğrenilir', ul([
       'Her satır: <b>Dinle → Anlam → 3× gölgele → 5 sn imge → Hatırla</b>. Gölgelemenin ilk turu metinle, sonrakiler metinsiz; 3. turda <b>sesle birlikte söyle</b> (boşluk yok).',
       '<b>Hatırla</b>: Türkçeye bakıp İngilizcesini kendin söyle; süre bitince (ya da <b>Göster</b> ile) doğrusu açılır ve çalar. Bilemediysen <b>Bir daha</b>. 🎤 ile kontrol edebilirsin; yüzde gösterilir, puan verilmez.',
-      'Her 4–5 satırda kısa kontrol: Türkçeyi gör, İngilizcesini söyle.',
+      'Her 4–5 satırda kısa <b>Kontrol</b>: o satırlar karışık sırayla gelir; Türkçeyi gör, İngilizcesini söyle. 🎤 ile söylersen sonuç görünür ve ✓ ya da ↺ önerilir; karar senin.',
+      '<b>Neden bu sıra?</b> Dinle ve Anlam cümleyi tanıtır. Gölgeleme ses ve ritmi oturtur; 3. turda sesle birlikte söylemek akıcılık katar. İmge cümleyi kendi hayatından bir sahneye bağlar ve kısa bir ara verir; bu yüzden Hatırla\'da cümle kulağındaki yankıdan değil hafızadan gelir (imgeyi ipucu olarak kullan). Kontrol aynı satırları biraz sonra, karışık sırayla yeniden çağırır: aralık ve karışıklık kalıcılığı artırır. Sonraki günlerde Tekrar, aralıkları büyüterek aynı işi sürdürür.',
       'Yarıda bırakırsan (başka sekme, <b>Ara ver</b> ya da uygulamayı kapatma) yer kaybolmaz: Bugün → Yeni\'de <b>Kaldığın yerden devam</b> aynı satır ya da kontrolden sürdürür (o gün içinde).',
       '<b>Kırmızı kenarlı satır = ezber</b> (kelimesi kelimesine; açılış, kapanış, ana cümle). Diğerleri <b>anlam</b>: ana fikir ve terimler yeter.',
       '<b>Mavi kelimeler = kalıp</b>: başka cümlelerde de kullanacağın genel İngilizce çerçeve. Öğrenme, tekrar, hız testi ve Dinle ekranlarında görünür; Ayarlar → Akış → <b>Kalıp vurgusu</b> ile kapatılır.',
@@ -3304,6 +3310,13 @@ var ACT = {
   },
   introNext: introNext,
   quizReveal: quizReveal,
+  quizCheck: function () {
+    var s = S.sess; if (!s || s.type !== 'intro' || s.phase !== 'quiz' || s.quiz.shown) return;
+    var t = document.getElementById('dict'), txt = t ? t.value : s.dictText;
+    if (!txt || !txt.trim()) { toast('Önce söyle ya da yaz.'); dictFocus(); return; }
+    try { if (t) t.blur(); } catch (e) {}
+    var l = s.quiz.q[0].l; s.dictText = txt; s.dict = dictCheck3(l, txt); dictNli(s, l, txt); quizReveal();
+  },
   replayQuizTr: function () { play(S.sess.quiz.q[0].l.tr, 'tr'); },
   quizOk: function () { quizMark(true); },
   quizAgain: function () { quizMark(false); },

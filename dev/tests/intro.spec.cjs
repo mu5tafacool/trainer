@@ -3,7 +3,7 @@
 // Turkish only, English hidden and silent until the thinking time ends or Göster; Bir daha restarts it; 🎤 shows a result
 // without a grade and saves nothing. Skip steps, the 4–5 line check and Ara ver → continue still work.
 const { test, expect } = require('@playwright/test');
-const { requirePass, unlock, dumpStore, writeStore, stubSpeech } = require('./helpers.cjs');
+const { requirePass, unlock, dumpStore, writeStore, stubSpeech, seedOf } = require('./helpers.cjs');
 
 const card = (page) => page.locator('article.icard').first();
 // ends the utterance being spoken; first lets the app's short pre-speech wait pass so the utterance exists
@@ -45,6 +45,7 @@ async function toRecall(page) {
   await expect(card(page)).toContainText('kendi hayatından bir sahneye');
   await page.clock.fastForward(6000);
   await expect(card(page)).toContainText('İngilizcesini sen söyle');
+  await expect(card(page)).toContainText('Önce imgeni düşün');
 }
 
 test('shadow round 3 together with the voice, then Hatırla: hidden, Göster, Bir daha, timer, next', async ({ page }) => {
@@ -105,3 +106,46 @@ test('skip steps skips Hatırla too; the check after the batch and Ara ver → c
   await page.locator('[data-act="resumeIntro"]').click();
   await expect(page.locator('[data-act="quizReveal"]')).toBeVisible();
 });
+
+async function toCheck(page) {
+  for (let k = 0; k < 6 && !(await page.locator('[data-act="quizReveal"]').isVisible()); k++) {
+    await page.locator('[data-act="introSkip"]').first().click();
+    await page.locator('[data-act="introNext"]').click();
+    if (!(await page.locator('[data-act="quizReveal"]').isVisible())) await end(page);
+  }
+  await expect(page.locator('[data-act="quizReveal"]')).toBeVisible();
+}
+
+test('Kontrol 🎤: the result suggests ✓ for a right answer and ↺ for a wrong one', async ({ page }) => {
+  await start(page);
+  await toCheck(page);
+  const { answers } = await seedOf();
+  const byTr = {}; Object.values(answers).forEach((a) => a.lines.forEach((l) => { byTr[l.tr] = l; }));
+  const line = async () => byTr[(await page.locator('article.icard .tr.big').textContent()).trim()];
+
+  let l = await line();
+  await page.locator('[data-act="dictOpen"]').click();
+  await page.fill('#dict', l.en);
+  await page.locator('[data-act="quizCheck"]').click();
+  await expect(page.locator('.dres')).toBeVisible();
+  await expect(card(page).locator('.en')).toHaveCount(1);
+  await expect(page.locator('[data-act="quizOk"]')).toHaveClass(/sugg/);
+  await expect(page.locator('[data-act="quizAgain"]')).not.toHaveClass(/sugg/);
+  await page.locator('[data-act="quizAgain"]').click(); // ask it again later; the next card starts with an empty box
+
+  l = await line();
+  await page.locator('[data-act="dictOpen"]').click();
+  await expect(page.locator('#dict')).toHaveValue('');
+  await page.fill('#dict', 'the weather is nice and the bus was late');
+  await page.locator('[data-act="quizCheck"]').click();
+  await expect(page.locator('[data-act="quizAgain"]')).toHaveClass(/sugg/);
+  await expect(page.locator('[data-act="quizOk"]')).not.toHaveClass(/sugg/);
+});
+
+test('Kontrol without 🎤 when "Söyle ve kontrol et" is off', async ({ page }) => {
+  await start(page, { dict: false });
+  await toCheck(page);
+  await expect(page.locator('[data-act="dictOpen"]')).toHaveCount(0);
+  await expect(page.locator('[data-act="quizReveal"]')).toBeVisible();
+});
+

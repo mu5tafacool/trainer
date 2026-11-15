@@ -36,7 +36,8 @@ The **Today** tab (Bugün) lays out the day in order:
 
 - Each line goes through **listen → meaning → shadow 3× → 5-second image → recall**. The first shadowing pass shows the text; the later passes hide it, and the third is said together with the voice (no gap after it).
 - **Recall** (*Hatırla*): only the Turkish is shown; say the English yourself within the thinking time (the same as Listen B, by sentence length). When it runs out, or on *Show*, the English opens (patterns highlighted) and plays. *Again* repeats the step. The optional 🎤 check shows the percentage and missing words only: no suggested grade, nothing saved to the schedule. *Skip steps* skips it too.
-- A short check every 4–5 lines: see the Turkish, say the English.
+- A short check every 4–5 lines: those lines in mixed order; see the Turkish, say the English. With 🎤 the result shows and ✓ (said it) or ↺ (ask again) is suggested; the choice stays yours.
+- Why this order: listening and meaning introduce the sentence; shadowing sets sound and rhythm, and saying the third pass together with the voice adds fluency. The image ties the sentence to a scene from your own life and gives a short pause, so in Recall the sentence comes from memory, not from the echo of the last pass (use the image as the cue). The check calls the same lines back a little later and mixed; spacing and mixing make it last. Spaced review keeps doing this over the next days with growing intervals.
 - Leaving a new-answer session (another tab, *Pause* (*Ara ver*), or closing the app) keeps the place: Today offers *Continue where you left off* at the same line or check, for the rest of the day.
 
 ### Spaced review
