@@ -97,3 +97,22 @@ test('Settings ends with the version, its UTC time and the answer-set version', 
   await expect(page.locator('.verline')).toHaveText(new RegExp('^Sürüm ' + v + ' · \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} UTC · cevaplar ' + meta.v + '$'));
 });
 
+
+test('speech rate: both languages go from 0.60 to 1.50 in 0.05 steps, kept after a reload', async ({ page }) => {
+  requirePass(test);
+  await page.route('**/audio*.bin', (r) => r.abort());
+  await unlock(page);
+  await settings(page);
+  for (const id of ['rate-en', 'rate-tr']) {
+    const r = page.locator('#' + id);
+    expect([await r.getAttribute('min'), await r.getAttribute('max'), await r.getAttribute('step')]).toEqual(['0.6', '1.5', '0.05']);
+  }
+  await page.locator('#rate-en').fill('0.6');
+  await page.locator('#rate-tr').fill('1.5');
+  await expect(page.locator('#rate-en-o')).toHaveText('0.60×');
+  await expect(page.locator('#rate-tr-o')).toHaveText('1.50×');
+  await page.waitForTimeout(1200); // settings are written a moment after a change
+  await page.reload();
+  await settings(page);
+  expect([await page.locator('#rate-en').inputValue(), await page.locator('#rate-tr').inputValue()]).toEqual(['0.6', '1.5']);
+});

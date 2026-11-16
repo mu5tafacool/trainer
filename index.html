@@ -3094,8 +3094,8 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v44'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
-var APP_BUILT = '2026-11-16 15:56'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_VER = 'mt-v45'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_BUILT = '2026-11-16 16:59'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3182,9 +3182,9 @@ function renderSettings() {
   var ev = enVoices(), tv = trVoices();
   var h = '<section class="hero"><h1>Ayarlar</h1></section><div class="stack">';
   h += voicePanel();
-  h += '<section class="panel set"><h2>Konuşma hızı</h2><p class="hint">Hazır ses dosyalarına (Fenrir, Siri) ve cihaz sesine birlikte uygulanır. Ses perdesi değişmez.</p>' +
-    '<div class="rangehead"><label for="rate-en">İngilizce</label><span class="mono" id="rate-en-o">' + U.settings.rateEn.toFixed(2) + '×</span></div><input type="range" id="rate-en" min="0.7" max="1.2" step="0.05" value="' + U.settings.rateEn + '">' +
-    '<div class="rangehead"><label for="rate-tr">Türkçe</label><span class="mono" id="rate-tr-o">' + U.settings.rateTr.toFixed(2) + '×</span></div><input type="range" id="rate-tr" min="0.8" max="1.3" step="0.05" value="' + U.settings.rateTr + '">' +
+  h += '<section class="panel set"><h2>Konuşma hızı</h2><p class="hint">0,60–1,50 arası. Hazır ses dosyalarına (Fenrir, Siri), bu cihazda üretilen seslere ve cihaz sesine birlikte uygulanır; ses perdesi değişmez, "şimdi sen söyle" boşlukları sesin süresine göre uzar ya da kısalır. Siri modunda hız iPhone ayarından gelir.</p>' +
+    '<div class="rangehead"><label for="rate-en">İngilizce</label><span class="mono" id="rate-en-o">' + U.settings.rateEn.toFixed(2) + '×</span></div><input type="range" id="rate-en" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateEn + '">' +
+    '<div class="rangehead"><label for="rate-tr">Türkçe</label><span class="mono" id="rate-tr-o">' + U.settings.rateTr.toFixed(2) + '×</span></div><input type="range" id="rate-tr" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateTr + '">' +
     '<div class="row"><button class="btn" data-act="testEn">▶ İngilizce dene</button><button class="btn" data-act="testTr">▶ Türkçe dene</button></div></section>';
   h += ttsPanel();
   h += nliPanel();

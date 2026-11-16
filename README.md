@@ -137,7 +137,7 @@ Listen options:
 
 ### Audio
 
-- English clips use the Kokoro *Fenrir* voice and Turkish clips use the macOS Siri voice. Both are pre-generated. Separate English and Turkish speed sliders apply to the clips and to the device voice, keeping the pitch (English default 0.9).
+- English clips use the Kokoro *Fenrir* voice and Turkish clips use the macOS Siri voice. Both are pre-generated. Separate English and Turkish speed sliders (0.60–1.50, step 0.05) apply to the clips, to clips voiced on the device and to the device voice, keeping the pitch (English default 0.9, Turkish 1.0); the say-it-back gaps follow the clip's real length. In Siri mode the iPhone's own speed applies.
 - A line without a clip falls back to the device voice.
 - Optional on-device voicing: new or edited English lines are generated in the browser with Kokoro.
   - Turned on once in Settings.
