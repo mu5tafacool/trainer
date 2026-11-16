@@ -10,6 +10,8 @@ const { MODELS, MODELS_ONLINE, requirePass, unlock, routeModels, seedOf, stubWak
 const MODEL = 'Xenova/mobilebert-uncased-mnli';
 const settings = (page) => page.getByRole('button', { name: 'Ayarlar', exact: true }).first().click();
 
+const showSpeed = (page) => page.evaluate(() => { location.hash = 'hiz'; });
+
 test('the app version in index.html matches sw.js', () => {
   const root = path.resolve(__dirname, '..', '..');
   const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const V = '([^']+)'/)[1];
@@ -25,7 +27,7 @@ test('Hızı ölç: off without the model, then a copyable report', async ({ pag
   await routeModels(page);
   const { answers } = await seedOf();
   await unlock(page);
-  await settings(page);
+  await showSpeed(page);
   await expect(page.locator('[data-act="nliSpeed"]')).toBeDisabled();
   await expect(page.locator('.speedbox')).toContainText('Önce Anlam kontrolünü aç');
 
@@ -55,7 +57,7 @@ test('Hızı ölç: going to the background stops it ("yarıda kaldı"); the scr
   await page.route('**/audio*.bin', (r) => r.abort());
   await routeModels(page);
   await unlock(page);
-  await settings(page);
+  await showSpeed(page);
   await page.locator('[data-act="nliEnable"]').click();
   await expect.poll(() => page.evaluate(() => window.__nli.info().state), { timeout: 60000 }).toBe('ready');
   // slow each check down so there is time to leave in the middle
@@ -67,3 +69,31 @@ test('Hızı ölç: going to the background stops it ("yarıda kaldı"); the scr
   await expect(page.locator('.speedbox')).toContainText('yarıda kaldı', { timeout: 15000 });
   await expect(page.locator('#nlirep')).toHaveCount(0);
 });
+
+test('Hızı ölç is hidden until the app is opened with #hiz, and Gizle hides it again', async ({ page }) => {
+  requirePass(test);
+  await page.route('**/audio*.bin', (r) => r.abort());
+  await unlock(page);
+  await settings(page);
+  await expect(page.locator('[data-act="nliSpeed"]')).toHaveCount(0);
+  await showSpeed(page);
+  await expect(page.locator('[data-act="nliSpeed"]')).toBeVisible();
+  expect(await page.evaluate(() => location.hash)).toBe(''); // the address is cleaned
+  await page.reload();
+  await settings(page);
+  await expect(page.locator('[data-act="nliSpeed"]')).toBeVisible(); // remembered on this device
+  await page.locator('[data-act="speedHide"]').click();
+  await expect(page.locator('[data-act="nliSpeed"]')).toHaveCount(0);
+});
+
+test('Settings ends with the version, its UTC time and the answer-set version', async ({ page }) => {
+  requirePass(test);
+  await page.route('**/audio*.bin', (r) => r.abort());
+  const root = path.resolve(__dirname, '..', '..');
+  const v = fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const V = 'mt-(v\d+)'/)[1];
+  const { meta } = await seedOf();
+  await unlock(page);
+  await settings(page);
+  await expect(page.locator('.verline')).toHaveText(new RegExp('^Sürüm ' + v + ' · \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} UTC · cevaplar ' + meta.v + '$'));
+});
+
