@@ -58,6 +58,7 @@ The **Today** tab (Bugün) lays out the day in order:
 - **Recall** (*Hatırla*): only the Turkish is shown; say the English yourself within the thinking time (the same as Listen B, by sentence length). When it runs out, or on *Show*, the English opens (patterns highlighted) and plays. *Reinforce* (↻ *Pekiştir*) runs the short fix-up below. The optional 🎤 check shows the percentage and missing words only: no suggested grade, nothing saved to the schedule. *Skip steps* skips it too.
 - A short check every 4–5 lines: those lines in mixed order; see the Turkish, say the English. With 🎤 the result shows and ✓ (said it) or ↺ (ask again) is suggested; the choice stays yours.
 - Why this order: listening and meaning introduce the sentence; shadowing sets sound and rhythm, and saying the third pass together with the voice adds fluency. The image ties the sentence to a scene from your own life and gives a short pause, so in Recall the sentence comes from memory, not from the echo of the last pass (use the image as the cue). The check calls the same lines back a little later and mixed; spacing and mixing make it last. Spaced review keeps doing this over the next days with growing intervals.
+- **Stops** (*Niyet ve iskelet*): every line has a 1–3 word Turkish label for its job in the answer (for example "opening", "example", "result"), never its words. While learning, a stop bar above the card shows the whole answer as segments (done, current) and *Stop 4/13 · previous › current › next*. It is not shown in review, the check, Listen or the mock interview. Labels can be edited in the Lines tab; a seed update keeps a label you wrote. Settings → Flow → *Niyet ve iskelet* turns stops and the skeleton round off.
 - Leaving a new-answer session (another tab, *Pause* (*Ara ver*), or closing the app) keeps the place: Today offers *Continue where you left off* at the same line or check, for the rest of the day.
 
 ### Spaced review
@@ -127,7 +128,8 @@ Every "say it" time comes from one place, so all screens agree. It follows the s
 - **Answer rehearsal**:
   - Hear the question, press start and say the whole answer, then stop the timer.
   - *Show hint* reveals the keywords.
-  - The result shows every line, the key sentence and the notes.
+  - The result shows every line (with its stop label), the key sentence and the notes.
+  - **Skeleton round** (round 1, on by default): *Start · skeleton first* gives 20 seconds to say the answer's stops in order, a few words each; then the stop list opens (or on *Show stops*) and *Start the full answer* begins the timed round. *Start without skeleton* skips it. The result shows each line's stop label. Not in later rounds or the mock interview.
   - Mark it as fluent or stuck. The target is 60–90 seconds without pausing.
   - **3 rounds (4/3/2)**: after the first round, tell the same answer again in less time. Round 2 aims for 85% of round 1 and round 3 for 70% (rounded to 5 seconds, never faster than about 170 words a minute). A bar shows the time left; the result lists all rounds.
   - **Follow-up questions** (on by default): after you mark an answer, a follow-up question an interviewer would ask next comes in, taken from your other answers (up to two). *End chain* stops it and shows a summary.
@@ -191,6 +193,7 @@ Every "say it" time comes from one place, so all screens agree. It follows the s
 | Review | Space/Enter = reveal · 1–4 = grade |
 | New answer check | Space = reveal · 1 = ask again · 2 = said it |
 | Speed test | Space = reveal · 1 = wrong · 2 = right |
+| Rehearsal, skeleton round | Space/Enter = show the stops · then start the full answer |
 | Reinforce (*Pekiştir*) | P = open (when its button shows) · inside: Space/Enter = show (3/3) or back to the card · R = one more round · Esc = leave. Keys go by position, so they work on any keyboard layout. |
 | Listen | ← previous · → next · Space = pause/resume |
 | Listen, mode B | 1 = ✗ not known · 2 = ✓ known |

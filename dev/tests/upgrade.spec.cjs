@@ -72,20 +72,22 @@ test('older seed on the device is merged, not replaced', async ({ page }) => {
   expect(after['data/users/local/srs_' + aid]).toEqual(srs);
 });
 
-// A line split in the current seed: on a device from the previous version the first half keeps its id (and progress),
+// A line split in a newer seed (v9): on a device still on the version before it the first half keeps its id (and progress),
 // its text updates (it was not edited), and the new second half lands right after it as a new line.
 test('a split line keeps its progress and the new half comes in after it', async ({ page }) => {
   requirePass(test);
   const { meta, data, answers } = await seedOf();
   const order = data.order || [];
-  const prevV = order[order.indexOf(meta.v) - 1];
-  test.skip(!prevV || !data.hist || !data.hist[prevV], 'no previous seed version in hist');
-  const known = new Set(data.hist[prevV]);
-  let aid, first, fresh;
-  for (const id of Object.keys(answers)) {
-    const L = answers[id].lines;
-    for (let i = 1; i < L.length; i++) if (!known.has(L[i].id) && !L[i].rep && known.has(L[i - 1].id)) { aid = id; first = L[i - 1]; fresh = L[i]; break; }
-    if (aid) break;
+  // the latest older version whose hist lacks a line right after a known one (v8 → v9 split lines), so a device still on it gets the split
+  let prevV, known, aid, first, fresh;
+  for (let k = order.indexOf(meta.v) - 1; k >= 0 && !aid; k--) {
+    if (!data.hist || !data.hist[order[k]]) continue;
+    prevV = order[k]; known = new Set(data.hist[prevV]);
+    for (const id of Object.keys(answers)) {
+      const L = answers[id].lines;
+      for (let i = 1; i < L.length; i++) if (!known.has(L[i].id) && !L[i].rep && known.has(L[i - 1].id)) { aid = id; first = L[i - 1]; fresh = L[i]; break; }
+      if (aid) break;
+    }
   }
   test.skip(!aid, 'no split line in this seed');
 
