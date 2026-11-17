@@ -79,7 +79,7 @@ Three modes:
   - **Turkish first** (*Önce Türkçe*): *Auto* (default) plays the Turkish line once before the English only for lines not learned yet or recently forgotten, as a meaning anchor; learned lines stay English only. *Always* and *Off* are also available. Turkish never plays between passes.
   - **Simultaneous last pass** (off by default): the last pass has no repeat gap; say it together with the audio, for rhythm and stress.
 - **B · Spoken recall**:
-  - Turkish, then a thinking gap to say the English yourself, then English N times (1/2/3/5). The gap follows the length of the English line (about 1.5 s plus 0.45 s per word, 3–12 s), can be set to short, normal or long, and counts down on the card.
+  - Turkish, then a thinking gap to say the English yourself, then English N times (1/2/3/5). The gap follows the length of the English line (the recall time, see *Timing*), can be set to short, normal or long, and counts down on the card.
   - After the English starts, two boxes in the card's top corners grade the recall:
     - **✓ known**: moves on and pushes the next review out.
     - **✗ not known**: the card returns later in the session.
@@ -99,6 +99,16 @@ Listen options:
   - **Previous · Pause/Resume · Next** stay above the tab bar; *Finish* ends the session.
   - Headphone and lock-screen buttons (next, previous, pause) work while Listen is running, through the Media Session API.
 - The screen has to stay on: a wake lock is requested, and iOS stops page audio when the screen locks.
+
+### Timing
+
+Every "say it" time comes from one place, so all screens agree. It follows the sentence's length and the English speech speed; the flow itself does not change.
+
+- **Base**: 0.42 s a word ÷ speech speed. 12 words: 5 s at 1.0×, 7.2 s at 0.7×.
+- **Repeat what you heard** (shadowing, Listen A): the clip's length × 1.15 + 0.6 s.
+- **Say it from memory** (Recall, Listen B, the card timer, speed test): (1.5 s + base) × thinking time (short 0.75, normal 1, long 1.35), at least 3 s, no upper limit. Normal at 1.0×: 6 words ~4 s, 12 words ~6.5 s, 24 words ~11.6 s (~15.9 s at 0.7×).
+- **Card timer** on review, check and speed test stays gray up to that time, then turns orange. It only informs; the grade stays yours.
+- **Rehearsal** targets are never faster than about 170 words a minute.
 
 ### Rehearse and speed test
 
@@ -120,7 +130,7 @@ Listen options:
   - *Hızı ölç* (Settings → Meaning check) measures the model on this device with ten made-up sentence pairs and gives a short report to copy: app version, OS and browser version, load time, first check, median and slowest of the other nine, and the median of the last 20 real checks (only their durations are kept, only while the model is on). No sentences, no names.
 - **Speed test**:
   - See the Turkish, say the English, reveal.
-  - The target is correct and under 3 seconds.
+  - The target is correct and in time: within the line's recall time (see *Timing*). Older results were counted with a flat 3 seconds and keep that label.
   - Results keep the accuracy and median time, and misses go to today's review.
 - Both can be narrowed to one group.
 

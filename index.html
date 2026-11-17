@@ -1841,7 +1841,7 @@ function siriSpeak(text, lang, tok) {
   var t0 = Date.now(); markText(text);
   var live = document.getElementById('live');
   if (live) { live.textContent = ''; setTimeout(function () { live.textContent = text; }, 40); }
-  return wait(estMs(text) + 400, tok).then(function () { return Date.now() - t0; });
+  return wait(Math.max(1200, speakMs(text)) + 400, tok).then(function () { return Date.now() - t0; });
 }
 function speak(text, lang, tok) {
   if (tok !== undefined && tok !== audioTok) return Promise.resolve(0);
@@ -1858,7 +1858,6 @@ function speak(text, lang, tok) {
   }
   return ttsSpeak(text, lang, tok).then(function () { return Date.now() - t0; });
 }
-function gapFor(ms, text) { return (ms && ms > 500 ? ms : estMs(text)) * 1.15 + 600; }
 function ttsSpeak(text, lang, tok) {
   return new Promise(function (res) {
     if (!synth || (tok !== undefined && tok !== audioTok)) { res(); return; }
@@ -1880,7 +1879,20 @@ function stopAudio() {
   if (curFin) curFin(true);
 }
 function wait(ms, tok) { return new Promise(function (res) { var t0 = Date.now(); var iv = setInterval(function () { if (tok !== audioTok || Date.now() - t0 >= ms) { clearInterval(iv); res(); } }, 80); }); }
-function estMs(text) { return Math.max(1200, text.split(/\s+/).length * 420 / U.settings.rateEn); }
+/* ---- timing: every "say it" time comes from here, so all screens agree ----
+   speakMs   about how long the English takes to say: 0.42 s a word at speed 1.0; a slower speech speed gives more time
+   echoMs    the gap to repeat what was just heard (Gölgele, Dinle A): the clip's length (or speakMs) × 1.15 + 0.6 s
+   recallMs  time to say it from memory (Hatırla, Dinle B, the card timer turning orange, the speed test):
+             (1.5 s to start + speakMs) × Düşünme süresi; at least 3 s and no upper limit, since at speed 0.7 a long line
+             alone takes ~14 s to say
+   fluentMs  the fastest Prova target for a whole answer: about 170 words a minute */
+var THINK = { short: 0.75, normal: 1, long: 1.35 };
+function wordN(text) { return String(text || '').split(/\s+/).filter(Boolean).length; }
+function speakMs(text) { return wordN(text) * 420 / (U.settings.rateEn || 1); }
+function echoMs(heard, text) { return (heard && heard > 500 ? heard : Math.max(1200, speakMs(text))) * 1.15 + 600; }
+function recallMs(text) { return Math.round(Math.max(3000, (1500 + speakMs(text)) * (THINK[U.settings.think] || 1)) / 100) * 100; }
+function fluentMs(lines) { return Math.round(lines.reduce(function (n, l) { return n + wordN(l.en); }, 0) / 170 * 60) * 1000; }
+window.__timing = { speakMs: speakMs, echoMs: echoMs, recallMs: recallMs, fluentMs: fluentMs }; // read by the tests
 function play(text, lang) { stopAudio(); var tok = audioTok; return wait(60, tok).then(function () { return speak(text, lang, tok); }); }
 /* ---- keep the screen on while studying (Screen Wake Lock; Home Screen apps on iOS 18.4+) ----
    held while a study session is open or Listen is playing; let go after 5 min without a touch (not while Listen plays);
@@ -2083,7 +2095,7 @@ function renderReview() {
     if (s.shown) h += '<p class="tr big">' + esc(it.l.tr) + '</p><p class="en small">' + hlEn(it.l) + '</p>';
     else h += (siriOn() ? '<p class="en masked">' + esc(it.l.en) + '</p>' : '') + '<p class="hint">Dinle ve anlamını Türkçe söyle.</p>';
   }
-  h += '<div class="cardfoot"><span class="tier ' + esc(it.l.tier) + '">' + tierTxt(it.l) + '</span><span id="timer" class="timer' + (s.shown && s.ms > 3000 ? ' slow' : '') + '">' + (s.shown && s.ms ? fmtSec(s.ms) : '') + '</span></div></article>';
+  h += '<div class="cardfoot"><span class="tier ' + esc(it.l.tier) + '">' + tierTxt(it.l) + '</span><span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown && s.ms ? fmtSec(s.ms) : '') + '</span></div></article>';
   if (s.shown || !isP) h += siriHint();
   if (!s.shown) {
     if (isP && dictOn()) h += dictBox(s, 'dictCheck', 'Kontrol et');
@@ -2170,7 +2182,7 @@ function runShadow() {
     wait(60, tok).then(function () { return speak(it.l.en, 'en', tok); }).then(function (ms) {
       if (S.sess !== s || tok !== audioTok) return;
       s.shPhase = 'you'; render();
-      return wait(gapFor(ms, it.l.en), tok).then(cycle);
+      return wait(echoMs(ms, it.l.en), tok).then(cycle);
     });
   }
   function imagery() {
@@ -2184,11 +2196,11 @@ function runShadow() {
   }
   cycle();
 }
-/* Hatırla (step 4): only the Turkish is shown; say the English yourself within the thinking time of Dinle B (thinkMs),
+/* Hatırla (step 4): only the Turkish is shown; say the English yourself within recallMs (same as Dinle B),
    then (or on Göster) the English opens and plays. Optional 🎤 check shows the percentage only: no grade, nothing saved. */
 function recallEnter() {
   var s = S.sess; if (!s || s.type !== 'intro') return;
-  stopAudio(); var tok = audioTok, it = curIntro(), ms = thinkMs(it.l.en);
+  stopAudio(); var tok = audioTok, it = curIntro(), ms = recallMs(it.l.en);
   s.step = 4; s.rec = { end: Date.now() + ms, shown: false }; s.dictOpen = false; s.dictText = ''; s.dict = null; render();
   wait(ms, tok).then(function () { if (S.sess === s && tok === audioTok && s.step === 4 && !s.rec.shown) recallShow(); });
 }
@@ -2310,9 +2322,7 @@ function openReh(id) {
 }
 /* 4/3/2: rounds 2 and 3 aim for 85% and 70% of round 1 (rounded to 5 s), never faster than ~170 words a minute */
 function roundTarget(a, t1, r) {
-  var words = a.lines.reduce(function (n, l) { return n + l.en.split(/\s+/).length; }, 0);
-  var floor = Math.round(words / 170 * 60) * 1000;
-  return Math.max(floor, Math.round(t1 * (r === 2 ? 0.85 : 0.7) / 5000) * 5000);
+  return Math.max(fluentMs(a.lines), Math.round(t1 * (r === 2 ? 0.85 : 0.7) / 5000) * 5000);
 }
 /* the mock interview pool: answers started in the chosen group (or all of the group when nothing is started yet) */
 function mockPool() { var all = grpAnswers(); var p = all.filter(started); return p.length >= 2 ? p : (all.length ? all : S.answers); }
@@ -2430,13 +2440,13 @@ function rehSave(ok) {
 function testPool() { return learnedLines().filter(function (x) { return inGrp(x.a); }); }
 function renderTestConfig() {
   var pool = testPool().length, n = S.testN === 0 ? pool : Math.min(S.testN, pool);
-  var h = '<p class="sub" style="margin-bottom:12px">TR\'yi gör, İngilizcesini sesli söyle, biter bitmez Göster\'e bas. Süre basana kadar ölçülür. Hedef: doğru ve 3 sn altı.</p>';
+  var h = '<p class="sub" style="margin-bottom:12px">TR\'yi gör, İngilizcesini sesli söyle, biter bitmez Göster\'e bas. Süre basana kadar ölçülür. Hedef: doğru ve süresinde (cümlenin uzunluğuna göre; Ayarlar → Nasıl çalışır → Süreler).</p>';
   h += '<div class="seg">' + [10, 20, 0].map(function (k) { return '<button data-act="testN" data-n="' + k + '" aria-pressed="' + (S.testN === k) + '">' + (k ? k + ' kart' : 'Tümü') + '</button>'; }).join('') + '</div>';
   h += '<button class="btn primary wide" data-act="startTest"' + (pool ? '' : ' disabled') + '>' + (pool ? 'Testi başlat (' + n + ' kart)' : (curGrp() === 'all' ? 'Önce bir cevap öğren' : 'Bu grupta henüz öğrenilen satır yok')) + '</button>';
   var list = (U.tests.list || []).slice(-6).reverse();
   if (list.length) {
     h += '<h2 style="margin:20px 0 8px">Son testler</h2><ul class="reslist">' + list.map(function (r) {
-      return '<li><span>' + fmtD(r.d) + ' · ' + r.n + ' kart</span><span class="mono">%' + Math.round(100 * r.ok / r.n) + ' doğru · %' + Math.round(100 * r.fast / r.n) + ' ≤3 sn · ' + fmtSec(r.med) + '</span></li>';
+      return '<li><span>' + fmtD(r.d) + ' · ' + r.n + ' kart</span><span class="mono">%' + Math.round(100 * r.ok / r.n) + ' doğru · %' + Math.round(100 * r.fast / r.n) + (r.t === 'len' ? ' süresinde · ' : ' ≤3 sn · ') + fmtSec(r.med) + '</span></li>';
     }).join('') + '</ul>';
   }
   return h;
@@ -2450,13 +2460,13 @@ function startTest() {
 function testReveal() { var s = S.sess; if (s.shown) return; s.shown = true; s.ms = Date.now() - s.t0; render(); play(s.q[s.i].l.en, 'en'); }
 function testMark(ok) {
   var s = S.sess, it = s.q[s.i];
-  s.res.push({ id: it.l.id, a: it.a.id, ok: ok, ms: s.ms });
+  s.res.push({ id: it.l.id, a: it.a.id, ok: ok, ms: s.ms, lim: recallMs(it.l.en) });
   if (!ok) { var cur = (st(it.a.id, it.l.id) || {}).p; if (cur) { var c = clone(cur); c.due = today(); setSt(it.a.id, it.l.id, 'p', c); } }
   s.i++;
   if (s.i >= s.q.length) {
     var oks = s.res.filter(function (r) { return r.ok; });
-    var rec = { d: today(), n: s.res.length, ok: oks.length, fast: oks.filter(function (r) { return r.ms <= 3000; }).length, med: Math.round(median(s.res.map(function (r) { return r.ms; }))),
-      miss: s.res.filter(function (r) { return !r.ok || r.ms > 3000; }).map(function (r) { return r.id; }) };
+    var rec = { d: today(), n: s.res.length, ok: oks.length, fast: oks.filter(function (r) { return r.ms <= r.lim; }).length, t: 'len', med: Math.round(median(s.res.map(function (r) { return r.ms; }))),
+      miss: s.res.filter(function (r) { return !r.ok || r.ms > r.lim; }).map(function (r) { return r.id; }) };
     U.tests.list = (U.tests.list || []).concat([rec]).slice(-50); save('tests');
     logAdd('ms', Date.now() - s.start);
     s.phase = 'result'; s.rec = rec; stopAudio(); render(); top(); return;
@@ -2467,16 +2477,16 @@ function renderTest() {
   var s = S.sess;
   if (s.phase === 'result') {
     var r = s.rec;
-    var slow = s.res.filter(function (x) { return !x.ok || x.ms > 3000; }).sort(function (x, y) { return (x.ok - y.ok) || (y.ms - x.ms); });
+    var slow = s.res.filter(function (x) { return !x.ok || x.ms > x.lim; }).sort(function (x, y) { return (x.ok - y.ok) || (y.ms - x.ms); });
     var h = '<section class="hero"><h1>Test sonucu</h1><p class="sub">Yanlış olanlar bugünün tekrarına eklendi.</p></section>';
-    h += '<div class="result"><div><b>%' + Math.round(100 * r.ok / r.n) + '</b><span>doğru</span></div><div><b>%' + Math.round(100 * r.fast / r.n) + '</b><span>doğru ve ≤3 sn</span></div><div><b>' + fmtSec(r.med) + '</b><span>medyan süre</span></div></div>';
+    h += '<div class="result"><div><b>%' + Math.round(100 * r.ok / r.n) + '</b><span>doğru</span></div><div><b>%' + Math.round(100 * r.fast / r.n) + '</b><span>doğru ve süresinde</span></div><div><b>' + fmtSec(r.med) + '</b><span>medyan süre</span></div></div>';
     if (slow.length) h += '<h2 style="margin:16px 0 6px">Takılanlar</h2><ul class="reslist">' + slow.map(function (x) { var f = lineById(x.id); return f ? '<li><span>' + esc(f.l.en) + '</span><span class="mono">' + (x.ok ? fmtSec(x.ms) : 'yanlış') + '</span></li>' : ''; }).join('') + '</ul>';
     return h + '<button class="btn primary wide" style="margin-top:16px" data-act="endSess">Bitir</button>';
   }
   var it = s.q[s.i];
   var h2 = sessHead('Hız testi · ' + (s.i + 1) + '/' + s.q.length);
   h2 += '<article class="icard"><div class="ctx"><b>TR → EN</b><span>' + esc(qLabel(it.a)) + '</span></div><p class="tr big">' + esc(it.l.tr) + '</p>' + (s.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') +
-    '<div class="cardfoot"><span class="tier ' + esc(it.l.tier) + '">' + tierTxt(it.l) + '</span><span id="timer" class="timer' + (s.shown && s.ms > 3000 ? ' slow' : '') + '">' + (s.shown ? fmtSec(s.ms) : '') + '</span></div></article>' + (s.shown ? siriHint() : '');
+    '<div class="cardfoot"><span class="tier ' + esc(it.l.tier) + '">' + tierTxt(it.l) + '</span><span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown ? fmtSec(s.ms) : '') + '</span></div></article>' + (s.shown ? siriHint() : '');
   h2 += s.shown ? '<div class="row"><button class="btn" data-act="testMark" data-ok="0">✗ Yanlış</button><button class="btn primary" data-act="testMark" data-ok="1">✓ Doğru</button></div>'
     : '<button class="btn primary wide" data-act="testReveal">Göster</button>';
   return h2 + '<p class="kbd">Klavye: boşluk = göster · 1 = yanlış · 2 = doğru</p>';
@@ -2498,12 +2508,6 @@ function trackItems(cfg) {
 /* repetition counts: shadowing follows the 5–6 passes per text of shadowing research (scripted first, then without text);
    recall keeps few back-to-back replays and relies on the loop to bring each line back later in the session */
 var REP_OPTS = { A: [2, 3, 5, 7], B: [1, 2, 3, 5] };
-/* B: time to say the English yourself, from its length: about 1.5 s to start plus the time the sentence takes to say, 3–12 s */
-var THINK = { short: 0.75, normal: 1, long: 1.35 };
-function thinkMs(text) {
-  var w = String(text).split(/\s+/).filter(Boolean).length, k = THINK[U.settings.think] || 1;
-  return Math.round(Math.min(12000, Math.max(3000, (1500 + w * 450) * k)) / 100) * 100;
-}
 function repN(mode) { var v = mode === 'A' ? U.settings.repA : U.settings.repB; return v || (mode === 'A' ? 5 : 3); }
 function lapsed(x) { return !!(x && x.lapses > 0 && x.ivl <= 1); }
 function trFirstFor(it) {
@@ -2515,7 +2519,7 @@ function trFirstFor(it) {
 }
 function modeTxt(m) {
   if (m === 'A') return ({ auto: 'Öğrenilmemiş ve unutulmuş satırlarda önce TR 1× · ', always: 'Önce TR 1× · ', off: '' }[U.settings.trFirst || 'auto'] || '') + 'EN ×' + repN('A') + '; her birinden sonra aynen tekrar et. İlk 2 turda metin görünür, sonra gizlenir.' + (U.settings.simul ? ' Son turda sesle birlikte söyle.' : '');
-  if (m === 'B') return 'TR · düşünme süresi (cümle uzunluğuna göre 3–12 sn): İngilizcesini sen söyle · sonra EN ×' + repN('B') + ', her birinden sonra tekrar et. İngilizceyi duyunca kartın köşesinden işaretle: ✓ bildim, ✗ bilemedim.';
+  if (m === 'B') return 'TR · düşünme süresi (cümle uzunluğuna ve hıza göre, en az 3 sn): İngilizcesini sen söyle · sonra EN ×' + repN('B') + ', her birinden sonra tekrar et. İngilizceyi duyunca kartın köşesinden işaretle: ✓ bildim, ✗ bilemedim.';
   return 'Cevabın tamamı sırayla. Akışı kulağa yerleştir.';
 }
 function renderTrack() {
@@ -2687,7 +2691,7 @@ function trackRun() {
             return;
           }
           q = q.then(function () { if (!alive()) return; if (it.mark && it.mark.v === 'ok') return; T.rep = r; T.phase = 'en'; T.revealed = true; updPlayer(); return speak(it.l.en, 'en', tok); })
-            .then(function (ms) { if (!alive()) return; if (!gap) gap = gapFor(ms, it.l.en) - 100; T.phase = 'you'; updPlayer(); return wait(gap, tok); });
+            .then(function (ms) { if (!alive()) return; if (!gap) gap = echoMs(ms, it.l.en) - 100; T.phase = 'you'; updPlayer(); return wait(gap, tok); });
         })(r);
       }
       return q;
@@ -2695,7 +2699,7 @@ function trackRun() {
     T.rep = 0; T.n = 0;
     if (cfg.mode === 'B') {
       p = p.then(function () { if (!alive()) return; T.phase = 'tr'; updPlayer(); return speak(it.l.tr, 'tr', tok); })
-        .then(function () { if (!alive()) return; T.phase = 'gap'; T.gapMs = thinkMs(it.l.en); T.gapEnd = Date.now() + T.gapMs; updPlayer(); return wait(T.gapMs, tok); })
+        .then(function () { if (!alive()) return; T.phase = 'gap'; T.gapMs = recallMs(it.l.en); T.gapEnd = Date.now() + T.gapMs; updPlayer(); return wait(T.gapMs, tok); })
         .then(function () { if (!alive()) return; return echoLoop(repN('B')); })
         .then(function () { return wait(600, tok); });
     } else if (cfg.mode === 'A') {
@@ -3103,8 +3107,8 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v46'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
-var APP_BUILT = '2026-11-17 12:22'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_VER = 'mt-v47'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_BUILT = '2026-11-17 13:53'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3191,7 +3195,7 @@ function renderSettings() {
   var ev = enVoices(), tv = trVoices();
   var h = '<section class="hero"><h1>Ayarlar</h1></section><div class="stack">';
   h += voicePanel();
-  h += '<section class="panel set"><h2>Konuşma hızı</h2><p class="hint">0,60–1,50 arası. Hazır ses dosyalarına (Fenrir, Siri), bu cihazda üretilen seslere ve cihaz sesine birlikte uygulanır; ses perdesi değişmez, "şimdi sen söyle" boşlukları sesin süresine göre uzar ya da kısalır. Siri modunda hız iPhone ayarından gelir.</p>' +
+  h += '<section class="panel set"><h2>Konuşma hızı</h2><p class="hint">0,60–1,50 arası. Hazır ses dosyalarına (Fenrir, Siri), bu cihazda üretilen seslere ve cihaz sesine birlikte uygulanır; ses perdesi değişmez, "şimdi sen söyle" süreleri ve kart sayacının sınırı da hıza göre uzar ya da kısalır (Nasıl çalışır → Süreler). Siri modunda hız iPhone ayarından gelir.</p>' +
     '<div class="rangehead"><label for="rate-en">İngilizce</label><span class="mono" id="rate-en-o">' + U.settings.rateEn.toFixed(2) + '×</span></div><input type="range" id="rate-en" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateEn + '">' +
     '<div class="rangehead"><label for="rate-tr">Türkçe</label><span class="mono" id="rate-tr-o">' + U.settings.rateTr.toFixed(2) + '×</span></div><input type="range" id="rate-tr" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateTr + '">' +
     '<div class="row"><button class="btn" data-act="testEn">▶ İngilizce dene</button><button class="btn" data-act="testTr">▶ Türkçe dene</button></div></section>';
@@ -3305,7 +3309,7 @@ function helpPanel() {
       '<b>A · Gölgeleme</b>: İngilizce N kez; her birinden sonra aynen tekrar et. İlk 2 turdan sonra metin gizlenir.',
       '<b>Önce Türkçe</b> (A): <b>Otomatik</b> = öğrenilmemiş ya da unutulmuş satırda cümle başında Türkçe 1× (anlam çapası), öğrendiğin satırda sadece İngilizce. <b>Her zaman</b> / <b>Kapalı</b> da seçilebilir. Türkçe turlar arasında çalmaz.',
       '<b>Son tur eşzamanlı</b> (A): son turda boşluk yok; sesle aynı anda söyle. Ritim ve vurgu için.',
-      '<b>B · Sesli recall</b>: Türkçe → düşünme süresi içinde İngilizcesini sen söyle → İngilizce N kez. Süre cümle uzunluğuna göre 3–12 sn; Kısa / Normal / Uzun ile ayarlanır, kartta geri sayım görünür. İngilizceyi duyunca kartın köşesinden işaretle: <b>✓ bildim</b> (sonraki karta geçer, tekrar ileri atılır), <b>✗ bilemedim</b> (kart bu oturumda yeniden gelir). Hiç basmazsan bir şey değişmez.',
+      '<b>B · Sesli recall</b>: Türkçe → düşünme süresi içinde İngilizcesini sen söyle → İngilizce N kez. Süre cümle uzunluğuna ve konuşma hızına göre, en az 3 sn (Süreler); Kısa / Normal / Uzun ile ayarlanır, kartta geri sayım görünür. İngilizceyi duyunca kartın köşesinden işaretle: <b>✓ bildim</b> (sonraki karta geçer, tekrar ileri atılır), <b>✗ bilemedim</b> (kart bu oturumda yeniden gelir). Hiç basmazsan bir şey değişmez.',
       'Yanlış işaret: dolu kutuya yeniden bas, 5 sn görünen <b>Geri al</b>\'a bas ya da Önceki ile dönüp kaldır.',
       '<b>Akış</b>: cevabın tamamı sırayla, soruyla birlikte.',
       '<b>Kapsam</b>: Bugün çalışılacaklar (vadesi gelenler; A ve B), öğrendiklerin, tümü, bir grup ya da tek cevap.',
@@ -3314,8 +3318,17 @@ function helpPanel() {
     ])) +
     d('Prova ve Hız testi', ul([
       '<b>Cevap provası</b>: soruyu duy → Başla → cevabı baştan sona söyle → Bitti. Takılırsan <b>ipucu göster</b> anahtar kelimeleri açar. Sonunda tüm satırlar, ana cümle ve notlar görünür. Hedef: duraksamadan 60–90 sn.',
-      '<b>Hız testi</b>: Türkçeyi gör, İngilizcesini söyle, biter bitmez Göster. Hedef: doğru ve 3 sn altı. Yanlışlar bugünkü tekrara eklenir.',
+      '<b>Hız testi</b>: Türkçeyi gör, İngilizcesini söyle, biter bitmez Göster. Hedef: doğru ve süresinde: kısa cümlede ~3–4 sn, uzun cümlede daha fazla. Yanlışlar bugünkü tekrara eklenir.',
       'Üstteki grup butonları listeyi ve testi o gruba daraltır.'
+    ])) +
+    d('Süreler', ul([
+      'Bütün "sen söyle" süreleri tek bir hesaptan gelir, cümlenin uzunluğuna ve İngilizce konuşma hızına göre. Akış değişmez; sadece bekleme ve uyarı süreleri cümleye uyar.',
+      '<b>Taban</b>: kelime başına 0,42 sn ÷ konuşma hızı. 12 kelime: 1,0× hızda 5 sn, 0,7× hızda 7,2 sn.',
+      '<b>Aynen tekrar et</b> (Gölgele, Dinle A): duyduğun sesin süresi × 1,15 + 0,6 sn.',
+      '<b>Hafızadan söyle</b> (Hatırla, Dinle B, kart sayacı, Hız testi): (1,5 sn + taban) × Düşünme süresi (Kısa 0,75 · Normal 1 · Uzun 1,35), en az 3 sn. Örnek, Normal: 6 kelime ~4 sn, 12 kelime ~6,5 sn, 24 kelime ~11,6 sn (0,7× hızda ~15,9 sn).',
+      '<b>Kart sayacı</b> Tekrar, Kontrol ve Hız testinde bu süreye kadar gri, sonra turuncu. Sadece gösterge; puanı sen verirsin.',
+      '<b>Hız testi</b> "doğru ve süresinde" sayar. Eski testler 3 sn ile sayılmıştı, geçmişte öyle görünür.',
+      '<b>Prova</b> hedefi hiçbir zaman dakikada ~170 kelimeden hızlı değildir.'
     ])) +
     d('Cümleler', ul([
       'Solda kod, sağda durum: <b>✓</b> öğrenildi · <b>+N</b> öğrenilmemiş satır · <b>#N</b> yeni cevap sırası, sonra satır sayısı.',
@@ -3520,7 +3533,7 @@ setInterval(function () {
   }
   if ((s.type === 'review' || s.type === 'test') && !s.shown) {
     if (!s.t0) { el.textContent = ''; return; }
-    var ms = Date.now() - s.t0; el.textContent = fmtSec(ms); el.classList.toggle('slow', ms > 3000);
+    var ms = Date.now() - s.t0, cur = s.q && s.q[s.i]; el.textContent = fmtSec(ms); el.classList.toggle('slow', !!cur && ms > recallMs(cur.l.en));
   }
 }, 100);
 
