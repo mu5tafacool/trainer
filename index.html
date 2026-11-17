@@ -401,15 +401,25 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
 .gate-card input { font: 17px var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 11px 12px; width: 100%; }
 .gate-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .gate-err { color: var(--bad); font-size: 14px; }
-.inst { font-size: 13.5px; background: var(--accent-soft); color: var(--ink); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; display: grid; gap: 6px; }
-.inst p { margin: 0; }
-.inst .row2 { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+/* install drawer (see the "install drawer" script at the end): slides up from the bottom, light/dark from the app's colors */
+.idrawer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; justify-content: center; padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px)); transform: translateY(110%); transition: transform .32s cubic-bezier(.2, .8, .2, 1); pointer-events: none; }
+.idrawer.open { transform: translateY(0); pointer-events: auto; }
+.idrawer .sheet { width: 100%; max-width: 520px; background: var(--card); color: var(--ink); border: 1px solid var(--rule); border-radius: 16px; box-shadow: 0 -6px 30px rgba(0, 0, 0, .18); padding: 10px 16px 16px; display: grid; gap: 12px; }
+.idrawer .grip { width: 36px; height: 4px; border-radius: 2px; background: var(--rule); justify-self: center; }
+.idrawer .head { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: center; }
+.idrawer .head img { width: 52px; height: 52px; border-radius: 12px; }
+.idrawer .head b { font-family: var(--display); font-size: 17px; display: block; }
+.idrawer .head span { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
+.idrawer ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; line-height: 1.45; }
+.idrawer ol svg { width: 18px; height: 18px; vertical-align: -3px; color: var(--accent); }
+.idrawer .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.idrawer .acts.one { grid-template-columns: 1fr; }
+@media (prefers-reduced-motion: reduce) { .idrawer { transition: none; } }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="topbar"><span class="brand">Mülakat Trainer</span><span class="daybadge" id="daybadge"></span></div>
-  <div id="inst" class="inst" role="note" hidden></div>
   <main id="view"><div class="state"><b>Yükleniyor</b><div class="skel"></div><div class="skel s2"></div><div class="skel s3"></div></div></main>
 </div>
 <nav class="tabs" aria-label="Bölümler"><div class="in">
@@ -3229,11 +3239,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v54'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v55'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-17 18:05'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-17 19:06'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3474,7 +3484,7 @@ function helpPanel() {
     ])) +
     d('Kısayollar', keyHelp()) +
     d('Kayıt, güncelleme, cihazlar', ul([
-      'İlerleme bu cihazda saklanır, internetsiz çalışır. Telefonda Safari → Paylaş → <b>Ana Ekrana Ekle</b>, Mac\'te Safari → Dosya → <b>Dock\'a Ekle</b>, Chrome\'da <b>Yükle</b> ile uygulama gibi açılır. Chrome ve Edge yüklemeyi kendileri önerir. Safari önermediği için Safari sekmesinde üstte kısa bir not çıkar: <b>Kapat</b> bu açılış için gizler, <b>Bir daha gösterme</b> tamamen.',
+      'İlerleme bu cihazda saklanır, internetsiz çalışır. Telefonda Safari → Paylaş → <b>Ana Ekrana Ekle</b>, Mac\'te Safari → Dosya → <b>Dock\'a Ekle</b>, Chrome\'da <b>Yükle</b> ile uygulama gibi açılır. Tarayıcı sekmesinde açınca alttan bir <b>yükleme penceresi</b> açılır: Chrome ve Edge\'de <b>Yükle</b> düğmesi, iPhone Safari\'de Paylaş → Ana Ekrana Ekle adımları. <b>Kapat</b> 7 gün gizler; yüklü uygulamada hiç çıkmaz.',
       'Her tarayıcı ve uygulama kendi kaydını tutar: iPhone\'da Safari sekmesi ile ana ekran uygulamasının ilerlemesi ve parolası ayrıdır. Hep aynı yerden (ana ekran uygulaması) aç.',
       'Başka cihaza taşımak: burada <b>İlerlemeyi dışa aktar</b>, kodu diğer cihazda <b>İçe aktar</b>.',
       'Güncellemeler kendiliğinden gelir; yeni cevaplar eklenir, ilerleme ve düzenlemeler korunur. Sadece yeni ses dosyaları iner.',
@@ -3760,27 +3770,56 @@ init();
 })();
 </script>
 <script>
-/* "add as an app": Chrome and Edge show their own install prompt (from the manifest, with its screenshots), so nothing
-   is drawn there. Safari (iPhone and Mac) has no install prompt, so a short note says how; only in a browser tab, never
-   in the installed app. Kapat hides it for this visit, "Bir daha gösterme" for good. */
+/* ---- install drawer: one "Ana ekrana ekle" sheet for every browser that can install the app ----
+   Never shown in the installed app (display-mode standalone / navigator.standalone), nor while the passphrase screen is up.
+   Chrome, Edge (Android and desktop): the browser's beforeinstallprompt is caught (its own banner is held back), the sheet
+     offers "Yükle", which opens the browser's install dialog (deferredPrompt.prompt()).
+   iPhone/iPad Safari: no such event exists, so the same sheet shows two steps (Share → Add to Home Screen).
+   Mac Safari: the same sheet with its menu path (File → Add to Dock). Firefox: nothing (it cannot install web apps).
+   "Kapat" (or the install dialog's own cancel) hides it for 7 days (localStorage mt-inst-until).
+   To change the texts or the 7 days: INST below. */
 (function () {
-  var box = document.getElementById('inst'); if (!box) return;
+  var INST = { days: 7, name: 'Mülakat Trainer', icon: 'icon-192.png',
+    lead: 'Daha hızlı erişim ve tam ekran deneyimi için uygulamayı cihazınıza yükleyin. Yüklenince internetsiz de açılır.' };
   var standalone = false; try { standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) {}
-  function getS(k, store) { try { return store.getItem(k); } catch (e) { return null; } }
-  function setS(k, store) { try { store.setItem(k, '1'); } catch (e) {} }
-  if (standalone || getS('mt-inst-never', localStorage) || getS('mt-inst-hide', sessionStorage)) return;
+  if (standalone) return;
+  function until() { try { return +localStorage.getItem('mt-inst-until') || 0; } catch (e) { return 0; } }
+  function snooze() { try { localStorage.setItem('mt-inst-until', String(Date.now() + INST.days * 86400000)); } catch (e) {} }
   var ua = navigator.userAgent || '', ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  var safari = /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Firefox|FxiOS/.test(ua);
-  var how = ios ? 'Paylaş <b>⎋</b> → <b>Ana Ekrana Ekle</b>.' : safari ? 'Safari menüsünde <b>Dosya → Dock\'a Ekle</b>.' : '';
-  if (!how) return; // Chrome/Edge: the browser's own prompt; Firefox: no app install
-  box.innerHTML = '<p><b>Uygulama olarak ekle</b>: ' + how + ' Ana ekrandan açınca internetsiz çalışır ve ilerlemen tek yerde kalır' + (ios ? ' (Safari sekmesiyle ana ekran uygulamasının kayıtları ayrıdır)' : '') + '.</p>' +
-    '<div class="row2"><button class="link" type="button" data-inst="close">Kapat</button><button class="link" type="button" data-inst="never">Bir daha gösterme</button></div>';
-  box.hidden = false;
-  box.addEventListener('click', function (e) {
-    var b = e.target.closest && e.target.closest('[data-inst]'); if (!b) return;
-    if (b.getAttribute('data-inst') === 'never') setS('mt-inst-never', localStorage); else setS('mt-inst-hide', sessionStorage);
-    box.hidden = true;
-  });
+  var safari = /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|EdgiOS|OPR|Firefox|FxiOS/.test(ua);
+  var SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+  var PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>';
+  var deferred = null, el = null;
+  function steps() {
+    if (ios && safari) return '<ol><li>Tarayıcının altındaki <b>Paylaş</b> ' + SHARE + ' butonuna dokunun (kare içinden yukarı ok).</li><li>Açılan menüde aşağı kaydırıp <b>Ana Ekrana Ekle</b> ' + PLUS + ' seçeneğine dokunun.</li></ol>';
+    if (safari) return '<ol><li>Safari menü çubuğunda <b>Dosya</b>\'yı açın.</li><li><b>Dock\'a Ekle</b>\'yi seçin.</li></ol>';
+    return '';
+  }
+  function close(keep) { if (!el) return; el.classList.remove('open'); if (!keep) snooze(); }
+  function open() {
+    if (until() > Date.now()) return;
+    var gate = document.getElementById('gate'); if (gate && !gate.hidden) { setTimeout(open, 1500); return; } // after the passphrase screen
+    if (!el) {
+      el = document.createElement('div'); el.className = 'idrawer'; el.id = 'idrawer';
+      el.setAttribute('role', 'dialog'); el.setAttribute('aria-labelledby', 'idrawer-t');
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-i]'); if (!b) return;
+        if (b.getAttribute('data-i') === 'close') { close(); return; }
+        if (deferred) {
+          var d = deferred; deferred = null; d.prompt();
+          Promise.resolve(d.userChoice).then(function (c) { close(c && c.outcome === 'accepted'); }, function () { close(); });
+        }
+      });
+      document.body.appendChild(el);
+    }
+    var st = steps();
+    el.innerHTML = '<div class="sheet"><div class="grip"></div><div class="head"><img src="' + INST.icon + '" alt=""><div><b id="idrawer-t">' + INST.name + '</b><span>' + INST.lead + '</span></div></div>' + st +
+      '<div class="acts' + (deferred ? '' : ' one') + '">' + '<button class="btn" type="button" data-i="close">Kapat</button>' + (deferred ? '<button class="btn primary" type="button" data-i="install">Yükle</button>' : '') + '</div></div>';
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add('open'); }); });
+  }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; open(); });
+  window.addEventListener('appinstalled', function () { deferred = null; close(true); });
+  if (safari) window.addEventListener('load', function () { setTimeout(open, 1200); });
 })();
 if ('serviceWorker' in navigator) {
   var hadCtrl = !!navigator.serviceWorker.controller, reloaded = false;

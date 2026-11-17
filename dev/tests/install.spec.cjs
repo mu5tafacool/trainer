@@ -1,54 +1,81 @@
 'use strict';
-// Install: Chrome/Edge use their own prompt (manifest with description and screenshots; the page does not catch it).
-// Safari has none, so a note there: only in a tab, not in the installed app; Kapat for this visit, "Bir daha gösterme" for good.
+// Install drawer: Chrome/Edge catch beforeinstallprompt and offer "Yükle" (opens the browser's install dialog);
+// iPhone Safari shows the same drawer with Share → Add to Home Screen steps; never in the installed app;
+// "Kapat" hides it for 7 days. The manifest has what the browser's install dialog shows.
 const { test, expect } = require('@playwright/test');
 const { requirePass, unlock } = require('./helpers.cjs');
 
-const inst = (page) => page.locator('#inst');
+const drawer = (page) => page.locator('#idrawer');
+const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
+// a stand-in for Chrome's event: prompt() is recorded, the choice is "accepted" unless told otherwise
+const fire = (page, outcome) => page.evaluate((outcome) => {
+  const e = new Event('beforeinstallprompt', { cancelable: true });
+  e.prompt = () => { window.__prompted = (window.__prompted || 0) + 1; };
+  e.userChoice = Promise.resolve({ outcome: outcome || 'accepted' });
+  window.dispatchEvent(e);
+  return e.defaultPrevented;
+}, outcome);
 
-const MAC_SAFARI = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15';
-test('Mac Safari tab: shown; Kapat hides it for this visit; a new visit shows it; Bir daha gösterme hides it for good', async ({ browser }) => {
+async function boot(page) {
   requirePass(test);
-  const context = await browser.newContext({ userAgent: MAC_SAFARI });
-  const page = await context.newPage();
   await page.route('**/audio*.bin', (r) => r.abort());
+  await page.clock.install();
   await unlock(page);
-  await expect(inst(page)).toBeVisible();
-  await expect(inst(page)).toContainText("Dock'a Ekle");
-  await inst(page).getByRole('button', { name: 'Kapat' }).click();
-  await expect(inst(page)).toBeHidden();
+}
+
+test('Chrome: the event is held back, the drawer slides up with icon, name, text, Yükle and Kapat; Yükle opens the browser dialog', async ({ page }) => {
+  await boot(page);
+  expect(await fire(page)).toBe(true); // the browser's own banner is held back
+  await expect(drawer(page)).toHaveClass(/open/);
+  await expect(drawer(page).locator('img')).toHaveAttribute('src', 'icon-192.png');
+  await expect(drawer(page)).toContainText('Mülakat Trainer');
+  await expect(drawer(page)).toContainText('Daha hızlı erişim ve tam ekran deneyimi');
+  await drawer(page).getByRole('button', { name: 'Yükle' }).click();
+  expect(await page.evaluate(() => window.__prompted)).toBe(1);
+  await expect(drawer(page)).not.toHaveClass(/open/);
+});
+
+test('Kapat hides it for 7 days, then it may come back', async ({ page }) => {
+  await boot(page);
+  await fire(page);
+  await drawer(page).getByRole('button', { name: 'Kapat' }).click();
+  await expect(drawer(page)).not.toHaveClass(/open/);
+  const until = await page.evaluate(() => +localStorage.getItem('mt-inst-until') - Date.now());
+  expect(Math.round(until / 86400000)).toBe(7);
   await page.reload();
-  await expect(inst(page)).toBeHidden(); // same visit (tab)
-
-  const p2 = await context.newPage();
-  await p2.route('**/audio*.bin', (r) => r.abort());
-  await p2.goto(page.url());
-  await expect(inst(p2)).toBeVisible(); // a new visit
-  await inst(p2).getByRole('button', { name: 'Bir daha gösterme' }).click();
-  const p3 = await context.newPage();
-  await p3.route('**/audio*.bin', (r) => r.abort());
-  await p3.goto(page.url());
-  await expect(p3.locator('.topbar')).toBeVisible();
-  await expect(inst(p3)).toBeHidden();
-  await context.close();
+  await fire(page);
+  await page.clock.fastForward(500);
+  await expect(page.locator('#idrawer.open')).toHaveCount(0);
+  await page.clock.fastForward(8 * 86400000);
+  await page.reload();
+  await fire(page);
+  await expect(drawer(page)).toHaveClass(/open/);
 });
 
-test('Chrome: no note of ours, the browser\'s own install prompt is left alone; the manifest has what its install sheet shows', async ({ page }) => {
+test('cancelling the browser dialog also waits 7 days', async ({ page }) => {
+  await boot(page);
+  await fire(page, 'dismissed');
+  await drawer(page).getByRole('button', { name: 'Yükle' }).click();
+  await expect(drawer(page)).not.toHaveClass(/open/);
+  expect(await page.evaluate(() => +localStorage.getItem('mt-inst-until') > Date.now())).toBe(true);
+});
+
+test('iPhone Safari: same drawer with the two Share steps and no Yükle button', async ({ browser }) => {
   requirePass(test);
+  const ctx = await browser.newContext({ userAgent: IPHONE });
+  const page = await ctx.newPage();
   await page.route('**/audio*.bin', (r) => r.abort());
   await unlock(page);
-  await expect(page.locator('.topbar')).toBeVisible();
-  await expect(inst(page)).toBeHidden();
-  const kept = await page.evaluate(() => { const e = new Event('beforeinstallprompt', { cancelable: true }); window.dispatchEvent(e); return !e.defaultPrevented; });
-  expect(kept).toBe(true);
-  const fs = require('node:fs'), path = require('node:path'), root = path.resolve(__dirname, '..', '..');
-  const m = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
-  expect(m.description).toBeTruthy();
-  expect(m.screenshots.map((s) => s.form_factor).sort()).toEqual(['narrow', 'wide']);
-  m.screenshots.forEach((s) => expect(fs.existsSync(path.join(root, s.src))).toBe(true));
+  await expect(drawer(page)).toHaveClass(/open/, { timeout: 10000 });
+  await expect(drawer(page).locator('ol li')).toHaveCount(2);
+  await expect(drawer(page)).toContainText('Paylaş');
+  await expect(drawer(page)).toContainText('Ana Ekrana Ekle');
+  await expect(drawer(page).getByRole('button', { name: 'Yükle' })).toHaveCount(0);
+  await expect(drawer(page).getByRole('button', { name: 'Kapat' })).toBeVisible();
+  await ctx.close();
 });
 
-test('installed app (standalone): no note', async ({ page }) => {
+test('installed app (standalone): never shown', async ({ page }) => {
   requirePass(test);
   await page.route('**/audio*.bin', (r) => r.abort());
   await page.addInitScript(() => {
@@ -56,17 +83,16 @@ test('installed app (standalone): no note', async ({ page }) => {
     window.matchMedia = (q) => (q === '(display-mode: standalone)' ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : mm(q));
   });
   await unlock(page);
-  await expect(page.locator('.topbar')).toBeVisible();
-  await expect(inst(page)).toBeHidden();
+  expect(await fire(page)).toBe(false); // not even caught
+  await expect(drawer(page)).toHaveCount(0);
 });
 
-test('iPhone Safari: the note says Ana Ekrana Ekle and that Safari and the Home Screen app keep separate progress', async ({ browser }) => {
-  requirePass(test);
-  const ctx = await browser.newContext({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1' });
-  const page = await ctx.newPage();
-  await page.route('**/audio*.bin', (r) => r.abort());
-  await unlock(page);
-  await expect(inst(page)).toContainText('Ana Ekrana Ekle');
-  await expect(inst(page)).toContainText('kayıtları ayrıdır');
-  await ctx.close();
+test('manifest: name, icons, description and screenshots for the browser install dialog', async () => {
+  const fs = require('node:fs'), path = require('node:path'), root = path.resolve(__dirname, '..', '..');
+  const m = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
+  expect(m.name && m.short_name && m.start_url && m.display === 'standalone').toBeTruthy();
+  expect(m.icons.map((i) => i.sizes)).toEqual(expect.arrayContaining(['192x192', '512x512']));
+  expect(m.description).toBeTruthy();
+  expect(m.screenshots.map((s) => s.form_factor).sort()).toEqual(['narrow', 'wide']);
+  m.screenshots.forEach((s) => expect(fs.existsSync(path.join(root, s.src))).toBe(true));
 });
