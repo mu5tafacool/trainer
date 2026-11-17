@@ -141,6 +141,7 @@ nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset
 .en { font-size: clamp(20px, 5.4vw, 24px); font-weight: 500; line-height: 1.38; overflow-wrap: anywhere; }
 .en.small { font-size: 16px; color: var(--muted); font-weight: 400; }
 .kp { color: var(--accent); font-weight: 650; }
+mark.pkmiss { background: var(--warn-soft, transparent); color: var(--warn); border-radius: 3px; padding: 0 2px; }
 .tr.anchor { font-size: 15px; color: var(--muted); margin-bottom: 6px; }
 .tr { font-size: 17px; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
 .tr.big { font-size: clamp(19px, 5vw, 22px); color: var(--ink); }
@@ -2085,6 +2086,7 @@ function renderReview() {
   var s = S.sess, it = s.q[s.i], isP = it.dir === 'p';
   var cur = (st(it.a.id, it.l.id) || {})[it.dir] || {};
   var prev = [0, 1, 2, 3].map(function (g) { return nextState(cur, g).ivl; });
+  if (s.pk) return pkView(sessHead((s.q.length - s.i) + ' kaldı'), it);
   var h = sessHead((s.q.length - s.i) + ' kaldı');
   h += '<article class="icard"><div class="ctx"><b>' + (isP ? 'TR → EN' : 'EN ses → TR') + '</b><span>' + esc(qLabel(it.a)) + '</span></div>';
   if (isP) {
@@ -2103,7 +2105,7 @@ function renderReview() {
   } else {
     if (s.dict) h += dictRes(s.dict, s.dictText);
     var sg = dictGrade(s.dict);
-    h += '<div class="row" style="margin-bottom:10px"><button class="btn ghost" data-act="replayEn">▶ EN dinle</button></div>';
+    h += '<div class="row" style="margin-bottom:10px"><button class="btn ghost" data-act="replayEn">▶ EN dinle</button>' + (isP && s.dict && (sg === 0 || sg === 1) ? '<button class="btn" data-act="pkStart">↻ Pekiştir</button>' : '') + '</div>';
     h += '<div class="grades">' + ['Tekrar', 'Zor', 'İyi', 'Kolay'].map(function (n, g) { return '<button class="btn grade g' + g + (g === sg ? ' sugg' : '') + '" data-act="grade" data-g="' + g + '"' + (g === sg ? ' aria-describedby="sugg-note"' : '') + '>' + n + '<small>' + ivlLabel(prev[g]) + '</small></button>'; }).join('') + '</div>';
     if (sg >= 0) h += '<p class="hint" id="sugg-note" style="margin-top:6px">Çerçeveli puan söylediğine göre öneri; karar senin.</p>';
   }
@@ -2249,18 +2251,20 @@ function renderIntro() {
   }
   if (s.phase === 'quiz') {
     var q = s.quiz, it = q.q[0];
+    if (s.pk) return pkView(sessHead('Kontrol · ' + q.q.length + ' kaldı', 'Ara ver'), it);
     var h = sessHead('Kontrol · ' + q.q.length + ' kaldı', 'Ara ver');
     h += '<article class="icard"><div class="ctx"><b>Kontrol</b><span>TR → EN · sesli söyle</span></div><p class="tr big">' + esc(it.l.tr) + '</p>' +
       (q.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') + '<div class="cardfoot"><span class="tier ' + esc(it.l.tier) + '">' + tierTxt(it.l) + '</span></div></article>' + (q.shown ? siriHint() : '');
     // 🎤: the result suggests one of the two buttons (İyi → ✓, Tekrar → ↺; Zor → none); the choice stays yours
     var qg = q.shown && s.dict ? dictGrade(s.dict) : -1;
-    if (q.shown) h += (s.dict ? dictRes(s.dict, s.dictText) : '') +
+    if (q.shown) h += (s.dict ? dictRes(s.dict, s.dictText) : '') + (qg === 0 || qg === 1 ? '<button class="btn wide" data-act="pkStart" style="margin-bottom:8px">↻ Pekiştir</button>' : '') +
       '<div class="row"><button class="btn' + (qg === 0 ? ' sugg' : '') + '" data-act="quizAgain">↺ Tekrar sor</button><button class="btn primary' + (qg === 2 ? ' sugg' : '') + '" data-act="quizOk">✓ Söyledim</button></div>' +
       (qg === 1 ? '<p class="hint">Arada: kalıbı tam söyleyemediysen ↺ Tekrar sor.</p>' : qg >= 0 ? '<p class="hint">Çerçeveli düğme söylediğine göre öneri; karar senin.</p>' : '');
     else h += (dictOn() ? dictBox(s, 'quizCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn ghost" data-act="replayQuizTr">▶ TR dinle</button><button class="btn primary" data-act="quizReveal">Göster</button></div>';
     return h;
   }
   var it2 = curIntro(), last = s.i === s.batches[s.b].length - 1;
+  if (s.pk) return pkView(sessHead('Yeni · ' + introPos() + '/' + s.total, 'Ara ver'), it2);
   var stepNames = ['Dinle', 'Anlam', 'Gölgele 3×', 'İmge', 'Hatırla'];
   var active = Math.min(s.step, 5);
   var h2 = sessHead('Yeni · ' + introPos() + '/' + s.total, 'Ara ver');
@@ -2277,9 +2281,66 @@ function renderIntro() {
   if (s.step <= 1) h2 += '<div class="row"><button class="btn ghost" data-act="replayIntro">▶ Dinle</button><button class="btn primary" data-act="shadow"' + (s.step === 0 ? ' disabled' : '') + '>Gölgele 3×</button></div><button class="link" data-act="introSkip">Adımları atla →</button>';
   else if (s.step === 2 || s.step === 3) h2 += '<div class="row"><button class="btn ghost" data-act="introSkip">Atla →</button></div>';
   else if (recall && !s.rec.shown) h2 += (dictOn() ? dictBox(s, 'recCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="recShow">Göster</button></div>';
-  else if (recall) h2 += (s.dict ? dictRes(s.dict, s.dictText) : '') + '<div class="row"><button class="btn ghost" data-act="recAgain">↺ Bir daha</button><button class="btn primary" data-act="introNext">' + (last ? 'Kontrole geç' : 'Sonraki satır') + '</button></div>';
+  else if (recall) h2 += (s.dict ? dictRes(s.dict, s.dictText) : '') + '<div class="row"><button class="btn ghost" data-act="pkStart">↻ Pekiştir</button><button class="btn primary" data-act="introNext">' + (last ? 'Kontrole geç' : 'Sonraki satır') + '</button></div>';
   else h2 += '<div class="row"><button class="btn ghost" data-act="shadow">↺ Tekrar gölgele</button><button class="btn primary" data-act="introNext">' + (last ? 'Kontrole geç' : 'Sonraki satır') + '</button></div>';
   return h2;
+}
+
+/* ---- ↻ Pekiştir: a short fix-up for one line, the same on Hatırla, Kontrol and Tekrar.
+   1/3 hear it with the text (missing pattern words marked) and say it back; 2/3 say it with the voice, no text;
+   3/3 say it once yourself from memory (recallMs; 🎤 shows the percentage only). Grades and suggestions stay from the
+   first try; the line is noted for Zorlandıklarım (U.progress.hard). Plays the voice clip even in Siri mode. */
+function pkItem() { var s = S.sess; return s.type === 'intro' ? (s.phase === 'quiz' ? s.quiz.q[0] : curIntro()) : s.q[s.i]; }
+function pkAlive(s, tok) { return S.sess === s && !!s.pk && tok === audioTok; }
+function speakVoice(text, tok) {
+  if (!siriOn()) return speak(text, 'en', tok);
+  var t0 = Date.now(), id = fileFor(text, 'en'), done = function () { return Date.now() - t0; };
+  if (!id) return ttsSpeak(text, 'en', tok).then(done);
+  return playFile(id, U.settings.rateEn).then(done, function () { return ttsSpeak(text, 'en', tok).then(done); });
+}
+function pkStart() {
+  var s = S.sess, it = pkItem(); if (!s || !it) return;
+  stopAudio(); var tok = audioTok, l = it.l;
+  s.pk = { step: 1, phase: 'listen', miss: (s.dict && s.dict.mkMiss) || [], end: 0, dict: null, dictOpen: false, dictText: '' };
+  var hd = U.progress.hard || (U.progress.hard = {}), e = hd[l.id] || { n: 0 };
+  e.n++; e.d = today(); hd[l.id] = e; save('progress');
+  render(); top();
+  wait(60, tok).then(function () { return speakVoice(l.en, tok); })
+    .then(function (ms) { if (!pkAlive(s, tok)) return; s.pk.phase = 'you'; render(); return wait(echoMs(ms, l.en), tok); })
+    .then(function () { if (!pkAlive(s, tok)) return; s.pk.step = 2; s.pk.phase = 'with'; render(); return wait(700, tok); })
+    .then(function () { if (pkAlive(s, tok)) return speakVoice(l.en, tok); })
+    .then(function () { if (pkAlive(s, tok)) return wait(500, tok); })
+    .then(function () {
+      if (!pkAlive(s, tok)) return;
+      var ms = recallMs(l.en); s.pk.step = 3; s.pk.phase = 'recall'; s.pk.end = Date.now() + ms; render();
+      return wait(ms, tok).then(function () { if (pkAlive(s, tok) && s.pk.phase === 'recall') pkShow(); });
+    });
+}
+function pkShow() { var s = S.sess; if (!s || !s.pk) return; stopAudio(); var tok = audioTok; s.pk.phase = 'shown'; render(); wait(60, tok).then(function () { return speakVoice(pkItem().l.en, tok); }); }
+function pkDone() { var s = S.sess; if (!s || !s.pk) return; stopAudio(); s.pk = null; render(); top(); }
+function pkLeft() { var p = S.sess && S.sess.pk; return p && p.end ? Math.max(0, Math.ceil((p.end - Date.now()) / 1000)) + ' sn' : ''; }
+setInterval(function () { var e = document.getElementById('pkleft'); if (e) e.textContent = pkLeft(); }, 250);
+function pkEn(l, miss) {
+  var h = hlEn(l); if (!miss || !miss.length) return h;
+  var re = new RegExp('\\b(' + miss.map(function (w) { return w.replace(/[^a-z0-9]/gi, ''); }).filter(Boolean).join('|') + ')\\b', 'gi');
+  return h.split(/(<[^>]+>)/).map(function (part) { return part.charAt(0) === '<' ? part : part.replace(re, '<mark class="pkmiss">$1</mark>'); }).join('');
+}
+function pkView(head, it) {
+  var p = S.sess.pk, l = it.l, shown = p.phase === 'shown';
+  var h = head + '<article class="icard"><div class="ctx"><b>↻ Pekiştir</b><span>' + esc(qLabel(it.a)) + '</span><span class="mono">' + p.step + '/3</span></div>';
+  if (p.step === 1 || shown) h += '<p class="en">' + pkEn(l, p.miss) + '</p>';
+  else if (p.step === 2) h += '<p class="en masked">' + esc(l.en) + '</p>';
+  h += '<p class="tr' + (p.step === 3 && !shown ? ' big' : '') + '">' + esc(l.tr) + '</p>';
+  if (!shown) h += '<p>' + ({ listen: '<span class="hint">Dinle</span>', you: '<span class="say">Aynen tekrar et</span>', with: '<span class="say">Sesle birlikte söyle</span>' }[p.phase] ||
+    '<span class="say">Şimdi bir kez sen söyle</span>' + (p.dictOpen ? ' <span class="hint">· sonra Kontrol et</span>' : ' <span class="mono hint" id="pkleft">' + pkLeft() + '</span>')) + '</p>';
+  h += '<div class="cardfoot"><span class="tier ' + esc(l.tier) + '">' + tierTxt(l) + '</span></div></article>';
+  if (p.phase === 'recall') h += (dictOn() ? dictBox(p, 'pkCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="pkShow">Göster</button></div>';
+  else if (shown) {
+    if (p.dict) h += '<div class="dres"><div><b class="sc ' + scoreCls(p.dict.pct) + '">%' + p.dict.pct + '</b> · ' + (l.tier === 'ezber' ? 'kelime' : 'terim') + ' isabeti</div>' +
+      (p.dict.miss.length ? '<div class="miss">Eksik: <b>' + esc(p.dict.miss.slice(0, 8).join(', ')) + '</b></div>' : '') + '<div class="said">Sen: ' + esc(p.dictText) + '</div></div>';
+    h += '<div class="row"><button class="btn ghost" data-act="pkStart">↻ Bir tur daha</button><button class="btn primary" data-act="pkDone">Karta dön</button></div>';
+  } else h += '<div class="row"><button class="btn ghost" data-act="pkDone">Bırak</button></div>';
+  return h + '<p class="hint">Puan ilk denemene göre kalır.</p>';
 }
 
 /* done */
@@ -3107,8 +3168,8 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v47'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
-var APP_BUILT = '2026-11-17 13:53'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_VER = 'mt-v48'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_BUILT = '2026-11-17 14:22'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3291,7 +3352,7 @@ function helpPanel() {
     ]), true) +
     d('Yeni cevap nasıl öğrenilir', ul([
       'Her satır: <b>Dinle → Anlam → 3× gölgele → 5 sn imge → Hatırla</b>. Gölgelemenin ilk turu metinle, sonrakiler metinsiz; 3. turda <b>sesle birlikte söyle</b> (boşluk yok).',
-      '<b>Hatırla</b>: Türkçeye bakıp İngilizcesini kendin söyle; süre bitince (ya da <b>Göster</b> ile) doğrusu açılır ve çalar. Bilemediysen <b>Bir daha</b>. 🎤 ile kontrol edebilirsin; yüzde gösterilir, puan verilmez.',
+      '<b>Hatırla</b>: Türkçeye bakıp İngilizcesini kendin söyle; süre bitince (ya da <b>Göster</b> ile) doğrusu açılır ve çalar. Oturmadıysa <b>↻ Pekiştir</b>. 🎤 ile kontrol edebilirsin; yüzde gösterilir, puan verilmez.',
       'Her 4–5 satırda kısa <b>Kontrol</b>: o satırlar karışık sırayla gelir; Türkçeyi gör, İngilizcesini söyle. 🎤 ile söylersen sonuç görünür ve ✓ ya da ↺ önerilir; karar senin.',
       '<b>Neden bu sıra?</b> Dinle ve Anlam cümleyi tanıtır. Gölgeleme ses ve ritmi oturtur; 3. turda sesle birlikte söylemek akıcılık katar. İmge cümleyi kendi hayatından bir sahneye bağlar ve kısa bir ara verir; bu yüzden Hatırla\'da cümle kulağındaki yankıdan değil hafızadan gelir (imgeyi ipucu olarak kullan). Kontrol aynı satırları biraz sonra, karışık sırayla yeniden çağırır: aralık ve karışıklık kalıcılığı artırır. Sonraki günlerde Tekrar, aralıkları büyüterek aynı işi sürdürür.',
       'Yarıda bırakırsan (başka sekme, <b>Ara ver</b> ya da uygulamayı kapatma) yer kaybolmaz: Bugün → Yeni\'de <b>Kaldığın yerden devam</b> aynı satır ya da kontrolden sürdürür (o gün içinde).',
@@ -3303,7 +3364,8 @@ function helpPanel() {
       'İki kart türü: <b>TR → EN</b> (Türkçeyi gör, İngilizcesini sesli söyle) ve <b>EN ses → TR</b> (dinle, anlamını söyle).',
       'Puan: <b>Tekrar</b> (bugün yine gelir) · <b>Zor</b> · <b>İyi</b> · <b>Kolay</b>. Butonların altında bir sonraki tekrarın kaç gün sonra olduğu yazar.',
       'Bildikçe aralık uzar (örneğin 1 → 3 → 8 → 20 gün); bilemeyince kısa aralığa döner. Bugünün kartları bitince yeni kart yarın gelir.',
-      'Dinle B\'deki ✓/✗ ve Hız testindeki yanlışlar da aynı takvime işlenir.'
+      'Dinle B\'deki ✓/✗ ve Hız testindeki yanlışlar da aynı takvime işlenir.',
+      '<b>↻ Pekiştir</b> (Hatırla\'da her zaman; Kontrol ve Tekrar\'da 🎤 sonucu Zor ya da Tekrar ise): ~20 sn. 1/3 metinle dinle ve aynen tekrar et (eksik kalıp kelimeleri turuncu), 2/3 metinsiz sesle birlikte söyle, 3/3 bir kez kendin söyle (🎤 sadece yüzde). Puan ilk denemene göre kalır. Siri modunda da hazır sesi çalar.'
     ])) +
     d('Dinle', ul([
       '<b>A · Gölgeleme</b>: İngilizce N kez; her birinden sonra aynen tekrar et. İlk 2 turdan sonra metin gizlenir.',
@@ -3327,7 +3389,7 @@ function helpPanel() {
       '<b>Aynen tekrar et</b> (Gölgele, Dinle A): duyduğun sesin süresi × 1,15 + 0,6 sn.',
       '<b>Hafızadan söyle</b> (Hatırla, Dinle B, kart sayacı, Hız testi): (1,5 sn + taban) × Düşünme süresi (Kısa 0,75 · Normal 1 · Uzun 1,35), en az 3 sn. Örnek, Normal: 6 kelime ~4 sn, 12 kelime ~6,5 sn, 24 kelime ~11,6 sn (0,7× hızda ~15,9 sn).',
       '<b>Kart sayacı</b> Tekrar, Kontrol ve Hız testinde bu süreye kadar gri, sonra turuncu. Sadece gösterge; puanı sen verirsin.',
-      '<b>Hız testi</b> "doğru ve süresinde" sayar. Eski testler 3 sn ile sayılmıştı, geçmişte öyle görünür.',
+      '<b>Hız testi</b>: kartı bu süre içinde ve doğru söylersen "doğru ve süresinde" sayılır.',
       '<b>Prova</b> hedefi hiçbir zaman dakikada ~170 kelimeden hızlı değildir.'
     ])) +
     d('Cümleler', ul([
@@ -3362,7 +3424,18 @@ var ACT = {
   shadow: runShadow,
   introSkip: function () { var s = S.sess; stopAudio(); s.step = 5; render(); },
   recShow: function () { recallShow(); },
-  recAgain: function () { recallEnter(); },
+  pkStart: pkStart,
+  pkShow: pkShow,
+  pkDone: pkDone,
+  // 🎤 inside Pekiştir: percentage and missing words only (rules, no model); the card's own result is kept
+  pkCheck: function () {
+    var s = S.sess, p = s && s.pk; if (!p || p.phase !== 'recall') return;
+    var t = document.getElementById('dict'), txt = t ? t.value : p.dictText;
+    if (!txt || !txt.trim()) { toast('Önce söyle ya da yaz.'); dictFocus(); return; }
+    try { if (t) t.blur(); } catch (e) {}
+    var d = dictCheck3(pkItem().l, txt);
+    p.dictText = txt; p.dict = { pct: d.tier === 'ezber' ? d.score : d.cov, miss: d.miss }; pkShow();
+  },
   // 🎤 on Hatırla: the percentage and missing words only; no grade suggestion, nothing written to the schedule
   recCheck: function () {
     var s = S.sess; if (!s || s.type !== 'intro' || s.step !== 4 || s.rec.shown) return;
@@ -3392,7 +3465,7 @@ var ACT = {
   chainEnd: function () { chainEnd(); },
   mockStart: function () { startMock(); },
   rehHome: function () { endSess(); S.tab = 'reh'; render(); top(); },
-  dictOpen: function () { var s = S.sess; if (!s) return; s.dictOpen = true; stopAudio(); render(); dictFocus(); },
+  dictOpen: function () { var s = S.sess; if (!s) return; (s.pk || s).dictOpen = true; stopAudio(); render(); dictFocus(); },
   dictCheck: function () {
     var s = S.sess; if (!s || s.type !== 'review' || s.shown) return;
     var t = document.getElementById('dict'), txt = t ? t.value : s.dictText;
@@ -3509,7 +3582,7 @@ document.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowRight') { e.preventDefault(); trackJump(1); return; }
     if (e.code === 'Space' && !(e.target.closest && e.target.closest('button'))) { e.preventDefault(); if (S.track.paused) trackResume(); else trackPause(); return; }
   }
-  var s = S.sess; if (!s) return;
+  var s = S.sess; if (!s || s.pk) return;
   var go = e.code === 'Space' || e.key === 'Enter';
   if (s.type === 'review') {
     if (!s.shown && go) { e.preventDefault(); reveal(); }

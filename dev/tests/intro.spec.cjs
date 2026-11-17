@@ -1,6 +1,6 @@
 'use strict';
 // New answers (Bugün → Yeni): shadowing's 3rd round is said together with the voice, then Hatırla (recall) after the image:
-// Turkish only, English hidden and silent until the thinking time ends or Göster; Bir daha restarts it; 🎤 shows a result
+// Turkish only, English hidden and silent until the thinking time ends or Göster; Pekiştir replaces Bir daha; 🎤 shows a result
 // without a grade and saves nothing. Skip steps, the 4–5 line check and Ara ver → continue still work.
 const { test, expect } = require('@playwright/test');
 const { requirePass, unlock, dumpStore, writeStore, stubSpeech, seedOf } = require('./helpers.cjs');
@@ -48,7 +48,7 @@ async function toRecall(page) {
   await expect(card(page)).toContainText('Önce imgeni düşün');
 }
 
-test('shadow round 3 together with the voice, then Hatırla: hidden, Göster, Bir daha, timer, next', async ({ page }) => {
+test('shadow round 3 together with the voice, then Hatırla: hidden, Göster, timer, Pekiştir in place of Bir daha, next', async ({ page }) => {
   await start(page);
   await toRecall(page);
   await expect(card(page).locator('.en')).toHaveCount(0); // English not on the page
@@ -61,10 +61,8 @@ test('shadow round 3 together with the voice, then Hatırla: hidden, Göster, Bi
   await expect(card(page).locator('.en')).toHaveCount(1);
   await expect.poll(() => spoken(page)).toBe(n0 + 1);
 
-  await page.locator('[data-act="recAgain"]').click(); // Bir daha: hidden again, new thinking time
-  await expect(card(page).locator('.en')).toHaveCount(0);
-  await page.clock.fastForward(13000); // the thinking time (at most 12 s) ends: opens by itself
-  await expect(card(page).locator('.en')).toHaveCount(1);
+  await expect(page.locator('[data-act="recAgain"]')).toHaveCount(0);
+  await expect(page.locator('[data-act="pkStart"]')).toBeVisible();
 
   await expect(page.locator('.sesshead .mono')).toContainText('Yeni · 1/');
   await page.locator('[data-act="introNext"]').click();
