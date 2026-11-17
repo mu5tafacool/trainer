@@ -74,13 +74,14 @@ The **Today** tab (Bugün) lays out the day in order:
 
 ### Struggled lines (*Zorlandıklarım*)
 
-Flow: you struggle → the line joins the list → you say it right on two different days → it leaves. Nothing to mark by hand.
+Lines you struggle with are collected here. You don't mark anything; the app adds and removes them.
 
-- **Points per line**: Again 3, Hard 2, Listen ✗ 2, *Ask again* in the check 2, Reinforce 1 (0.5 on Recall). Points halve every 7 days; nothing older than 14 days counts. A line joins at 3 points (one Again is enough, one Hard is not).
-- **Leaving**: Good/Easy, Listen ✓ or a speed-test answer in time, on two different days in a row; a new struggle starts the count over.
-- **Where**: Listen → scope *Zorlandıklarım*, and Rehearse → speed test → *Zorlandıklarım*. Hardest first, at most 15 lines, mixed.
-- **Why**: getting a hard line right on separate days is what makes it stick; one correct answer is not enough. A short list can be finished every day.
-- The first time it runs, lines that were forgotten and are still on short intervals start in the list.
+- **When a line joins**: one *Again* on review adds it at once. *Hard*, Listen ✗ or *Ask again* in the check are not enough alone: a second one on the same line within about a week adds it.
+- **When it leaves**: say it right on **two separate days**: Good/Easy on review, Listen ✓, or a speed-test answer in time. One ✓ is not enough, and two on the same day count once. A new struggle in between starts the count over.
+- **Example**: Monday *Again* → in the list. Tuesday *Good* → 1/2. Thursday Listen ✓ → out.
+- **Where**: Listen → scope *Zorlandıklarım*, and Rehearse → speed test → *Zorlandıklarım*. Hardest first, at most 15 lines.
+- **Why**: a hard line sticks when it is recalled correctly on separate days in a row; one correct answer is not enough. The list stays short so it can be finished every day.
+- Details: each struggle adds points (Again 3, Hard 2, ✗ 2, Ask again 2, Reinforce 1, 0.5 on Recall); a line joins at 3; points halve in a week and nothing older than two weeks counts. The first time it runs, lines that were forgotten and are still on short intervals start in the list.
 
 ### Listen
 

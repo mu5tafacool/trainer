@@ -81,7 +81,7 @@ test('Dinle: Zorlandıklarım scope lists the lines in the list, with the hint; 
   await page.getByRole('button', { name: 'Dinle', exact: true }).first().click();
   await expect(page.locator('#tr-scope option[value="hard"]')).toHaveText('Zorlandıklarım (1)');
   await page.selectOption('#tr-scope', 'hard');
-  await expect(page.getByText('İki farklı gün doğru söyleyince listeden çıkar')).toBeVisible();
+  await expect(page.getByText('iki ayrı günde doğru söyleyince listeden çıkar')).toBeVisible();
 
   // ✗ on the line with 2 points brings it to 4 → in; undo restores it
   await page.selectOption('#tr-scope', 'learned');

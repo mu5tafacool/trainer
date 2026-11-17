@@ -2661,7 +2661,7 @@ function renderTrack() {
       var anyL = list.some(function (a) { return started(a); });
       return '<optgroup label="' + esc(lab) + '">' + (gl.length > 1 ? (anyL ? opt('gl:' + g.id, lab + ' · öğrendiklerim') : '') + opt('g:' + g.id, lab + ' · tüm satırlar') : '') +
         list.map(function (a) { return opt(a.id, qLabel(a)); }).join('') + '</optgroup>';
-    }).join('') + '</select></label>' + (scope === 'hard' ? '<p class="hint">Zorlandığın satırlar, en zoru önce (en çok ' + HARD_MAX + '). İki farklı gün doğru söyleyince listeden çıkar.</p>' : '') +
+    }).join('') + '</select></label>' + (scope === 'hard' ? '<p class="hint">En çok zorlandığın ' + HARD_MAX + ' satır. Bir satırı iki ayrı günde doğru söyleyince listeden çıkar (Nasıl çalışır → Zorlandıklarım).</p>' : '') +
     rows + '<div class="chips">' + chips.filter(Boolean).join('') + '</div></div>';
   h += '<div class="player' + (playing ? '' : ' idle') + '" id="player">' + playerInner() + '</div>';
   h += '<div id="trackctl" class="trackbar">' + trackCtl() + '</div>';
@@ -3225,11 +3225,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v51'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v52'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-17 16:29'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-17 17:08'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3429,11 +3429,13 @@ function helpPanel() {
       '<b>↻ Pekiştir</b> (Hatırla\'da her zaman; Kontrol ve Tekrar\'da 🎤 sonucu Zor ya da Tekrar ise): ~20 sn. 1/3 metinle dinle ve aynen tekrar et (eksik kalıp kelimeleri turuncu), 2/3 metinsiz sesle birlikte söyle, 3/3 bir kez kendin söyle (🎤 sadece yüzde). Puan ilk denemene göre kalır. Siri modunda da hazır sesi çalar.'
     ])) +
     d('Zorlandıklarım', ul([
-      '<b>Akış</b>: zorlandın → satır listeye girer → iki farklı gün doğru söyledin → listeden çıkar. Elle işaretleme yok.',
-      '<b>Zorlanma puanı</b>: Tekrar 3 · Zor 2 · Dinle ✗ 2 · Kontrol\'de Tekrar sor 2 · Pekiştir 1 (Hatırla\'da 0,5). Puan 7 günde yarıya iner, 14 günden eskisi sayılmaz. 3 puana ulaşan satır listeye girer: tek bir Tekrar yeter, bir Zor yetmez.',
-      '<b>Çıkış</b>: İyi/Kolay, Dinle ✓ ya da Hız testinde süresinde doğru; farklı iki günde üst üste. Arada yeniden zorlanırsan sayım baştan başlar.',
-      '<b>Nerede</b>: Dinle → Kapsam → Zorlandıklarım ve Prova → Hız testi → Zorlandıklarım. En zoru önce, en çok 15 satır, karışık sırada.',
-      '<b>Neden</b>: zor satırı farklı günlerde art arda doğru hatırlamak onu kalıcı yapar; tek seferlik doğru cevap yetmez. Liste kısa tutulur ki her gün bitirilebilsin.'
+      'Zorlandığın satırlar burada toplanır. Sen bir şey işaretlemezsin; uygulama kendisi ekler ve çıkarır.',
+      '<b>Ne zaman eklenir?</b> Tekrar\'da <b>Tekrar</b> dediğin satır hemen eklenir. <b>Zor</b>, Dinle\'de <b>✗</b> ya da Kontrol\'de <b>Tekrar sor</b> tek başına yetmez: aynı satırda yaklaşık bir hafta içinde ikinci kez olursa eklenir.',
+      '<b>Ne zaman çıkar?</b> Satırı <b>iki ayrı günde</b> doğru söyleyince: Tekrar\'da İyi/Kolay, Dinle\'de ✓ ya da Hız testinde zamanında doğru. Tek bir ✓ yetmez; aynı gün iki kez doğru söylemek de bir sayılır. Arada yine zorlanırsan sayım baştan başlar.',
+      '<b>Örnek</b>: Pazartesi Tekrar dedin → listeye girdi. Salı İyi dedin → 1/2. Perşembe Dinle\'de ✓ → listeden çıktı.',
+      '<b>Nerede?</b> Dinle → Kapsam → Zorlandıklarım ve Prova → Hız testi → Zorlandıklarım. En zoru önce gelir, en çok 15 satır.',
+      '<b>Neden?</b> Zor bir satır, ayrı günlerde art arda doğru hatırlanınca kalıcı olur; bir kez doğru söylemek yetmez. Liste kısa tutulur ki her gün bitirebilesin.',
+      '<span class="hint">Ayrıntı: her zorlanma puan ekler (Tekrar 3, Zor 2, ✗ 2, Tekrar sor 2, Pekiştir 1, Hatırla\'da Pekiştir 0,5). 3 puanda listeye girer; puanlar bir haftada yarıya iner, iki haftadan eskisi sayılmaz.</span>'
     ])) +
     d('Dinle', ul([
       '<b>A · Gölgeleme</b>: İngilizce N kez; her birinden sonra aynen tekrar et. İlk 2 turdan sonra metin gizlenir.',
