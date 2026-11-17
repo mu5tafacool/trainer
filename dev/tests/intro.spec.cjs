@@ -43,7 +43,8 @@ async function toRecall(page) {
   await end(page);
   await page.clock.fastForward(600); // no gap after the 3rd round: straight to the image
   await expect(card(page)).toContainText('kendi hayatından bir sahneye');
-  await page.clock.fastForward(6000);
+  // the image countdown is a chain of 1 s waits: move the clock a second at a time so each step gets its turn
+  for (let k = 0; k < 15 && !(await card(page).textContent()).includes('İngilizcesini sen söyle'); k++) await page.clock.fastForward(1000);
   await expect(card(page)).toContainText('İngilizcesini sen söyle');
   await expect(card(page)).toContainText('Önce imgeni düşün');
 }

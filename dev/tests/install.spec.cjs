@@ -1,17 +1,20 @@
 'use strict';
-// "Uygulama olarak ekle" note: shown in a browser tab, not in the installed app; Kapat hides it for this visit only,
-// "Bir daha gösterme" for good; the iPhone text points to Ana Ekrana Ekle.
+// Install: Chrome/Edge use their own prompt (manifest with description and screenshots; the page does not catch it).
+// Safari has none, so a note there: only in a tab, not in the installed app; Kapat for this visit, "Bir daha gösterme" for good.
 const { test, expect } = require('@playwright/test');
 const { requirePass, unlock } = require('./helpers.cjs');
 
 const inst = (page) => page.locator('#inst');
 
-test('browser tab: shown; Kapat hides it for this visit; a new visit shows it; Bir daha gösterme hides it for good', async ({ page, context }) => {
+const MAC_SAFARI = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15';
+test('Mac Safari tab: shown; Kapat hides it for this visit; a new visit shows it; Bir daha gösterme hides it for good', async ({ browser }) => {
   requirePass(test);
+  const context = await browser.newContext({ userAgent: MAC_SAFARI });
+  const page = await context.newPage();
   await page.route('**/audio*.bin', (r) => r.abort());
   await unlock(page);
   await expect(inst(page)).toBeVisible();
-  await expect(inst(page)).toContainText('Uygulama olarak ekle');
+  await expect(inst(page)).toContainText("Dock'a Ekle");
   await inst(page).getByRole('button', { name: 'Kapat' }).click();
   await expect(inst(page)).toBeHidden();
   await page.reload();
@@ -27,6 +30,22 @@ test('browser tab: shown; Kapat hides it for this visit; a new visit shows it; B
   await p3.goto(page.url());
   await expect(p3.locator('.topbar')).toBeVisible();
   await expect(inst(p3)).toBeHidden();
+  await context.close();
+});
+
+test('Chrome: no note of ours, the browser\'s own install prompt is left alone; the manifest has what its install sheet shows', async ({ page }) => {
+  requirePass(test);
+  await page.route('**/audio*.bin', (r) => r.abort());
+  await unlock(page);
+  await expect(page.locator('.topbar')).toBeVisible();
+  await expect(inst(page)).toBeHidden();
+  const kept = await page.evaluate(() => { const e = new Event('beforeinstallprompt', { cancelable: true }); window.dispatchEvent(e); return !e.defaultPrevented; });
+  expect(kept).toBe(true);
+  const fs = require('node:fs'), path = require('node:path'), root = path.resolve(__dirname, '..', '..');
+  const m = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
+  expect(m.description).toBeTruthy();
+  expect(m.screenshots.map((s) => s.form_factor).sort()).toEqual(['narrow', 'wide']);
+  m.screenshots.forEach((s) => expect(fs.existsSync(path.join(root, s.src))).toBe(true));
 });
 
 test('installed app (standalone): no note', async ({ page }) => {

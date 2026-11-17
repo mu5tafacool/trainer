@@ -1,6 +1,8 @@
 {
+ "id": "./",
  "name": "Mülakat Trainer",
  "short_name": "Trainer",
+ "description": "Mülakat cevaplarını sesli ezberleme: tekrar, gölgeleme, dinleme ve prova. İnternetsiz çalışır.",
  "lang": "tr",
  "start_url": "./",
  "scope": "./",
@@ -23,6 +25,22 @@
    "sizes": "512x512",
    "type": "image/png",
    "purpose": "maskable"
+  }
+ ],
+ "screenshots": [
+  {
+   "src": "shot-narrow.png",
+   "sizes": "780x1688",
+   "type": "image/png",
+   "form_factor": "narrow",
+   "label": "Ayarlar"
+  },
+  {
+   "src": "shot-wide.png",
+   "sizes": "1280x800",
+   "type": "image/png",
+   "form_factor": "wide",
+   "label": "Ayarlar"
   }
  ]
 }
