@@ -79,6 +79,24 @@ test.describe('proper names (found from the texts, none in code)', () => {
   test('ordinary words are left alone', () => {
     expect(fix('a platform for chess clubs')).toBe('a platform for chess clubs');
   });
+  test('month and day names are not names, so a misspelled name is not turned into one', () => {
+    const n2 = v3.findNames(['In March 2024, I joined Quorvex Labs on a Monday.']);
+    expect(n2).toEqual({ quorvex: 1, labs: 1 });
+    const R2 = v3.prepareRef('In March 2024, I joined Quorvex Labs on a Monday.', {}, n2);
+    expect(v3.normalizeSaid('in march 2024 i joined qourvex labs', R2).join(' ')).toBe('in march 2024 i joined quorvex labs');
+  });
+  test('the closest name wins, not the first one close enough', () => {
+    const R3 = v3.prepareRef('We joined Delmark after Delmar.', {}, { delmar: 1, delmark: 1 });
+    expect(v3.normalizeSaid('we joined delmarc', R3).join(' ')).toBe('we joined delmark');
+  });
+});
+
+test('a negation said another way is not a missing term ("nothing" ~ "did not", "never" ~ "not")', () => {
+  const r = v3.check({ en: 'The robot ships nothing until the cook agrees.', tier: 'anlam' }, 'the robot did not ship until the cook agrees', LEX, null);
+  expect(r.bag.miss).toEqual([]);
+  expect(r.cov).toBe(1);
+  const s = v3.check({ en: 'The robot ships nothing until the cook agrees.', tier: 'anlam' }, 'the robot ships everything until the cook agrees', LEX, null);
+  expect(s.bag.miss).toContain('nothing');
 });
 
 test('index.html carries the same verify3 as dev/lib/verify3.js', () => {

@@ -110,11 +110,15 @@
     for (var i = 0; i < t.length; i++) {
       var w = t[i], done = false;
       if (!R.vocab[w] && !FUNC[w] && !isNum(w)) {
-        for (var k = 0; k < names.length && !done; k++) {
-          var n = names[k];
-          if (i + 1 < t.length && !R.vocab[t[i + 1]] && !isNum(t[i + 1]) && soundsLike(w + t[i + 1], n) && !soundsLike(w, n)) { out.push(n); i++; done = true; }
-          else if (soundsLike(w, n)) { out.push(n); done = true; }
-        }
+        // the closest name wins (same sound key before one-letter-off; a name of this line before other lines' names)
+        var best = null;
+        names.forEach(function (n) {
+          var two = i + 1 < t.length && !R.vocab[t[i + 1]] && !isNum(t[i + 1]) && soundsLike(w + t[i + 1], n) && !soundsLike(w, n);
+          if (!two && !soundsLike(w, n)) return;
+          var d = levN(sound(two ? w + t[i + 1] : w), sound(n)) * 2 + (R.vocab[n] ? 0 : 1);
+          if (!best || d < best.d) best = { n: n, two: two, d: d };
+        });
+        if (best) { out.push(best.n); if (best.two) i++; done = true; }
       }
       if (done) continue;
       if (isNum(w) && out.length && R.nameHeads && R.nameHeads[out[out.length - 1]] && !R.nameNums[w]) {
@@ -131,6 +135,9 @@
 
   // Proper names, found from the texts themselves (no list in code): a word written with a capital in the middle of a
   // sentence (not after . : ; ! ? or a quote), or a word mixing letters and digits. Returns lowercase name words.
+  // Month and day names are capitalised mid-sentence but are ordinary words; as "names" they captured misspelled real names.
+  var CALENDAR = {};
+  'january february march april may june july august september october november december monday tuesday wednesday thursday friday saturday sunday'.split(' ').forEach(function (w) { CALENDAR[w] = 1; });
   var NAME_RE = /(^|[.:;!?"(\u201c]\s*)?\b([A-Z][A-Za-z]*[A-Za-z0-9]*|[A-Za-z]+\d+[A-Za-z0-9]*)\b/g;
   function findNames(texts) {
     var out = {};
@@ -138,7 +145,7 @@
       var m; NAME_RE.lastIndex = 0;
       while ((m = NAME_RE.exec(String(t || '')))) {
         var w = m[2], initial = m.index === 0 || (m[1] !== undefined && m[1] !== '');
-        if (w === 'I' || w.length < 2) continue;
+        if (w === 'I' || w.length < 2 || CALENDAR[w.toLowerCase()]) continue;
         if (/\d/.test(w) || !initial) out[w.toLowerCase()] = 1;
       }
     });
@@ -339,6 +346,8 @@
     ref.forEach(function (w) {
       if (FUNC[w]) return;
       var k = left.indexOf(w); if (k < 0) for (var i = 0; i < left.length && k < 0; i++) if (stemEq(w, left[i])) k = i;
+      // a negation said another way counts ("commits nothing" ~ "did not commit", "never" ~ "not")
+      if (k < 0 && NEG[w]) for (var j = 0; j < left.length && k < 0; j++) if (NEG[left[j]] && left[j] !== 'without') k = j;
       if (k >= 0) left.splice(k, 1); else miss.push(w);
     });
     return { miss: miss, extra: left };

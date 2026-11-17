@@ -140,6 +140,20 @@ test('Kontrol 🎤: the result suggests ✓ for a right answer and ↺ for a wro
   await page.locator('[data-act="quizCheck"]').click();
   await expect(page.locator('[data-act="quizAgain"]')).toHaveClass(/sugg/);
   await expect(page.locator('[data-act="quizOk"]')).not.toHaveClass(/sugg/);
+  await page.locator('[data-act="quizAgain"]').click();
+
+  // about three quarters said: Zor, so neither button is framed and the hint says why
+  l = await line();
+  const v3 = require('../lib/verify3.js'), words = l.en.split(/\s+/);
+  let part = l.en; // the longest start of the line the rules grade Zor
+  for (let k = words.length - 1; k > 0; k--) { const t = words.slice(0, k).join(' '); if (v3.check({ en: l.en, tier: l.tier === 'ezber' ? 'ezber' : 'anlam', mk: l.mk || [] }, t, {}, null).grade === 1) { part = t; break; } }
+  await page.locator('[data-act="dictOpen"]').click();
+  await page.fill('#dict', part);
+  await page.locator('[data-act="quizCheck"]').click();
+  await expect(page.locator('.dres')).toBeVisible();
+  await expect(page.locator('.btn.sugg')).toHaveCount(0);
+  await expect(page.getByText('Arada: kalıbı tam söyleyemediysen')).toBeVisible();
+  await expect(page.getByText('Çerçeveli düğme')).toHaveCount(0);
 });
 
 test('Kontrol without 🎤 when "Söyle ve kontrol et" is off', async ({ page }) => {

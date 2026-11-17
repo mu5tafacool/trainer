@@ -1130,11 +1130,15 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     for (var i = 0; i < t.length; i++) {
       var w = t[i], done = false;
       if (!R.vocab[w] && !FUNC[w] && !isNum(w)) {
-        for (var k = 0; k < names.length && !done; k++) {
-          var n = names[k];
-          if (i + 1 < t.length && !R.vocab[t[i + 1]] && !isNum(t[i + 1]) && soundsLike(w + t[i + 1], n) && !soundsLike(w, n)) { out.push(n); i++; done = true; }
-          else if (soundsLike(w, n)) { out.push(n); done = true; }
-        }
+        // the closest name wins (same sound key before one-letter-off; a name of this line before other lines' names)
+        var best = null;
+        names.forEach(function (n) {
+          var two = i + 1 < t.length && !R.vocab[t[i + 1]] && !isNum(t[i + 1]) && soundsLike(w + t[i + 1], n) && !soundsLike(w, n);
+          if (!two && !soundsLike(w, n)) return;
+          var d = levN(sound(two ? w + t[i + 1] : w), sound(n)) * 2 + (R.vocab[n] ? 0 : 1);
+          if (!best || d < best.d) best = { n: n, two: two, d: d };
+        });
+        if (best) { out.push(best.n); if (best.two) i++; done = true; }
       }
       if (done) continue;
       if (isNum(w) && out.length && R.nameHeads && R.nameHeads[out[out.length - 1]] && !R.nameNums[w]) {
@@ -1151,6 +1155,9 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
 
   // Proper names, found from the texts themselves (no list in code): a word written with a capital in the middle of a
   // sentence (not after . : ; ! ? or a quote), or a word mixing letters and digits. Returns lowercase name words.
+  // Month and day names are capitalised mid-sentence but are ordinary words; as "names" they captured misspelled real names.
+  var CALENDAR = {};
+  'january february march april may june july august september october november december monday tuesday wednesday thursday friday saturday sunday'.split(' ').forEach(function (w) { CALENDAR[w] = 1; });
   var NAME_RE = /(^|[.:;!?"(\u201c]\s*)?\b([A-Z][A-Za-z]*[A-Za-z0-9]*|[A-Za-z]+\d+[A-Za-z0-9]*)\b/g;
   function findNames(texts) {
     var out = {};
@@ -1158,7 +1165,7 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
       var m; NAME_RE.lastIndex = 0;
       while ((m = NAME_RE.exec(String(t || '')))) {
         var w = m[2], initial = m.index === 0 || (m[1] !== undefined && m[1] !== '');
-        if (w === 'I' || w.length < 2) continue;
+        if (w === 'I' || w.length < 2 || CALENDAR[w.toLowerCase()]) continue;
         if (/\d/.test(w) || !initial) out[w.toLowerCase()] = 1;
       }
     });
@@ -1359,6 +1366,8 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     ref.forEach(function (w) {
       if (FUNC[w]) return;
       var k = left.indexOf(w); if (k < 0) for (var i = 0; i < left.length && k < 0; i++) if (stemEq(w, left[i])) k = i;
+      // a negation said another way counts ("commits nothing" ~ "did not commit", "never" ~ "not")
+      if (k < 0 && NEG[w]) for (var j = 0; j < left.length && k < 0; j++) if (NEG[left[j]] && left[j] !== 'without') k = j;
       if (k >= 0) left.splice(k, 1); else miss.push(w);
     });
     return { miss: miss, extra: left };
@@ -2235,7 +2244,7 @@ function renderIntro() {
     var qg = q.shown && s.dict ? dictGrade(s.dict) : -1;
     if (q.shown) h += (s.dict ? dictRes(s.dict, s.dictText) : '') +
       '<div class="row"><button class="btn' + (qg === 0 ? ' sugg' : '') + '" data-act="quizAgain">↺ Tekrar sor</button><button class="btn primary' + (qg === 2 ? ' sugg' : '') + '" data-act="quizOk">✓ Söyledim</button></div>' +
-      (qg >= 0 ? '<p class="hint">Çerçeveli düğme söylediğine göre öneri; karar senin.</p>' : '');
+      (qg === 1 ? '<p class="hint">Arada: kalıbı tam söyleyemediysen ↺ Tekrar sor.</p>' : qg >= 0 ? '<p class="hint">Çerçeveli düğme söylediğine göre öneri; karar senin.</p>' : '');
     else h += (dictOn() ? dictBox(s, 'quizCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn ghost" data-act="replayQuizTr">▶ TR dinle</button><button class="btn primary" data-act="quizReveal">Göster</button></div>';
     return h;
   }
@@ -3094,8 +3103,8 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v45'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
-var APP_BUILT = '2026-11-16 16:59'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_VER = 'mt-v46'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_BUILT = '2026-11-17 12:22'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3107,7 +3116,7 @@ function speedHash() {
 window.addEventListener('hashchange', speedHash);
 function versionLine() {
   var seedV = ''; try { seedV = (JSON.parse(localStorage.getItem('mt1:__seed') || '{}').v) || ''; } catch (e) {}
-  return '<p class="hint mono verline">Sürüm ' + esc(APP_VER.replace(/^mt-/, '')) + ' · ' + esc(APP_BUILT) + ' UTC' + (seedV ? ' · cevaplar ' + esc(seedV) : '') + '</p>';
+  return '<p class="hint mono verline">Sürüm ' + esc(APP_VER.replace(/^mt-/, '')) + ' · ' + esc(APP_BUILT) + ' UTC' + (seedV ? ' · cümleler ' + esc(seedV) : '') + '</p>';
 }
 var NLI_TIMES = 'mt1:__nli_ms';
 function nliTimeAdd(ms) { try { var a = JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); a.push(ms); localStorage.setItem(NLI_TIMES, JSON.stringify(a.slice(-20))); } catch (e) {} }

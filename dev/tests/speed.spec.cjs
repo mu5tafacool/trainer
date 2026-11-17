@@ -94,7 +94,7 @@ test('Settings ends with the version, its UTC time and the answer-set version', 
   const { meta } = await seedOf();
   await unlock(page);
   await settings(page);
-  await expect(page.locator('.verline')).toHaveText(new RegExp('^Sürüm ' + v + ' · \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} UTC · cevaplar ' + meta.v + '$'));
+  await expect(page.locator('.verline')).toHaveText(new RegExp('^Sürüm ' + v + ' · \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} UTC · cümleler ' + meta.v + '$'));
 });
 
 
