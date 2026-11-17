@@ -33,6 +33,8 @@ test('pattern highlight: the line\'s pattern chunks are blue; off in Settings, n
   const l = lines[(await en.textContent()).trim()];
   expect(l, 'the card shows a seed line').toBeTruthy();
   const kp = await en.locator('.kp').allTextContents();
+  await expect(en.locator('[role="text"]')).toHaveCount(1); // one piece for Spoken Content
+  await expect(en.locator('[role="text"] .kp')).toHaveCount(kp.length);
   expect(kp.length).toBeGreaterThan(0);
   kp.forEach((c) => expect(l.en).toContain(c));
   if ((l.mk || []).length) expect(kp).toEqual(l.mk.filter((c) => l.en.includes(c)));

@@ -1588,7 +1588,8 @@ function hlEn(l) {
   var mk = keepMk(l.mk, en); if (!mk.length) mk = autoMk(en);
   var out = '', at = 0;
   mk.forEach(function (c) { var k = en.indexOf(c, at); if (k < 0) return; out += esc(en.slice(at, k)) + '<span class="kp">' + esc(c) + '</span>'; at = k + c.length; });
-  return out + esc(en.slice(at));
+  // role="text": the highlighted pieces stay one sentence for Spoken Content (Speech Controller reads the whole line)
+  return '<span role="text">' + out + esc(en.slice(at)) + '</span>';
 }
 window.__kp = { auto: autoMk, hl: hlEn, parse: parseMk, lib: kpLibrary };
 function pad(n) { return String(n).padStart(2, '0'); }
@@ -3168,11 +3169,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v49'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v50'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-17 14:43'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-17 16:00'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
