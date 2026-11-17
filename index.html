@@ -1764,6 +1764,55 @@ function mastered(a) { return a.lines.filter(function (l) { var s = st(a.id, l.i
 function logAdd(k, n) { var t = today(); var d = U.log.days[t] || (U.log.days[t] = { rev: 0, again: 0, new: 0, ms: 0 }); d[k] = (d[k] || 0) + (n == null ? 1 : n); save('log'); }
 function ansById(id) { for (var i = 0; i < S.answers.length; i++) if (S.answers[i].id === id) return S.answers[i]; return null; }
 function lineById(id) { for (var i = 0; i < S.answers.length; i++) { var a = S.answers[i]; for (var k = 0; k < a.lines.length; k++) if (a.lines[k].id === id) return { a: a, l: a.lines[k] }; } return null; }
+/* ---- Zorlandıklarım: a difficulty record per line (U.progress.hard[lineId] = { s, at, in, ok, n }) ----
+   Each struggle adds points: Tekrar 3, Zor 2, Dinle ✗ 2, Kontrol "Tekrar sor" 2, Pekiştir on Kontrol/Tekrar 1, on Hatırla 0.5.
+   Points fade (half every 7 days; nothing older than 14 days counts). A line joins the list at 3 points and stays until it
+   is recalled well (İyi/Kolay, Dinle ✓, Hız testi in time) on two different days in a row; a new struggle starts that over.
+   The list is used as a scope: highest points first, at most 15 lines, then mixed. */
+var HARD_W = { again: 3, hard: 2, no: 2, quiz: 2, pk: 1, pkr: 0.5 }, HARD_IN = 3, HARD_MAX = 15;
+function hardMap() {
+  var h = U.progress.hard || (U.progress.hard = {});
+  if (!U.progress.hardInit) {
+    // first run: lines that were forgotten and are still on short intervals start in the list, often-hard ones half way
+    var t = today(), added = 0;
+    S.answers.forEach(function (a) { a.lines.forEach(function (l) {
+      var x = st(a.id, l.id) || {}, e = h[l.id] || {};
+      if (e.d && !e.at) { e.at = e.d; e.s = (e.n || 1) * HARD_W.pk; } // Pekiştir records from v0.48
+      var lap = ['p', 'l'].some(function (d) { return x[d] && x[d].lapses > 0 && x[d].ivl <= 7; });
+      var low = ['p', 'l'].some(function (d) { return x[d] && x[d].ease <= 2.2; });
+      if (lap) { e.s = Math.max(e.s || 0, HARD_IN); e.at = t; e.in = true; e.ok = []; }
+      else if (low) { e.s = Math.max(e.s || 0, 2); e.at = e.at || t; }
+      if (e.at) { h[l.id] = e; added++; }
+    }); });
+    // kept with the next save of progress; saved now only when something was added
+    U.progress.hardInit = t; if (added) save('progress');
+  }
+  return h;
+}
+function hardPoints(e, t) { if (!e || !e.at) return 0; var age = diffDays(e.at, t || today()); return age > 14 ? 0 : (e.s || 0) * Math.pow(0.5, age / 7); }
+function hardBad(id, kind) {
+  var h = hardMap(), t = today(), e = h[id] || {};
+  e.s = hardPoints(e, t) + HARD_W[kind]; e.at = t; e.ok = [];
+  if (e.s >= HARD_IN) e.in = true;
+  if (kind === 'pk' || kind === 'pkr') { e.n = (e.n || 0) + 1; e.d = t; }
+  h[id] = e; save('progress');
+}
+function hardGood(id) {
+  var e = hardMap()[id]; if (!e || !e.in) return;
+  var t = today(); e.ok = e.ok || []; if (e.ok.indexOf(t) < 0) e.ok.push(t);
+  if (e.ok.length >= 2) { e.in = false; e.s = 0; e.ok = []; }
+  save('progress');
+}
+function hardSnap(id) { var e = hardMap()[id]; return e ? clone(e) : null; }
+function hardRestore(id, snap) { var h = hardMap(); if (snap) h[id] = snap; else delete h[id]; save('progress'); }
+/* lines in the list, highest points first; at most HARD_MAX, then mixed so the order is not always the same */
+function hardLines() {
+  var h = hardMap(), t = today(), out = [];
+  Object.keys(h).forEach(function (id) { var e = h[id]; if (!e.in) return; var f = lineById(id); if (f) out.push({ a: f.a, l: f.l, pts: hardPoints(e, t) + (e.s || 0) * 0.001 }); });
+  out.sort(function (x, y) { return y.pts - x.pts; });
+  return shuffle(out.slice(0, HARD_MAX)).map(function (x) { return { a: x.a, l: x.l }; });
+}
+function hardCount() { var h = hardMap(), n = 0; Object.keys(h).forEach(function (id) { if (h[id].in && lineById(id)) n++; }); return n; }
 
 /* ---------- speech ---------- */
 var synth = window.speechSynthesis || null;
@@ -2078,6 +2127,7 @@ function grade(g) {
   var s = S.sess; if (!s || !s.shown) return;
   var it = s.q[s.i], cur = (st(it.a.id, it.l.id) || {})[it.dir] || {};
   setSt(it.a.id, it.l.id, it.dir, nextState(cur, g)); logAdd('rev'); s.n++;
+  if (g === 0) hardBad(it.l.id, 'again'); else if (g === 1) hardBad(it.l.id, 'hard'); else hardGood(it.l.id);
   if (g === 0) { logAdd('again'); s.again++; s.q.splice(Math.min(s.q.length, s.i + 5), 0, it); }
   s.i++;
   if (s.i >= s.q.length) { var ms = Date.now() - s.start; logAdd('ms', ms); S.sess = { type: 'done', kind: 'review', n: s.n, again: s.again, ms: ms }; stopAudio(); render(); top(); }
@@ -2227,7 +2277,7 @@ function quizEnter() {
 function quizReveal() { var s = S.sess; s.quiz.shown = true; render(); play(s.quiz.q[0].l.en, 'en'); }
 function quizMark(ok) {
   var s = S.sess, it = s.quiz.q.shift();
-  if (!ok) s.quiz.q.push(it);
+  if (!ok) { s.quiz.q.push(it); hardBad(it.l.id, 'quiz'); }
   if (s.quiz.q.length) { quizEnter(); return; }
   var t = today();
   s.batches[s.b].forEach(function (x) {
@@ -2290,7 +2340,7 @@ function renderIntro() {
 /* ---- ↻ Pekiştir: a short fix-up for one line, the same on Hatırla, Kontrol and Tekrar.
    1/3 hear it with the text (missing pattern words marked) and say it back; 2/3 say it with the voice, no text;
    3/3 say it once yourself from memory (recallMs; 🎤 shows the percentage only). Grades and suggestions stay from the
-   first try; the line is noted for Zorlandıklarım (U.progress.hard). Plays the voice clip even in Siri mode. */
+   first try; the line is noted for Zorlandıklarım (hardBad). Plays the voice clip even in Siri mode. */
 function pkItem() { var s = S.sess; return s.type === 'intro' ? (s.phase === 'quiz' ? s.quiz.q[0] : curIntro()) : s.q[s.i]; }
 function pkAlive(s, tok) { return S.sess === s && !!s.pk && tok === audioTok; }
 function speakVoice(text, tok) {
@@ -2303,8 +2353,7 @@ function pkStart() {
   var s = S.sess, it = pkItem(); if (!s || !it) return;
   stopAudio(); var tok = audioTok, l = it.l;
   s.pk = { step: 1, phase: 'listen', miss: (s.dict && s.dict.mkMiss) || [], end: 0, dict: null, dictOpen: false, dictText: '' };
-  var hd = U.progress.hard || (U.progress.hard = {}), e = hd[l.id] || { n: 0 };
-  e.n++; e.d = today(); hd[l.id] = e; save('progress');
+  hardBad(l.id, s.type === 'intro' && s.phase !== 'quiz' ? 'pkr' : 'pk');
   render(); top();
   wait(60, tok).then(function () { return speakVoice(l.en, tok); })
     .then(function (ms) { if (!pkAlive(s, tok)) return; s.pk.phase = 'you'; render(); return wait(echoMs(ms, l.en), tok); })
@@ -2499,12 +2548,14 @@ function rehSave(ok) {
 }
 
 /* speed test */
-function testPool() { return learnedLines().filter(function (x) { return inGrp(x.a); }); }
+function testPool() { return (S.testHard ? hardLines() : learnedLines()).filter(function (x) { return inGrp(x.a); }); }
 function renderTestConfig() {
   var pool = testPool().length, n = S.testN === 0 ? pool : Math.min(S.testN, pool);
   var h = '<p class="sub" style="margin-bottom:12px">TR\'yi gör, İngilizcesini sesli söyle, biter bitmez Göster\'e bas. Süre basana kadar ölçülür. Hedef: doğru ve süresinde (cümlenin uzunluğuna göre; Ayarlar → Nasıl çalışır → Süreler).</p>';
+  var hn = hardCount();
+  if (hn || S.testHard) h += '<div class="seg"><button data-act="testHard" data-v="0" aria-pressed="' + !S.testHard + '">Öğrendiklerim</button><button data-act="testHard" data-v="1" aria-pressed="' + !!S.testHard + '">Zorlandıklarım (' + hn + ')</button></div>';
   h += '<div class="seg">' + [10, 20, 0].map(function (k) { return '<button data-act="testN" data-n="' + k + '" aria-pressed="' + (S.testN === k) + '">' + (k ? k + ' kart' : 'Tümü') + '</button>'; }).join('') + '</div>';
-  h += '<button class="btn primary wide" data-act="startTest"' + (pool ? '' : ' disabled') + '>' + (pool ? 'Testi başlat (' + n + ' kart)' : (curGrp() === 'all' ? 'Önce bir cevap öğren' : 'Bu grupta henüz öğrenilen satır yok')) + '</button>';
+  h += '<button class="btn primary wide" data-act="startTest"' + (pool ? '' : ' disabled') + '>' + (pool ? 'Testi başlat (' + n + ' kart)' : (S.testHard ? 'Zorlandıklarım listesi boş' : curGrp() === 'all' ? 'Önce bir cevap öğren' : 'Bu grupta henüz öğrenilen satır yok')) + '</button>';
   var list = (U.tests.list || []).slice(-6).reverse();
   if (list.length) {
     h += '<h2 style="margin:20px 0 8px">Son testler</h2><ul class="reslist">' + list.map(function (r) {
@@ -2523,6 +2574,7 @@ function testReveal() { var s = S.sess; if (s.shown) return; s.shown = true; s.m
 function testMark(ok) {
   var s = S.sess, it = s.q[s.i];
   s.res.push({ id: it.l.id, a: it.a.id, ok: ok, ms: s.ms, lim: recallMs(it.l.en) });
+  if (ok && s.ms <= recallMs(it.l.en)) hardGood(it.l.id);
   if (!ok) { var cur = (st(it.a.id, it.l.id) || {}).p; if (cur) { var c = clone(cur); c.due = today(); setSt(it.a.id, it.l.id, 'p', c); } }
   s.i++;
   if (s.i >= s.q.length) {
@@ -2559,6 +2611,7 @@ function renderTest() {
 function trackItems(cfg) {
   var out = [], sc = cfg.scope || 'learned', m = /^g(l?):(.*)$/.exec(sc);
   function add(a, onlyLearned) { a.lines.forEach(function (l) { if (!onlyLearned || lineStarted(a, l)) out.push({ a: a, l: l }); }); }
+  if (sc === 'hard') return hardLines();
   if (sc === 'due') { var t = today(); S.answers.forEach(function (a) { a.lines.forEach(function (l) { var s0 = st(a.id, l.id); if (s0 && s0.p && s0.p.due <= t) out.push({ a: a, l: l }); }); }); }
   else if (sc === 'learned') { out = learnedLines(); if (!out.length) S.answers.forEach(function (a) { add(a); }); }
   else if (sc === 'all') S.answers.forEach(function (a) { add(a); });
@@ -2602,13 +2655,13 @@ function renderTrack() {
   var chips = [tchip('tr-text', 'Metin', c.text), c.mode !== 'C' ? tchip('tr-shuffle', 'Karışık', c.shuffle) : '', c.mode === 'A' ? tchip('tr-simul', 'Eşzamanlı', U.settings.simul) : ''];
   h += '<div class="ctl"><label class="kap"><span>Kapsam</span><select id="tr-scope">' +
     (c.mode !== 'C' && anyLearned ? opt('due', 'Bugün çalışılacaklar (' + nDue + ')') : '') +
-    (anyLearned ? opt('learned', 'Öğrendiğim satırlar') : '') + opt('all', 'Tüm cevaplar') +
+    (anyLearned ? opt('learned', 'Öğrendiğim satırlar') : '') + (hardCount() ? opt('hard', 'Zorlandıklarım (' + hardCount() + ')') : '') + opt('all', 'Tüm cevaplar') +
     gl.map(function (g) {
       var list = S.answers.filter(function (a) { return grpOf(a) === g.id; }), lab = grpLabel(g.id);
       var anyL = list.some(function (a) { return started(a); });
       return '<optgroup label="' + esc(lab) + '">' + (gl.length > 1 ? (anyL ? opt('gl:' + g.id, lab + ' · öğrendiklerim') : '') + opt('g:' + g.id, lab + ' · tüm satırlar') : '') +
         list.map(function (a) { return opt(a.id, qLabel(a)); }).join('') + '</optgroup>';
-    }).join('') + '</select></label>' +
+    }).join('') + '</select></label>' + (scope === 'hard' ? '<p class="hint">Zorlandığın satırlar, en zoru önce (en çok ' + HARD_MAX + '). İki farklı gün doğru söyleyince listeden çıkar.</p>' : '') +
     rows + '<div class="chips">' + chips.filter(Boolean).join('') + '</div></div>';
   h += '<div class="player' + (playing ? '' : ' idle') + '" id="player">' + playerInner() + '</div>';
   h += '<div id="trackctl" class="trackbar">' + trackCtl() + '</div>';
@@ -2686,12 +2739,15 @@ function markApply(T, it, v) {
     if (!learnedBefore) { var init = { ivl: 0, ease: 2.5, due: addDays(today(), 1), reps: 1, lapses: 0 }; setSt(a.id, l.id, 'l', init); logAdd('new'); if (!U.progress.first) { U.progress.first = today(); save('progress'); } }
   } else if (learnedBefore) { nx = nextState(cur, 0); setSt(a.id, l.id, 'p', nx); }
   logAdd('rev');
+  m.hp = hardSnap(l.id);
+  if (v === 'ok') hardGood(l.id); else if (learnedBefore) hardBad(l.id, 'no');
   if (v === 'no') { var at = Math.min(T.items.length, T.i + 4), dup = { a: a, l: l, again: true }; T.items.splice(at, 0, dup); m.dup = dup; }
   m.v = v; m.ivl = nx ? nx.ivl : null;
 }
 function markUndo(T, it) {
   var m = it.mark; if (!m) return;
   srsRestore(it.a.id, it.l.id, m.prev);
+  if ('hp' in m) hardRestore(it.l.id, m.hp);
   if (m.dup) { var k = T.items.indexOf(m.dup); if (k > T.i) T.items.splice(k, 1); }
   delete it.mark;
 }
@@ -3169,11 +3225,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v50'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v51'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-17 16:00'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-17 16:29'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3302,6 +3358,7 @@ function keyHelp() {
     blk('Tekrar kartı', [row(k('Boşluk') + ' ya da ' + k('Enter'), 'İngilizceyi göster'), row(k('1') + k('2') + k('3') + k('4'), 'Puan ver: 1 Tekrar · 2 Zor · 3 İyi · 4 Kolay')]) +
     blk('Yeni cevap · kontrol', [row(k('Boşluk'), 'İngilizceyi göster'), row(k('1'), 'Bilemedim, tekrar sor'), row(k('2'), 'Söyledim, devam')]) +
     blk('Hız testi', [row(k('Boşluk'), 'Göster (süre durur)'), row(k('1'), 'Yanlış'), row(k('2'), 'Doğru')]) +
+    blk('↻ Pekiştir', [row(k('P'), 'Pekiştir\'i aç (düğme görünürken: Hatırla, Kontrol, Tekrar)'), row(k('Boşluk') + ' ya da ' + k('Enter'), '3/3\'te Göster · sonda Karta dön'), row(k('R'), 'Bir tur daha'), row(k('Esc'), 'Bırak')]) +
     blk('Dinle (çalarken)', [row(k('←'), 'Önceki kart'), row(k('→'), 'Sonraki kart'), row(k('Boşluk'), 'Duraklat / devam et'), row(k('1'), 'B modunda: ✗ bilemedim'), row(k('2'), 'B modunda: ✓ bildim')]) +
     blk('Kulaklık ve kilit ekranı (Dinle çalarken)', [row(k('⏭'), 'Sonraki kart'), row(k('⏮'), 'Önceki kart'), row(k('⏯'), 'Duraklat / devam et')]) +
     blk('AirPods', [row('Pro, 3, 4', 'Sapa 2 kez bas: sonraki kart · 3 kez bas: önceki kart'), row('1, 2', 'Çift dokunuşa “Sonraki parça” ata: iPhone Ayarlar → Bluetooth → AirPods (i) → Çift Dokunuş')]);
@@ -3370,6 +3427,13 @@ function helpPanel() {
       'Bildikçe aralık uzar (örneğin 1 → 3 → 8 → 20 gün); bilemeyince kısa aralığa döner. Bugünün kartları bitince yeni kart yarın gelir.',
       'Dinle B\'deki ✓/✗ ve Hız testindeki yanlışlar da aynı takvime işlenir.',
       '<b>↻ Pekiştir</b> (Hatırla\'da her zaman; Kontrol ve Tekrar\'da 🎤 sonucu Zor ya da Tekrar ise): ~20 sn. 1/3 metinle dinle ve aynen tekrar et (eksik kalıp kelimeleri turuncu), 2/3 metinsiz sesle birlikte söyle, 3/3 bir kez kendin söyle (🎤 sadece yüzde). Puan ilk denemene göre kalır. Siri modunda da hazır sesi çalar.'
+    ])) +
+    d('Zorlandıklarım', ul([
+      '<b>Akış</b>: zorlandın → satır listeye girer → iki farklı gün doğru söyledin → listeden çıkar. Elle işaretleme yok.',
+      '<b>Zorlanma puanı</b>: Tekrar 3 · Zor 2 · Dinle ✗ 2 · Kontrol\'de Tekrar sor 2 · Pekiştir 1 (Hatırla\'da 0,5). Puan 7 günde yarıya iner, 14 günden eskisi sayılmaz. 3 puana ulaşan satır listeye girer: tek bir Tekrar yeter, bir Zor yetmez.',
+      '<b>Çıkış</b>: İyi/Kolay, Dinle ✓ ya da Hız testinde süresinde doğru; farklı iki günde üst üste. Arada yeniden zorlanırsan sayım baştan başlar.',
+      '<b>Nerede</b>: Dinle → Kapsam → Zorlandıklarım ve Prova → Hız testi → Zorlandıklarım. En zoru önce, en çok 15 satır, karışık sırada.',
+      '<b>Neden</b>: zor satırı farklı günlerde art arda doğru hatırlamak onu kalıcı yapar; tek seferlik doğru cevap yetmez. Liste kısa tutulur ki her gün bitirilebilsin.'
     ])) +
     d('Dinle', ul([
       '<b>A · Gölgeleme</b>: İngilizce N kez; her birinden sonra aynen tekrar et. İlk 2 turdan sonra metin gizlenir.',
@@ -3484,6 +3548,7 @@ var ACT = {
   grp: function (el) { U.settings.grp = el.dataset.g; save('settings'); render(); },
   startGrp: function (el) { U.settings.startGrp = el.dataset.g; save('settings'); render(); },
   testN: function (el) { S.testN = +el.dataset.n; render(); },
+  testHard: function (el) { S.testHard = el.dataset.v === '1'; render(); },
   startTest: startTest,
   testReveal: testReveal,
   testMark: function (el) { testMark(el.dataset.ok === '1'); },
@@ -3586,7 +3651,18 @@ document.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowRight') { e.preventDefault(); trackJump(1); return; }
     if (e.code === 'Space' && !(e.target.closest && e.target.closest('button'))) { e.preventDefault(); if (S.track.paused) trackResume(); else trackPause(); return; }
   }
-  var s = S.sess; if (!s || s.pk) return;
+  var s = S.sess; if (!s) return;
+  // Pekiştir: keys by physical position (same on any keyboard layout or app language)
+  if (s.pk) {
+    var ph = s.pk.phase;
+    if ((e.code === 'Space' || e.code === 'Enter') && e.target.closest && e.target.closest('button')) return; // the focused button handles it
+    if (e.code === 'Escape') { e.preventDefault(); pkDone(); }
+    else if ((e.code === 'Space' || e.code === 'Enter') && ph === 'recall') { e.preventDefault(); pkShow(); }
+    else if ((e.code === 'Space' || e.code === 'Enter') && ph === 'shown') { e.preventDefault(); pkDone(); }
+    else if (e.code === 'KeyR' && ph === 'shown' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); pkStart(); }
+    return;
+  }
+  if (e.code === 'KeyP' && !e.metaKey && !e.ctrlKey && !e.altKey && document.querySelector('[data-act="pkStart"]')) { e.preventDefault(); pkStart(); return; }
   var go = e.code === 'Space' || e.key === 'Enter';
   if (s.type === 'review') {
     if (!s.shown && go) { e.preventDefault(); reveal(); }
@@ -3654,6 +3730,7 @@ function init() {
       db.collection('answers').orderBy('order').onSnapshot(function (snap) {
         S.answers = snap.docs.map(function (d) { var x = clone(d.data() || {}); x.id = d.id; x.lines = Array.isArray(x.lines) ? x.lines : []; return x; });
         schedulePrune();
+        if (S.answers.length && !S.noSave) hardMap(); // first run of Zorlandıklarım: start from the schedule before anything changes it
         softRender();
       }, function () { toast('Bağlantı kesildi; sayfayı yenile.'); });
       if (!LOCAL) try {

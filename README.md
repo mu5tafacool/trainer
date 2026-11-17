@@ -72,6 +72,16 @@ The **Today** tab (Bugün) lays out the day in order:
   - a miss brings the card back the same day.
 - Listen-mode ✓/✗ marks and speed-test misses feed the same schedule.
 
+### Struggled lines (*Zorlandıklarım*)
+
+Flow: you struggle → the line joins the list → you say it right on two different days → it leaves. Nothing to mark by hand.
+
+- **Points per line**: Again 3, Hard 2, Listen ✗ 2, *Ask again* in the check 2, Reinforce 1 (0.5 on Recall). Points halve every 7 days; nothing older than 14 days counts. A line joins at 3 points (one Again is enough, one Hard is not).
+- **Leaving**: Good/Easy, Listen ✓ or a speed-test answer in time, on two different days in a row; a new struggle starts the count over.
+- **Where**: Listen → scope *Zorlandıklarım*, and Rehearse → speed test → *Zorlandıklarım*. Hardest first, at most 15 lines, mixed.
+- **Why**: getting a hard line right on separate days is what makes it stick; one correct answer is not enough. A short list can be finished every day.
+- The first time it runs, lines that were forgotten and are still on short intervals start in the list.
+
 ### Listen
 
 Three modes:
@@ -179,6 +189,7 @@ Every "say it" time comes from one place, so all screens agree. It follows the s
 | Review | Space/Enter = reveal · 1–4 = grade |
 | New answer check | Space = reveal · 1 = ask again · 2 = said it |
 | Speed test | Space = reveal · 1 = wrong · 2 = right |
+| Reinforce (*Pekiştir*) | P = open (when its button shows) · inside: Space/Enter = show (3/3) or back to the card · R = one more round · Esc = leave. Keys go by position, so they work on any keyboard layout. |
 | Listen | ← previous · → next · Space = pause/resume |
 | Listen, mode B | 1 = ✗ not known · 2 = ✓ known |
 | Headphones / lock screen | next · previous · pause (while Listen is running) |
