@@ -401,11 +401,15 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
 .gate-card input { font: 17px var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 11px 12px; width: 100%; }
 .gate-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .gate-err { color: var(--bad); font-size: 14px; }
+.inst { font-size: 13.5px; background: var(--accent-soft); color: var(--ink); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; display: grid; gap: 6px; }
+.inst p { margin: 0; }
+.inst .row2 { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="topbar"><span class="brand">Mülakat Trainer</span><span class="daybadge" id="daybadge"></span></div>
+  <div id="inst" class="inst" role="note" hidden></div>
   <main id="view"><div class="state"><b>Yükleniyor</b><div class="skel"></div><div class="skel s2"></div><div class="skel s3"></div></div></main>
 </div>
 <nav class="tabs" aria-label="Bölümler"><div class="in">
@@ -3225,11 +3229,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v52'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v53'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-17 17:08'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-17 17:22'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3470,7 +3474,8 @@ function helpPanel() {
     ])) +
     d('Kısayollar', keyHelp()) +
     d('Kayıt, güncelleme, cihazlar', ul([
-      'İlerleme bu cihazda saklanır, internetsiz çalışır. Telefonda Safari → Paylaş → <b>Ana Ekrana Ekle</b> ile uygulama gibi açılır.',
+      'İlerleme bu cihazda saklanır, internetsiz çalışır. Telefonda Safari → Paylaş → <b>Ana Ekrana Ekle</b>, Mac\'te Safari → Dosya → <b>Dock\'a Ekle</b>, Chrome\'da <b>Yükle</b> ile uygulama gibi açılır. Tarayıcı sekmesinde açıkken üstte bunu hatırlatan bir not çıkar: <b>Kapat</b> bu açılış için gizler, <b>Bir daha gösterme</b> tamamen.',
+      'Her tarayıcı ve uygulama kendi kaydını tutar: iPhone\'da Safari sekmesi ile ana ekran uygulamasının ilerlemesi ve parolası ayrıdır. Hep aynı yerden (ana ekran uygulaması) aç.',
       'Başka cihaza taşımak: burada <b>İlerlemeyi dışa aktar</b>, kodu diğer cihazda <b>İçe aktar</b>.',
       'Güncellemeler kendiliğinden gelir; yeni cevaplar eklenir, ilerleme ve düzenlemeler korunur. Sadece yeni ses dosyaları iner.',
       'Parola her cihazda bir kez sorulur. Cümleler ve sesler şifreli saklanır.',
@@ -3755,6 +3760,36 @@ init();
 })();
 </script>
 <script>
+/* "add as an app" hint: only in a normal browser tab, never in the installed app. Kapat hides it for this visit,
+   "Bir daha gösterme" for good. On iPhone a Safari tab and the Home Screen app keep separate progress. */
+(function () {
+  var box = document.getElementById('inst'); if (!box) return;
+  var standalone = false; try { standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) {}
+  function getS(k, store) { try { return store.getItem(k); } catch (e) { return null; } }
+  function setS(k, store) { try { store.setItem(k, '1'); } catch (e) {} }
+  if (standalone || getS('mt-inst-never', localStorage) || getS('mt-inst-hide', sessionStorage)) return;
+  var ua = navigator.userAgent || '', ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  var safari = /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Firefox|FxiOS/.test(ua), chromium = /Chrome|Chromium|Edg/.test(ua) && !ios;
+  var how = ios ? 'Paylaş <b>⎋</b> → <b>Ana Ekrana Ekle</b>.' : safari ? 'Safari menüsünde <b>Dosya → Dock\'a Ekle</b>.' : chromium ? 'Adres çubuğundaki <b>Yükle</b> simgesi ya da menü → <b>Uygulamayı yükle</b>.' : '';
+  if (!how) return; // e.g. Firefox: no app install
+  var prompt = null;
+  function draw() {
+    box.innerHTML = '<p><b>Uygulama olarak ekle</b>: ' + how + ' Ana ekrandan açınca internetsiz çalışır ve ilerlemen tek yerde kalır' + (ios ? ' (Safari sekmesiyle ana ekran uygulamasının kayıtları ayrıdır)' : '') + '.</p>' +
+      '<div class="row2">' + (prompt ? '<button class="link" type="button" data-inst="install">Şimdi yükle</button>' : '') +
+      '<button class="link" type="button" data-inst="close">Kapat</button><button class="link" type="button" data-inst="never">Bir daha gösterme</button></div>';
+    box.hidden = false;
+  }
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-inst]'); if (!b) return;
+    var a = b.getAttribute('data-inst');
+    if (a === 'install' && prompt) { prompt.prompt(); prompt = null; draw(); return; }
+    if (a === 'never') setS('mt-inst-never', localStorage); else setS('mt-inst-hide', sessionStorage);
+    box.hidden = true;
+  });
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); prompt = e; draw(); });
+  window.addEventListener('appinstalled', function () { box.hidden = true; });
+  draw();
+})();
 if ('serviceWorker' in navigator) {
   var hadCtrl = !!navigator.serviceWorker.controller, reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', function () { if (hadCtrl && !reloaded) { reloaded = true; location.reload(); } });
