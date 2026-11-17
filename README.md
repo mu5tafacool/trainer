@@ -158,6 +158,7 @@ Every "say it" time comes from one place, so all screens agree. It follows the s
 ### Offline, privacy and updates
 
 - Installable to the home screen. A service worker caches the app shell, so the app works offline.
+- **Updates and version**: an open page does not update itself; the next launch (or a reload) finds the new version and reloads once, progress kept. Settings ends with the version (v0.NN until the core tasks are done, then v1), its UTC build time and the answer-set version.
 - **Screen stays on while studying** (Screen Wake Lock; Home Screen apps on iOS 18.4+): during any study session and while Listen plays. It is let go after 5 minutes without a touch (not while Listen plays) and taken again when the app returns to the front or on the next touch.
 - The answers and audio packs are encrypted with AES-GCM, using a key derived from a passphrase (PBKDF2-SHA256, 200,000 iterations).
   - The passphrase is asked once per device; the derived key is then kept on that device.

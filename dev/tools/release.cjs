@@ -1,5 +1,5 @@
 // Marks a new release: bumps the cache version in sw.js (mt-vN → mt-vN+1), sets the same APP_VER in index.html and
-// stamps APP_BUILT with the current UTC time. Settings shows it at the bottom ("Sürüm v44 · 2026-11-16 18:50 UTC").
+// stamps APP_BUILT with the current UTC time. Settings shows it at the bottom as v<APP_MAJOR>.N ("Sürüm v0.44 · 2026-11-16 18:50 UTC").
 // Usage: node dev/tools/release.cjs
 'use strict';
 const fs = require('node:fs');

@@ -4,7 +4,7 @@ Offline PWA for practising spoken answers. Everything ships from branch `gh-page
 
 ## Files
 - `index.html` is the whole app (two scripts: platform layer, then UI). The answer set is an encrypted `<script id="seed">` (AES-GCM, PBKDF2-SHA256 200k; passphrase normalized to lowercase a–z0–9).
-- `sw.js` service worker. Every release: `node dev/tools/release.cjs` (bumps `V` to the next `mt-vNN`, sets the same `APP_VER` in `index.html` and stamps `APP_BUILT` with UTC time; Settings shows "Sürüm vNN · date time UTC · cümleler vN" at the bottom, a test checks they match).
+- `sw.js` service worker. Every release: `node dev/tools/release.cjs` (bumps `V` to the next `mt-vNN`, sets the same `APP_VER` in `index.html` and stamps `APP_BUILT` with UTC time; Settings shows "Sürüm v0.NN · date time UTC · cümleler vN" at the bottom, a test checks they match). Versions read v0.NN (`APP_MAJOR = 0`) until the core tasks are done; then `gh-pages` is merged into `main` and it becomes v1.
 - Timing: every "say it" time comes from one block in `index.html` (`speakMs`, `echoMs`, `recallMs`, `fluentMs`, after `wait`); don't add timing constants elsewhere.
 - Hızı ölç (Settings → Anlam kontrolü) is hidden; opening the app once with `#hiz` shows it on that device until *Gizle*.
 - `nli/` Transformers.js + ONNX Runtime wasm for the optional meaning check (byte-identical npm files, see README).

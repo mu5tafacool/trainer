@@ -38,7 +38,7 @@ test('Hızı ölç: off without the model, then a copyable report', async ({ pag
   await expect(rep).toBeVisible({ timeout: 60000 });
   const txt = await rep.inputValue();
   const lines = txt.split('\n');
-  expect(lines[0]).toMatch(/^trainer mt-v\d+ · .+ \(.*\) · model mobilebert-mnli$/);
+  expect(lines[0]).toMatch(/^trainer v0\.\d+ · .+ \(.*\) · model mobilebert-mnli$/);
   expect(lines[1]).toMatch(/^yükleme: (zaten yüklü|\d+\.\d sn \((önbellekten|ilk indirme)\))   ilk kontrol: \d+\.\d sn$/);
   expect(lines[2]).toMatch(/^9 kontrol: medyan \d+ ms · en yavaş \d+ ms$/);
   expect(lines[3]).toMatch(/^gerçek kullanım(: henüz yok| \(son \d+\): medyan \d+ ms)$/);
@@ -90,7 +90,7 @@ test('Settings ends with the version, its UTC time and the answer-set version', 
   requirePass(test);
   await page.route('**/audio*.bin', (r) => r.abort());
   const root = path.resolve(__dirname, '..', '..');
-  const v = fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const V = 'mt-(v\d+)'/)[1];
+  const v = 'v0\\.' + fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const V = 'mt-v(\d+)'/)[1]; // shown as v0.NN
   const { meta } = await seedOf();
   await unlock(page);
   await settings(page);

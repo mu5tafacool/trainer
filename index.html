@@ -3168,8 +3168,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v48'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
-var APP_BUILT = '2026-11-17 14:22'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_VER = 'mt-v49'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+// shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
+var APP_MAJOR = 0;
+function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
+var APP_BUILT = '2026-11-17 14:43'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3181,7 +3184,7 @@ function speedHash() {
 window.addEventListener('hashchange', speedHash);
 function versionLine() {
   var seedV = ''; try { seedV = (JSON.parse(localStorage.getItem('mt1:__seed') || '{}').v) || ''; } catch (e) {}
-  return '<p class="hint mono verline">Sürüm ' + esc(APP_VER.replace(/^mt-/, '')) + ' · ' + esc(APP_BUILT) + ' UTC' + (seedV ? ' · cümleler ' + esc(seedV) : '') + '</p>';
+  return '<p class="hint mono verline">Sürüm ' + esc(appVer()) + ' · ' + esc(APP_BUILT) + ' UTC' + (seedV ? ' · cümleler ' + esc(seedV) : '') + '</p>';
 }
 var NLI_TIMES = 'mt1:__nli_ms';
 function nliTimeAdd(ms) { try { var a = JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); a.push(ms); localStorage.setItem(NLI_TIMES, JSON.stringify(a.slice(-20))); } catch (e) {} }
@@ -3224,7 +3227,7 @@ function nliSpeedRun() {
     return next();
   }).then(function () {
     var real = nliTimes();
-    sp.report = 'trainer ' + APP_VER + ' · ' + deviceTxt() + ' · model mobilebert-mnli\n' +
+    sp.report = 'trainer ' + appVer() + ' · ' + deviceTxt() + ' · model mobilebert-mnli\n' +
       'yükleme: ' + loadTxt + '   ilk kontrol: ' + secs(first) + ' sn\n' +
       runs.length + ' kontrol: medyan ' + median(runs) + ' ms · en yavaş ' + Math.max.apply(null, runs) + ' ms\n' +
       (real.length ? 'gerçek kullanım (son ' + real.length + '): medyan ' + median(real) + ' ms' : 'gerçek kullanım: henüz yok');
