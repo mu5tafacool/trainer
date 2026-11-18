@@ -559,6 +559,13 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     if (!L.intentOwn) { if (n.intent) x.intent = n.intent; else delete x.intent; }
     return x;
   }
+  /* a line that was not edited takes the seed's version, but keeps a stop label the user wrote (intentOwn) */
+  function ownLabel(L, n) {
+    if (!L.intentOwn) return n;
+    var x = cl(n); x.intentOwn = 1;
+    if (L.intent) x.intent = L.intent; else delete x.intent;
+    return x;
+  }
   function mergeAnswer(cur, s, known) {
     if (!cur || !Array.isArray(cur.lines)) return cl(s);
     var out = cl(cur);
@@ -568,7 +575,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     loc.forEach(function (l) { by[l.id] = l; });
     (s.lines || []).forEach(function (n) {
       var L = by[n.id], x;
-      if (L) { used[n.id] = 1; x = L.edited ? fromSeed(L, n) : n; res.push(x); anchor[n.id] = x; return; }
+      if (L) { used[n.id] = 1; x = L.edited ? fromSeed(L, n) : ownLabel(L, n); res.push(x); anchor[n.id] = x; return; }
       if (n.rep) {
         var R = by[n.rep];
         if (!R) return;
@@ -3045,7 +3052,9 @@ function saveEdit() {
   var lines = a.lines.map(function (l) {
     if (l.id !== e.lid) return l;
     changedEn = l.en !== en;
-    var n = clone(l); n.en = en; n.tr = tr; n.tier = tier; n.edited = today();
+    // "edited" (the seed no longer updates this line's text) only when the text, tier or patterns change; a new stop label alone keeps the line on the seed
+    var content = changedEn || l.tr !== tr || (l.tier === 'ezber' ? 'ezber' : 'anlam') !== tier || JSON.stringify(pm.mk || []) !== JSON.stringify(keepMk(l.mk, l.en));
+    var n = clone(l); n.en = en; n.tr = tr; n.tier = tier; if (content) n.edited = today();
     if (pm.mk) n.mk = pm.mk; else delete n.mk;
     if (intent !== (l.intent || '')) { if (intent) n.intent = intent; else delete n.intent; n.intentOwn = 1; }
     if (l.en !== en || l.tr !== tr) delete n.flag;
@@ -3299,11 +3308,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v56'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v57'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-17 21:38'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-18 18:30'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }

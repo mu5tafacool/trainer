@@ -153,6 +153,41 @@ test('Cümleler: the label is editable; the user\'s own label is kept', async ({
   expect(saved.intent).toBe('Benim durağım');
   expect(saved.intentOwn).toBe(1);
   expect(saved.en).toBe(l.en);
+  expect(saved.edited).toBeUndefined(); // a new label alone keeps the line on the seed (its text still updates)
+
+  // changing the Turkish does mark it edited
+  await page.locator('[data-act="editLine"][data-id="' + l.id + '"]').click();
+  await page.fill('#ed-tr', l.tr + ' (düzeltildi)');
+  await page.locator('[data-act="saveEdit"]').click();
+  await page.clock.fastForward(1500);
+  const again = (await dumpStore(page))['answers/' + aid].lines.find((x) => x.id === l.id);
+  expect(again.edited).toBeTruthy();
+  expect(again.intent).toBe('Benim durağım');
+});
+
+test('upgrade: a line with only the user\'s label takes the seed\'s new text and keeps the label', async ({ page }) => {
+  requirePass(test);
+  const { meta, data, answers } = await seedOf();
+  const order = data.order || [], prevV = order[order.indexOf(meta.v) - 1];
+  test.skip(!prevV, 'no previous seed version');
+  const aid = bigAnswer(answers), L2 = answers[aid].lines[2];
+  await unlock(page);
+  const before = await dumpStore(page);
+  // as on a device from the previous seed: old text, a label the user wrote, never edited
+  const old = { ...L2, en: 'Old text of this line before the fix.', tr: 'Düzeltmeden önceki eski metin.', intent: 'Benim adım', intentOwn: 1 };
+  delete old.edited;
+  await writeStore(page, {
+    ['answers/' + aid]: { ...before['answers/' + aid], lines: before['answers/' + aid].lines.map((l) => (l.id === L2.id ? old : l)) },
+    __seed: { v: prevV, at: '2026-01-01T00:00:00.000Z', from: null },
+  });
+  await page.reload();
+  await expect.poll(async () => (await dumpStore(page)).__seed.v, { timeout: 30000 }).toBe(meta.v);
+  const m = (await dumpStore(page))['answers/' + aid].lines.find((x) => x.id === L2.id);
+  expect(m.en).toBe(L2.en);
+  expect(m.tr).toBe(L2.tr);
+  expect(m.intent).toBe('Benim adım');
+  expect(m.intentOwn).toBe(1);
+  expect(m.edited).toBeUndefined();
 });
 
 test('upgrade: an edited line takes the seed label; a label the user wrote stays; progress is untouched', async ({ page }) => {
