@@ -133,6 +133,7 @@ Every "say it" time comes from one place, so all screens agree. It follows the s
   - Mark it as fluent or stuck. The target is 60–90 seconds without pausing.
   - **3 rounds (4/3/2)**: after the first round, tell the same answer again in less time. Round 2 aims for 85% of round 1 and round 3 for 70% (rounded to 5 seconds, never faster than about 170 words a minute). A bar shows the time left; the result lists all rounds.
   - **Follow-up questions** (on by default): after you mark an answer, a follow-up question an interviewer would ask next comes in, taken from your other answers (up to two). *End chain* stops it and shows a summary.
+- **Patterns** (*Kalıp*): build a **new** sentence with a pattern from a line you have learned. A card shows the pattern, its original line and a Turkish situation (read aloud when *Read Turkish aloud* is on); say the situation in English with that pattern. *Show* opens and plays an example. With 🎤 the app checks that the pattern's fixed parts (blue) were said, in order (same word rules as the other checks), and frames *Built it* or *Couldn't*; the choice stays yours. Up to 6 patterns a session; the ones you could not build come first next time, and each pattern's situations rotate. Kept apart from the review schedule and *Struggled lines*. Patterns ship with the encrypted answer set (seed v11+) and open as their source lines are learned.
 - **Mock interview**: a five-question chain like a real interview. It starts with *Tell me about yourself* (or the first answer of the chosen group), and most next questions follow up on the previous answer. In the second-interview group the last question is "Do you have any questions for me?".
 - **Say and check** (🎤, Settings → Flow): on review TR → EN cards and in rehearsal, switch the keyboard to English and dictate with the keyboard microphone (or type). The browser's own speech recognition is not used: it is unreliable in Home Screen apps on iPhone, while keyboard dictation works everywhere.
   - Both texts are first brought to one form: case, punctuation, contractions (*I'm* = *I am*, also without the apostrophe), number words (*three and a half* = *3.5*, *fifteen hundred* = *1,500*), hyphens, fillers (*um*, *so*), self-corrections (*forty, sorry, fourteen* = *14*), repeated words and common dictation spellings of technical terms (*sauce* = *SaaS*, *play right* = *Playwright*).
@@ -193,6 +194,7 @@ Every "say it" time comes from one place, so all screens agree. It follows the s
 | Review | Space/Enter = reveal · 1–4 = grade |
 | New answer check | Space = reveal · 1 = ask again · 2 = said it |
 | Speed test | Space = reveal · 1 = wrong · 2 = right |
+| Patterns (*Kalıp*) | Space/Enter = show the example · 1 = couldn't · 2 = built it |
 | Rehearsal, skeleton round | Space/Enter = show the stops · then start the full answer |
 | Reinforce (*Pekiştir*) | P = open (when its button shows) · inside: Space/Enter = show (3/3) or back to the card · R = one more round · Esc = leave. Keys go by position, so they work on any keyboard layout. |
 | Listen | ← previous · → next · Space = pause/resume |

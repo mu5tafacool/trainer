@@ -11,14 +11,15 @@ const ready = (page, timeout) => page.waitForFunction((v) => { try { return JSON
 const META_V = () => META.v;
 const META = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8').match(/<script id="audio-meta" type="application\/json">([\s\S]*?)<\/script>/)[1]);
 
-// What the app plays: English questions, English and Turkish lines (dev/tools/voices.cjs voices the same set).
+// What the app plays: English questions, English and Turkish lines, Kalıp examples (EN) and situations (TR) (dev/tools/voices.cjs voices the same set).
 test('every line has shipped clips in both languages', async ({ page }) => {
   requirePass(test);
-  const { answers } = await seedOf();
+  const { answers, data } = await seedOf();
   await unlock(page);
   await ready(page, 120000);
   const texts = [];
   Object.values(answers).forEach((a) => { texts.push('en|' + a.q); a.lines.forEach((l) => { texts.push('en|' + l.en); texts.push('tr|' + l.tr); }); });
+  (data.kalip || []).forEach((k) => k.durum.forEach((d) => { texts.push('en|' + d.ex); texts.push('tr|' + d.tr); })); // Prova → Kalıp
   const missing = await page.evaluate((t) => t.filter((k) => !window.__LOCAL_AUDIO[k]), texts);
   expect(missing).toEqual([]);
 });

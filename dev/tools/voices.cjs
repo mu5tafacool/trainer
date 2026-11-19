@@ -9,7 +9,7 @@
 //
 // Languages: one row each in LANGS. A language whose engine is not available here (e.g. `say` off macOS, in a cloud
 // session) is skipped and reported; run the script again on the Mac later and only those clips are added.
-// Clip keys: "<line id>.<lang>" for lines, "q-<answer id>.<lang>" for questions; the app looks clips up by "lang|text".
+// Clip keys: "<line id>.<lang>" for lines, "q-<answer id>.<lang>" for questions, "kp-<pattern id>-<n>.<lang>" for Kalıp situations/examples; the app looks clips up by "lang|text".
 'use strict';
 const fs = require('node:fs');
 const os = require('node:os');
@@ -121,6 +121,11 @@ function voiceSay(jobs, dir) {
     if (L.question) add('q-' + aid + '.' + lang, a[L.question]);
     (a.lines || []).forEach((l) => add(l.id + '.' + lang, l[L.line]));
   }));
+  // Prova → Kalıp (seed v11+): the Turkish situation (read when the card opens) and the English example (played on Göster)
+  (data.kalip || []).forEach((k) => (k.durum || []).forEach((d, i) => Object.keys(LANGS).forEach((lang) => {
+    const text = lang === 'en' ? d.ex : lang === 'tr' ? d.tr : null;
+    if (text && !have.has(lang + '|' + text) && !want[lang + '|' + text]) want[lang + '|' + text] = { k: 'kp-' + k.id + '-' + i + '.' + lang, lang, text };
+  })));
   const jobs = Object.values(want).filter((j) => !only.length || only.includes(j.lang));
   const byLang = {};
   jobs.forEach((j) => { (byLang[j.lang] = byLang[j.lang] || []).push(j); });
