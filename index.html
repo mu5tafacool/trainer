@@ -246,6 +246,7 @@ li.line .tr { font-size: 14.5px; }
 .form textarea, .form select { width: 100%; font: 15px var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 10px; resize: vertical; }
 .form textarea:focus, .form select:focus, .set select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .confirm { background: var(--bad-soft); color: var(--bad); border-radius: 8px; padding: 10px; display: grid; gap: 8px; font-size: 14px; }
+.confirm.leave { margin-bottom: 12px; }
 .addbox { background: transparent; border: 1px dashed var(--rule); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
 
 /* Settings */
@@ -2561,7 +2562,7 @@ function rehStop() {
 function rehRound() {
   var s = S.sess; if (!s || s.type !== 'reh' || s.round >= 3) return;
   s.times.push(s.ms); s.round++; s.target = roundTarget(s.a, s.times[0], s.round);
-  s.phase = 'ready'; s.cov = null; s.dictText = ''; render(); top();
+  s.phase = 'ready'; s.cov = null; s.dictText = ''; s.leaveAsk = false; render(); top();
 }
 function chainEnd() {
   var s = S.sess; if (!s || s.type !== 'reh') return;
@@ -2577,6 +2578,15 @@ function renderRehSum() {
       (st.hint ? ' · ipucuyla' : '') + (st.cov != null ? ' · söylenen %' + st.cov : '') + '</span></li>';
   });
   return h + '</ul><p class="sub" style="margin-bottom:14px">Toplam konuşma: <span class="mono">' + mmss(tot) + '</span></p><button class="btn primary wide" data-act="rehHome">Prova\'ya dön</button>';
+}
+/* Takıldım / Akıcıydı suggestion after a round (the choice stays yours): over the round's target time or under half of the
+   answer said (🎤) → Takıldım; 85%+ said and within the target → Akıcıydı; otherwise none. Pauses themselves are not measured. */
+function rehSugg(s) {
+  var cov = s.cov ? s.cov.score : null, over = !!(s.target && s.ms > s.target);
+  if (over) return { g: 0, why: 'hedef süre aşıldı' };
+  if (cov != null && cov < 50) return { g: 0, why: 'söylenen %' + cov };
+  if (cov != null && cov >= 85) return { g: 2, why: 'söylenen %' + cov };
+  return { g: -1, why: '' };
 }
 function renderRehSess() {
   var s = S.sess, a = s.a;
@@ -2606,7 +2616,9 @@ function renderRehSess() {
       (hasHint ? (s.hint ? infoHtml(a, ['kw'], 'flat') : '') + '<button class="link" data-act="rehHint" style="align-self:flex-start">' + (s.hint ? 'İpucunu gizle' : 'Takıldım: ipucu göster') + '</button>' : '') + '</article>' +
       (dictOn() ? dictBox(s) : '') + '<button class="btn primary wide" data-act="rehStop">Bitti</button>';
   }
-  var times = s.times.concat([s.ms]), over = s.target ? s.ms - s.target : 0;
+  var times = s.times.concat([s.ms]), over = s.target ? s.ms - s.target : 0, rs = rehSugg(s);
+  // ← Bitir on an unsaved result asks first (the round is saved only with Takıldım / Akıcıydı)
+  if (s.leaveAsk) h += '<div class="confirm leave">Bu prova henüz kaydedilmedi. Kaydetmek için aşağıda ↺ Takıldım ya da ✓ Akıcıydı\'ya bas.<div class="row"><button class="btn" data-act="rehLeaveNo">Vazgeç</button><button class="btn" data-act="rehLeave">Kaydetmeden çık</button></div></div>';
   h += '<article class="icard"><div class="ctx"><b>Süre</b><span class="mono">' + mmss(s.ms) + '</span>' + (s.round > 1 ? '<span>· tur ' + s.round + '/3 · hedef ' + mmss(s.target) + (over > 0 ? ' (+' + Math.round(over / 1000) + ' sn)' : ' ✓') + '</span>' : '') + (s.hint ? '<span>· ipucuyla</span>' : '') + (s.cov ? '<span>· söylenen <b class="sc ' + scoreCls(s.cov.score) + '">%' + s.cov.score + '</b></span>' : '') + '</div>' +
     (times.length > 1 ? '<p class="rounds">' + times.map(mmss).join(' → ') + '</p>' : '') +
     '<p class="q" style="font-weight:600">' + codeHtml(a) + esc(a.q) + '</p><ol class="anslines">' +
@@ -2615,7 +2627,7 @@ function renderRehSess() {
   if (s.round < 3) h += '<button class="btn ghost wide" data-act="rehRound" style="margin-bottom:10px">▶ ' + (s.round + 1) + '. tur · hedef ' + mmss(roundTarget(a, s.round === 1 ? s.ms : s.times[0], s.round + 1)) + '</button>';
   var nx = peekNext(s);
   if (nx) h += '<p class="hint" style="margin-bottom:8px">Sonra ' + (s.chain.kind === 'mock' ? 'soru' : 'takip sorusu') + ': ' + esc(nx.q) + '</p>';
-  h += '<div class="row"><button class="btn" data-act="rehSave" data-ok="0">↺ Takıldım</button><button class="btn primary" data-act="rehSave" data-ok="1">✓ Akıcıydı</button></div>' +
+  h += markRow({ act: 'rehSave', data: ' data-ok="0"', txt: '↺ Takıldım' }, { act: 'rehSave', data: ' data-ok="1"', txt: '✓ Akıcıydı' }, rs.g) + (rs.g >= 0 ? '<p class="hint">Çerçeveli düğme öneri (' + rs.why + '); karar senin.</p>' : '') +
     '<div class="row" style="margin-top:8px"><button class="btn ghost" data-act="listenAnswer" data-id="' + a.id + '">▶ Cevabı dinle</button></div>';
   return h;
 }
@@ -3430,11 +3442,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v58'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v59'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-19 10:39'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-20 13:07'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3665,6 +3677,7 @@ function helpPanel() {
     ])) +
     d('Prova ve Hız testi', ul([
       '<b>Cevap provası</b>: soruyu duy → Başla → cevabı baştan sona söyle → Bitti. Takılırsan <b>ipucu göster</b> anahtar kelimeleri açar. Sonunda tüm satırlar (her birinin üstünde durak adı), ana cümle ve notlar görünür. Hedef: duraksamadan 60–90 sn.',
+      '<b>Kayıt</b>: prova yalnızca <b>↺ Takıldım</b> ya da <b>✓ Akıcıydı</b> ile kaydedilir (tarih, süreler, söylenen yüzde). Uygulama birini çerçeveyle önerir: hedef süreyi aştıysan ya da 🎤 ile cevabın yarısından azı söylendiyse Takıldım, %85 ve üstü süresinde söylendiyse Akıcıydı; karar senin. Kaydetmeden <b>← Bitir</b>\'e basarsan önce sorar.',
       '<b>İskelet turu</b> (Cevap provası, 1. tur): <b>Başla · önce iskelet</b> ile 20 sn içinde cevabın duraklarını sırayla, birkaç kelimeyle söyle; sonra durak listesi açılır, <b>Tam cevaba başla</b> ile asıl turu başlat. Süre tam cevapta başlar. İstemezsen <b>İskeletsiz başla</b>. Mülakat modunda yok.',
       '<b>Kalıp</b>: öğrendiğin satırların kalıplarıyla <b>yeni</b> cümle kur. Kartta kalıp, geldiği orijinal cümle ve Türkçe bir durum var; durumu o kalıpla İngilizce söyle. <b>Göster</b> bir örnek cümle açar ve çalar. 🎤 ile söylersen uygulama kalıbın sabit parçalarının (mavi) sırayla geçip geçmediğine bakar ve ✓ Kurdum ya da ↺ Kuramadım önerir; karar senin. Kuramadıkların bir sonraki oturumda önce gelir, her kalıbın durumları sırayla değişir. Tekrar takvimine ve Zorlandıklarım\'a dokunmaz.',
       '<b>Hız testi</b>: Türkçeyi gör, İngilizcesini söyle, biter bitmez Göster. Hedef: doğru ve süresinde: kısa cümlede ~3–4 sn, uzun cümlede daha fazla. Yanlışlar bugünkü tekrara eklenir.',
@@ -3699,7 +3712,7 @@ function helpPanel() {
 /* ---------- events ---------- */
 var ACT = {
   tab: function (el) { var paused = introPaused() && el.dataset.tab !== 'today'; endSess(); if (paused) toast('Yeni öğrenme duraklatıldı. Bugün → Yeni\'den devam et.'); S.tab = el.dataset.tab; S.edit = null; S.confirmDel = null; render(); top(); },
-  endSess: function () { var cs = S.sess; if (cs && cs.type === 'reh' && cs.chain && cs.chain.steps.length > 1) { chainEnd(); return; } var paused = introPaused(); endSess(); render(); top(); if (paused) toast('Kaldığın yer kaydedildi. Bugün → Yeni\'den devam et.'); },
+  endSess: function () { var cs = S.sess; if (cs && cs.type === 'reh' && cs.phase === 'done' && !cs.leaveOk) { cs.leaveAsk = true; render(); top(); return; } if (cs && cs.type === 'reh' && cs.chain && cs.chain.steps.length > 1) { chainEnd(); return; } var paused = introPaused(); endSess(); render(); top(); if (paused) toast('Kaldığın yer kaydedildi. Bugün → Yeni\'den devam et.'); },
   startReview: startReview,
   resumeIntro: function () { resumeIntro(); },
   startIntro: function () { startIntro(false); },
@@ -3749,6 +3762,8 @@ var ACT = {
   rehPlayQ: function () { play(S.sess.a.q, 'en'); },
   rehStart: function () { var s = S.sess; stopAudio(); if (s.phase === 'skel') s.skelDone = true; s.skel = null; s.phase = 'talk'; s.t0 = Date.now(); render(); if (s.dictOpen) dictFocus(); },
   skelStart: function () { skelStart(); },
+  rehLeave: function () { var cs = S.sess; if (!cs) return; cs.leaveOk = true; ACT.endSess(); },
+  rehLeaveNo: function () { var cs = S.sess; if (!cs) return; cs.leaveAsk = false; render(); },
   kpStart: function () { kpStart(); },
   kpShow: function () { kpShow(); },
   kpCheck: function () { kpCheck(); },
