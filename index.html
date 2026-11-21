@@ -154,6 +154,7 @@ mark.pkmiss { background: var(--warn-soft, transparent); color: var(--warn); bor
 .timer.big { font-size: 44px; color: var(--ink); line-height: 1; }
 .sesshead { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
 .sesshead .mono { font-size: 13px; color: var(--muted); }
+.skipnote { font-size: 13.5px; line-height: 1.45; color: var(--ink); background: var(--accent-soft); border-radius: 8px; padding: 8px 11px; margin: 0 0 10px; }
 .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .steps span { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--rule); color: var(--muted); }
 .steps span.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
@@ -1794,8 +1795,8 @@ function dueList() {
   var t = today(), out = [];
   S.answers.forEach(function (a) { a.lines.forEach(function (l) {
     var s = st(a.id, l.id); if (!s) return;
-    if (s.p && s.p.due <= t) out.push({ a: a, l: l, dir: 'p' });
-    if (U.settings.listen && s.l && s.l.due <= t) out.push({ a: a, l: l, dir: 'l' });
+    if (s.p && s.p.due <= t && !skippedToday(l.id, 'p')) out.push({ a: a, l: l, dir: 'p' });
+    if (U.settings.listen && s.l && s.l.due <= t && !skippedToday(l.id, 'l')) out.push({ a: a, l: l, dir: 'l' });
   }); });
   return out;
 }
@@ -1807,6 +1808,40 @@ function arrange(items) {
   }
   return items;
 }
+/* Tekrar order: short intervals first: a day's delay costs a fresh card the most and a mature card little; when every card
+   gets done the order hardly matters. Cards of one interval are mixed with the answers taking turns (the answer with the most
+   cards left goes next, never the same one twice while another is left); arrange() keeps a line's two directions apart. */
+function orderDue(items) {
+  var by = {}, out = [];
+  items.forEach(function (x) { var k = (((st(x.a.id, x.l.id) || {})[x.dir]) || {}).ivl || 0; (by[k] = by[k] || []).push(x); });
+  Object.keys(by).map(Number).sort(function (a, b) { return a - b; }).forEach(function (k) { out = out.concat(takeTurns(by[k])); });
+  return arrange(out);
+}
+function takeTurns(list) {
+  var g = {}, ids = [], out = [], last = null;
+  shuffle(list).forEach(function (x) { if (!g[x.a.id]) { g[x.a.id] = []; ids.push(x.a.id); } g[x.a.id].push(x); });
+  while (out.length < list.length) {
+    var best = null;
+    ids.forEach(function (id) { if (g[id].length && id !== last && (!best || g[id].length > g[best].length)) best = id; });
+    if (!best) best = last;
+    out.push(g[best].shift()); last = best;
+  }
+  return out;
+}
+/* "Bugün geç": progress.skip['<line id>|<p|l>'] = { d: last day passed over, n: days in a row without a grade in between }.
+   The card leaves today's list; its schedule doesn't change; a grade removes the entry. */
+function skipMap() { if (!U.progress.skip) U.progress.skip = {}; return U.progress.skip; }
+function skippedToday(id, dir) { var e = (U.progress.skip || {})[id + '|' + dir]; return !!e && e.d === today(); }
+function skippedTodayN() { var m = U.progress.skip || {}, t = today(); return Object.keys(m).filter(function (k) { return m[k].d === t; }).length; }
+function revSkip() {
+  var s = S.sess; if (!s || s.type !== 'review' || s.shown || s.pk) return;
+  var it = s.q[s.i], k = it.l.id + '|' + it.dir, m = skipMap(), e = m[k], t = today();
+  m[k] = { d: t, n: e && e.d === t ? e.n : (e ? e.n : 0) + 1 }; save('progress');
+  s.skipped = (s.skipped || 0) + 1; s.q.splice(s.i, 1); stopAudio();
+  if (s.i >= s.q.length) reviewDone(s); else showReviewCard();
+}
+function reviewDone(s) { var ms = Date.now() - s.start; logAdd('ms', ms); S.sess = { type: 'done', kind: 'review', n: s.n, again: s.again, skipped: s.skipped || 0, ms: ms }; stopAudio(); render(); top(); }
+function revHead(s) { return (s.q.length - s.i) + ' kaldı' + (s.skipped ? ' · ' + s.skipped + ' geçildi' : ''); }
 function learnedLines() { var out = []; S.answers.forEach(function (a) { a.lines.forEach(function (l) { if (lineStarted(a, l)) out.push({ a: a, l: l }); }); }); return out; }
 function totalLines() { return S.answers.reduce(function (n, a) { return n + a.lines.length; }, 0); }
 function mastered(a) { return a.lines.filter(function (l) { var s = st(a.id, l.id); return s && s.p && s.p.ivl >= 7; }).length; }
@@ -2087,6 +2122,7 @@ function renderToday() {
   h += '<div class="stack">';
   h += '<section class="panel"><div class="ph"><h2>Tekrar</h2><span class="mono">' + due.length + ' kart</span></div>' +
     (due.length ? '<p class="hint">' + np + ' TR → EN, ' + (due.length - np) + ' EN ses → TR</p>' : '<p class="hint">' + (learned ? 'Bugün tekrar yok.' : 'Yeni cevap öğrendikçe tekrarlar burada birikir.') + '</p>') +
+    (skippedTodayN() ? '<p class="hint">' + skippedTodayN() + ' kart bugün geçildi; yarın yine gelir.</p>' : '') +
     '<button class="btn primary wide" data-act="startReview"' + (due.length ? '' : ' disabled') + '>Tekrarlara başla</button></section>';
   h += '<section class="panel"><div class="ph"><h2>Yeni</h2><span class="mono">' + nq.length + ' satır</span></div>';
   h += stagePicker();
@@ -2183,9 +2219,9 @@ setInterval(function () {
 function nliWarm() { var M = window.__nli; if (M && M.info().state === 'idle') setTimeout(function () { M.enable().catch(function () {}); }, 400); }
 function startReview() {
   nliWarm();
-  var items = arrange(shuffle(dueList()));
+  var items = orderDue(dueList());
   if (!items.length) return;
-  S.sess = { type: 'review', q: items, i: 0, shown: false, t0: 0, ms: 0, again: 0, n: 0, start: Date.now() };
+  S.sess = { type: 'review', q: items, i: 0, shown: false, t0: 0, ms: 0, again: 0, n: 0, skipped: 0, start: Date.now() };
   top(); showReviewCard();
 }
 function showReviewCard() {
@@ -2206,18 +2242,20 @@ function grade(g) {
   var s = S.sess; if (!s || !s.shown) return;
   var it = s.q[s.i], cur = (st(it.a.id, it.l.id) || {})[it.dir] || {};
   setSt(it.a.id, it.l.id, it.dir, nextState(cur, g)); logAdd('rev'); s.n++;
+  if (U.progress.skip && U.progress.skip[it.l.id + '|' + it.dir]) { delete U.progress.skip[it.l.id + '|' + it.dir]; save('progress'); }
   if (g === 0) hardBad(it.l.id, 'again'); else if (g === 1) hardBad(it.l.id, 'hard'); else hardGood(it.l.id);
   if (g === 0) { logAdd('again'); s.again++; s.q.splice(Math.min(s.q.length, s.i + 5), 0, it); }
   s.i++;
-  if (s.i >= s.q.length) { var ms = Date.now() - s.start; logAdd('ms', ms); S.sess = { type: 'done', kind: 'review', n: s.n, again: s.again, ms: ms }; stopAudio(); render(); top(); }
+  if (s.i >= s.q.length) reviewDone(s);
   else showReviewCard();
 }
 function renderReview() {
   var s = S.sess, it = s.q[s.i], isP = it.dir === 'p';
   var cur = (st(it.a.id, it.l.id) || {})[it.dir] || {};
   var prev = [0, 1, 2, 3].map(function (g) { return nextState(cur, g).ivl; });
-  if (s.pk) return pkView(sessHead((s.q.length - s.i) + ' kaldı'), it);
-  var h = sessHead((s.q.length - s.i) + ' kaldı');
+  if (s.pk) return pkView(sessHead(revHead(s)), it);
+  var h = sessHead(revHead(s)), sk = (U.progress.skip || {})[it.l.id + '|' + it.dir];
+  if (sk && sk.n >= 3 && !s.shown) h += '<p class="skipnote">Bu kartı ' + sk.n + ' gündür geçiyorsun. Bugün bir dene; zorsa Tekrar ver, kısa aralıkla yeniden gelir.</p>';
   h += '<article class="icard"><div class="ctx"><b>' + (isP ? 'TR → EN' : 'EN ses → TR') + '</b><span>' + esc(qLabel(it.a)) + '</span></div>';
   if (isP) {
     h += '<p class="tr' + (s.shown ? '' : ' big') + '">' + esc(it.l.tr) + '</p>';
@@ -2232,6 +2270,7 @@ function renderReview() {
   if (!s.shown) {
     if (isP && dictOn()) h += dictBox(s, 'dictCheck', 'Kontrol et');
     h += '<div class="row"><button class="btn ghost" data-act="replayCard">▶ ' + (isP ? 'TR' : 'EN') + ' dinle</button><button class="btn ' + (s.dictOpen && isP ? 'ghost' : 'primary') + '" data-act="reveal">Göster</button></div>';
+    h += '<button class="link" data-act="revSkip">Bugün geç →</button>';
   } else {
     if (s.dict) h += dictRes(s.dict, s.dictText);
     var sg = dictGrade(s.dict);
@@ -2239,7 +2278,7 @@ function renderReview() {
     h += '<div class="grades">' + ['Tekrar', 'Zor', 'İyi', 'Kolay'].map(function (n, g) { return '<button class="btn grade g' + g + (g === sg ? ' sugg' : '') + '" data-act="grade" data-g="' + g + '"' + (g === sg ? ' aria-describedby="sugg-note"' : '') + '>' + n + '<small>' + ivlLabel(prev[g]) + '</small></button>'; }).join('') + '</div>';
     if (sg >= 0) h += '<p class="hint" id="sugg-note" style="margin-top:6px">Çerçeveli puan söylediğine göre öneri; karar senin.</p>';
   }
-  h += '<p class="kbd">Klavye: boşluk = göster · 1–4 = puan</p>';
+  h += '<p class="kbd">Klavye: boşluk = göster · 1–4 = puan · G = bugün geç</p>';
   return h;
 }
 
@@ -2475,7 +2514,7 @@ function pkView(head, it) {
 /* done */
 function renderDone() {
   var s = S.sess;
-  return '<section class="hero"><h1>Tekrarlar bitti</h1><p class="sub"><span class="mono">' + s.n + '</span> kart, <span class="mono">' + s.again + '</span> tekrar, süre <span class="mono">' + mmss(s.ms) + '</span>.</p></section>' +
+  return '<section class="hero"><h1>Tekrarlar bitti</h1><p class="sub"><span class="mono">' + s.n + '</span> kart, <span class="mono">' + s.again + '</span> tekrar, ' + (s.skipped ? '<span class="mono">' + s.skipped + '</span> geçildi, ' : '') + 'süre <span class="mono">' + mmss(s.ms) + '</span>.</p></section>' +
     '<button class="btn primary wide" data-act="endSess">Ana sayfa</button>';
 }
 
@@ -3442,11 +3481,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v60'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v61'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-21 12:56'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-21 13:30'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3573,7 +3612,7 @@ function keyHelp() {
   function row(keys, what) { return '<li><span class="kk">' + keys + '</span><span class="kw">' + what + '</span></li>'; }
   function blk(t, rows) { return '<div class="kblock"><p class="kt">' + t + '</p><ul class="klist">' + rows.join('') + '</ul></div>'; }
   return '<p class="hint">Mac\'te (ya da klavyeli iPad\'de) klavyeyle; telefonda ekrandaki butonlara dokun. Tuşlar yalnızca o ekran açıkken çalışır.</p>' +
-    blk('Tekrar kartı', [row(k('Boşluk') + ' ya da ' + k('Enter'), 'İngilizceyi göster'), row(k('1') + k('2') + k('3') + k('4'), 'Puan ver: 1 Tekrar · 2 Zor · 3 İyi · 4 Kolay')]) +
+    blk('Tekrar kartı', [row(k('Boşluk') + ' ya da ' + k('Enter'), 'İngilizceyi göster'), row(k('1') + k('2') + k('3') + k('4'), 'Puan ver: 1 Tekrar · 2 Zor · 3 İyi · 4 Kolay'), row(k('G'), 'Bugün geç: kart yarın gelir, takvimi değişmez')]) +
     blk('Yeni cevap · kontrol', [row(k('Boşluk'), 'İngilizceyi göster'), row(k('1'), 'Bilemedim, tekrar sor'), row(k('2'), 'Söyledim, devam')]) +
     blk('Hız testi', [row(k('Boşluk'), 'Göster (süre durur)'), row(k('1'), 'Yanlış'), row(k('2'), 'Doğru')]) +
     blk('Prova · Kalıp', [row(k('Boşluk') + ' ya da ' + k('Enter'), 'Örnek cümleyi göster'), row(k('1'), 'Kuramadım'), row(k('2'), 'Kurdum')]) +
@@ -3652,6 +3691,8 @@ function helpPanel() {
       'İki kart türü: <b>TR → EN</b> (Türkçeyi gör, İngilizcesini sesli söyle) ve <b>EN ses → TR</b> (dinle, anlamını söyle).',
       'Puan: <b>Tekrar</b> (bugün yine gelir) · <b>Zor</b> · <b>İyi</b> · <b>Kolay</b>. Butonların altında bir sonraki tekrarın kaç gün sonra olduğu yazar.',
       'Bildikçe aralık uzar (örneğin 1 → 3 → 8 → 20 gün); bilemeyince kısa aralığa döner. Bugünün kartları bitince yeni kart yarın gelir.',
+      '<b>Sıra</b>: önce aralığı kısa olan kartlar (dün, önceki gün öğrendiklerin ya da Tekrar dediklerin), sonra eskiler. Taze kart bir gün gecikince çok unutulur, oturmuş kart az. Hepsini bitiremeyeceğin gün tazeleri yapıp Bitir de; kalanlar yarın gelir. Aynı aralıktaki kartlar karışık gelir, cevaplar sırayla.',
+      '<b>Bugün geç →</b> (Göster\'den önce, ya da G): kart bugünkü listeden çıkar, puanı ve takvimi değişmez, yarın yine gelir. Aynı kartı 3 gün üst üste geçersen kartın üstünde not çıkar; puan verince sayım sıfırlanır.',
       'Dinle B\'deki ✓/✗ ve Hız testindeki yanlışlar da aynı takvime işlenir.',
       '<b>↻ Pekiştir</b> (Hatırla\'da her zaman; Kontrol ve Tekrar\'da 🎤 sonucu Zor ya da Tekrar ise): ~20 sn. 1/3 metinle dinle ve aynen tekrar et (eksik kalıp kelimeleri turuncu), 2/3 metinsiz sesle birlikte söyle, 3/3 bir kez kendin söyle (🎤 sadece yüzde). Puan ilk denemene göre kalır. Siri modunda da hazır sesi çalar.'
     ])) +
@@ -3714,6 +3755,7 @@ var ACT = {
   tab: function (el) { var paused = introPaused() && el.dataset.tab !== 'today'; endSess(); if (paused) toast('Yeni öğrenme duraklatıldı. Bugün → Yeni\'den devam et.'); S.tab = el.dataset.tab; S.edit = null; S.confirmDel = null; render(); top(); },
   endSess: function () { var cs = S.sess; if (cs && cs.type === 'reh' && cs.phase === 'done' && !cs.leaveOk) { cs.leaveAsk = true; render(); top(); return; } if (cs && cs.type === 'reh' && cs.chain && cs.chain.steps.length > 1) { chainEnd(); return; } var paused = introPaused(); endSess(); render(); top(); if (paused) toast('Kaldığın yer kaydedildi. Bugün → Yeni\'den devam et.'); },
   startReview: startReview,
+  revSkip: revSkip,
   resumeIntro: function () { resumeIntro(); },
   startIntro: function () { startIntro(false); },
   startIntroForce: function () { startIntro(true); },
@@ -3915,6 +3957,7 @@ document.addEventListener('keydown', function (e) {
   }
   if (s.type === 'review') {
     if (!s.shown && go) { e.preventDefault(); reveal(); }
+    else if (!s.shown && e.code === 'KeyG' && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); revSkip(); }
     else if (s.shown && /^[1-4]$/.test(e.key)) grade(+e.key - 1);
   } else if (s.type === 'test' && s.phase !== 'result') {
     if (!s.shown && go) { e.preventDefault(); testReveal(); }

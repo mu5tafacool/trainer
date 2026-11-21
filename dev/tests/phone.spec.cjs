@@ -105,6 +105,9 @@ for (const phone of PHONES) {
       for (let g = 0; g < 4; g++) await expect(page.locator('[data-act="grade"][data-g="' + g + '"]')).toBeVisible();
       await tap(page, page.locator('[data-act="grade"][data-g="2"]'), 'İyi');
       await expect(card(page)).toBeVisible(); // the next card
+      await tap(page, page.locator('[data-act="revSkip"]'), 'Bugün geç');
+      await expect(page.locator('.sesshead')).toContainText('1 geçildi');
+      await fits(page, 'Tekrar card after Bugün geç');
       await tap(page, page.locator('[data-act="endSess"]'), 'Bitir');
       await expect(page.locator('[data-act="startReview"]')).toBeVisible();
     });
@@ -195,8 +198,7 @@ for (const phone of PHONES) {
       await tap(page, page.locator('[data-act="endSess"]'), 'Bitir');
       await tap(page, tab(page, 'Ayarlar'), 'Ayarlar tab');
       const sw = page.locator('#set-intent');
-      await sw.scrollIntoViewIfNeeded();
-      await expect(sw).toBeChecked();
+      await expect(sw).toBeChecked(); // waits for the page to settle (it may render twice)
       await sw.tap(); // the switch may be a styled checkbox: tapping its box is what a finger does
       await expect(sw).not.toBeChecked();
       const aid = Object.keys(answers).find((id) => answers[id].lines.length >= 5);

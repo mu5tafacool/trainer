@@ -67,6 +67,8 @@ The **Today** tab (Bugün) lays out the day in order:
   - **TR → EN**: read or hear the Turkish, say the English aloud.
   - **EN audio → TR**: hear the English, say what it means.
 - Four grades (Again, Hard, Good, Easy). Each button shows the next interval.
+- **Order**: shortest interval first (cards learned or failed in the last days), then the mature ones. A day's delay costs a fresh card the most and a mature card little, so on a short day you do the fresh ones and stop; the rest come tomorrow. Cards of one interval are mixed, the answers taking turns.
+- **Skip today** (*Bugün geç →*, or G, before Show): the card leaves today's list with no grade and no change to its schedule, and comes back tomorrow. A card skipped on three days in a row shows a note; a grade resets the count.
 - **Reinforce** (↻ *Pekiştir*), about 20 s, the same on Recall (always), the check after a batch and review TR → EN cards (when the 🎤 result is Hard or Again): 1/3 hear the line with its text, missing pattern words marked, and say it back; 2/3 say it together with the voice, text hidden; 3/3 say it once yourself from memory (recall time; 🎤 shows the percentage only). Grades and suggestions stay from the first try. It plays the voice clip even in Siri mode. Each use is noted per line (count and date) for a later *Struggled* scope.
 - The scheduler is SM-2-like:
   - intervals grow with each success, for example 1 → 3 → 8 → 20 days;
