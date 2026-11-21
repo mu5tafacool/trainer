@@ -242,6 +242,7 @@ li.line .tr { font-size: 14.5px; }
 .flag { font-size: 13px; background: var(--warn-soft); color: var(--warn); border-radius: 6px; padding: 6px 9px; }
 .orig { font-size: 13px; color: var(--muted); background: var(--paper); border-radius: 6px; padding: 7px 9px; }
 .orig span { font-weight: 600; color: var(--ink); }
+.defbox { display: grid; gap: 4px; } .defbox p { margin: 0; } .defbox .chipbtn { justify-self: start; margin-top: 4px; }
 .form { display: grid; gap: 8px; }
 .form label { font-size: 12px; color: var(--muted); font-weight: 500; }
 .form textarea, .form select { width: 100%; font: 15px var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 10px; resize: vertical; }
@@ -562,6 +563,10 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   function fromSeed(L, n) {
     var x = withMk(L, n); if (x === L) x = cl(L);
     if (!L.intentOwn) { if (n.intent) x.intent = n.intent; else delete x.intent; }
+    /* the line's default (the seed's text), shown by "Değişti" in Cümleler; defNew = the default changed since the user's edit */
+    var d = { en: n.en, tr: n.tr, tier: n.tier }; if (n.mk) d.mk = cl(n.mk);
+    if (L.def && (L.def.en !== n.en || L.def.tr !== n.tr)) x.defNew = 1;
+    x.def = d; delete x.orig; delete x.note;
     return x;
   }
   /* a line that was not edited takes the seed's version, but keeps a stop label the user wrote (intentOwn) */
@@ -3179,9 +3184,12 @@ function lineRow(a, l) {
   if (S.edit && S.edit.lid === l.id) return editRow(a, l);
   var h = '<li class="line ' + esc(l.tier) + '"><p class="en">' + esc(l.en) + '</p><p class="tr">' + esc(l.tr) + '</p>';
   if (l.flag) h += '<p class="flag">⚑ ' + esc(l.flag) + '</p>';
-  if ((l.orig || l.note) && S.showOrig[l.id]) h += '<p class="orig">' + (l.orig ? '<span>Orijinal:</span> ' + esc(l.orig) + '<br>' : '') + (l.note ? '<span>Neden:</span> ' + esc(l.note) : '') + '</p>';
+  var dv = l.edited && l.def;
+  if (dv && S.showOrig[l.id]) h += '<div class="orig defbox">' + (l.defNew ? '<p><b>Varsayılan güncellendi.</b> Senin metnin duruyor; istersen yenisine dön.</p>' : '') +
+    '<p><span>Varsayılan:</span> ' + esc(l.def.en) + '</p><p>' + esc(l.def.tr) + '</p>' +
+    '<button class="chipbtn" data-act="revertLine" data-aid="' + a.id + '" data-id="' + l.id + '">Varsayılana dön</button></div>';
   h += '<div class="lact"><span class="tier ' + esc(l.tier) + '">' + (l.tier === 'ezber' ? 'Ezber' : 'Anlam') + '</span>' +
-    ((l.orig || l.note) ? '<button class="chipbtn" data-act="toggleOrig" data-id="' + l.id + '">' + (S.showOrig[l.id] ? 'Gizle' : (l.orig ? 'Değişti' : 'Not')) + '</button>' : '') +
+    (dv ? '<button class="chipbtn" data-act="toggleDef" data-id="' + l.id + '">' + (S.showOrig[l.id] ? 'Gizle' : 'Değişti') + '</button>' : '') +
     '<span class="sp"></span><button class="chipbtn" data-act="playLine" data-id="' + l.id + '" aria-label="İngilizcesini dinle">▶ EN</button><button class="chipbtn" data-act="editLine" data-id="' + l.id + '">Düzenle</button></div></li>';
   return h;
 }
@@ -3224,7 +3232,8 @@ function saveEdit() {
     changedEn = l.en !== en;
     // "edited" (the seed no longer updates this line's text) only when the text, tier or patterns change; a new stop label alone keeps the line on the seed
     var content = changedEn || l.tr !== tr || (l.tier === 'ezber' ? 'ezber' : 'anlam') !== tier || JSON.stringify(pm.mk || []) !== JSON.stringify(keepMk(l.mk, l.en));
-    var n = clone(l); n.en = en; n.tr = tr; n.tier = tier; if (content) n.edited = today();
+    var n = clone(l); n.en = en; n.tr = tr; n.tier = tier;
+    if (content) { if (!l.edited && !l.added && !l.def) { n.def = { en: l.en, tr: l.tr, tier: l.tier }; if (l.mk) n.def.mk = clone(l.mk); } n.edited = today(); delete n.defNew; }
     if (pm.mk) n.mk = pm.mk; else delete n.mk;
     if (intent !== (l.intent || '')) { if (intent) n.intent = intent; else delete n.intent; n.intentOwn = 1; }
     if (l.en !== en || l.tr !== tr) delete n.flag;
@@ -3234,6 +3243,21 @@ function saveEdit() {
   if (changedEn && st(a.id, e.lid)) { var init = { ivl: 0, ease: 2.5, due: today(), reps: 0, lapses: 0 }; setSt(a.id, e.lid, 'p', init); setSt(a.id, e.lid, 'l', clone(init)); }
   S.edit = null; S.confirmDel = null; render(); toast('Kaydedildi.');
   if (changedEn) ttsAuto(en);
+}
+/* "Varsayılana dön": the user's change goes, the line takes its default again and follows seed updates (progress kept;
+   a different English starts its review again, as an edit does) */
+function revertLine(aid, lid) {
+  var a = ansById(aid); if (!a) return;
+  var back = false;
+  writeLines(a, a.lines.map(function (l) {
+    if (l.id !== lid || !l.def) return l;
+    var n = clone(l), d = l.def; back = l.en !== d.en;
+    n.en = d.en; n.tr = d.tr; n.tier = d.tier || n.tier; if (d.mk) n.mk = clone(d.mk); else delete n.mk;
+    delete n.edited; delete n.def; delete n.defNew; delete n.flag;
+    return n;
+  }));
+  if (back && st(aid, lid)) { var init = { ivl: 0, ease: 2.5, due: today(), reps: 0, lapses: 0 }; setSt(aid, lid, 'p', init); setSt(aid, lid, 'l', clone(init)); }
+  S.showOrig[lid] = false; render(); toast('Varsayılana dönüldü.');
 }
 function deleteLine() {
   var e = S.edit, a = ansById(e.aid); if (!a) return;
@@ -3737,6 +3761,7 @@ function helpPanel() {
       'Solda kod, sağda durum: <b>✓</b> öğrenildi · <b>+N</b> öğrenilmemiş satır · <b>#N</b> yeni cevap sırası, sonra satır sayısı.',
       'Cevabı açınca: Türkçe soru, ana cümle, iskelet / anahtar kelimeler, net söylenecek kelimeler ve notlar.',
       '<b>Düzenle</b>: İngilizce, Türkçe ve tür (ezber/anlam). İngilizcesi değişen satırın tekrar geçmişi sıfırlanır. Satır ekleyebilir, silebilirsin; güncellemeler düzenlemelerini korur.',
+      '<b>Değişti</b> yalnızca senin değiştirdiğin satırlarda çıkar: dokununca uygulamanın varsayılan cümlesi (İngilizce ve Türkçe) görünür. <b>Varsayılana dön</b> senin değişikliğini siler, satır yine güncellemeleri alır. Bir güncelleme varsayılanı değiştirirse kutuda <b>Varsayılan güncellendi</b> yazar; senin metnin olduğu gibi kalır.',
       '<b>Notlar\'a aktar</b>: metni Notlar\'a yapıştır, Speak Screen ile Siri sesinde internetsiz dinle.'
     ])) +
     d('Kısayollar', keyHelp()) +
@@ -3854,7 +3879,8 @@ var ACT = {
   trackNext: function () { trackJump(1); },
   trackToggle: function () { if (S.track && S.track.paused) trackResume(); else trackPause(); },
   toggleAns: function (el) { var id = el.dataset.id; S.openAns[id] = !S.openAns[id]; render(); },
-  toggleOrig: function (el) { var id = el.dataset.id; S.showOrig[id] = !S.showOrig[id]; render(); },
+  toggleDef: function (el) { var id = el.dataset.id; S.showOrig[id] = !S.showOrig[id]; render(); },
+  revertLine: function (el) { revertLine(el.dataset.aid, el.dataset.id); },
   playLine: function (el) { var f = lineById(el.dataset.id); if (f) play(f.l.en, 'en'); },
   editLine: function (el) { var f = lineById(el.dataset.id); if (!f) return; S.edit = { aid: f.a.id, lid: f.l.id }; S.confirmDel = null; render(); var t = document.getElementById('ed-en'); if (t) t.focus(); },
   cancelEdit: function () { S.edit = null; S.confirmDel = null; render(); },

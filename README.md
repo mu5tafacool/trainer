@@ -61,6 +61,8 @@ The **Today** tab (Bugün) lays out the day in order:
 - **Stops** (*Niyet ve iskelet*): every line has a 1–3 word Turkish label for its job in the answer (for example "opening", "example", "result"), never its words. While learning, a stop bar above the card shows the whole answer as segments (done, current) and *Stop 4/13 · previous › current › next*. It is not shown in review, the check, Listen or the mock interview. Labels can be edited in the Lines tab; a seed update keeps a label you wrote. Settings → Flow → *Niyet ve iskelet* turns stops and the skeleton round off.
 - Leaving a new-answer session (another tab, *Pause* (*Ara ver*), or closing the app) keeps the place: Today offers *Continue where you left off* at the same line or check, for the rest of the day.
 
+- **Your own edits** (*Düzenle*): a line you changed shows *Değişti*; it opens the app's default for that line (English and Turkish) with *Varsayılana dön* to go back to it. When an update changes that default, the box says so; your text stays.
+
 ### Spaced review
 
 - Two card types per line:
