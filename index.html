@@ -2500,12 +2500,14 @@ function pkEn(l, miss) {
 }
 function pkView(head, it) {
   var p = S.sess.pk, l = it.l, shown = p.phase === 'shown';
-  var h = head + '<article class="icard"><div class="ctx"><b>↻ Pekiştir</b><span>' + esc(qLabel(it.a)) + '</span><span class="mono">' + p.step + '/3</span></div>';
+  var h = head + '<article class="icard"><div class="ctx"><b>↻ Pekiştir</b><span>' + esc(qLabel(it.a)) + '</span></div>';
   if (p.step === 1 || shown) h += '<p class="en">' + pkEn(l, p.miss) + '</p>';
   else if (p.step === 2) h += '<p class="en masked">' + esc(l.en) + '</p>';
   h += '<p class="tr' + (p.step === 3 && !shown ? ' big' : '') + '">' + esc(l.tr) + '</p>';
-  if (!shown) h += '<p>' + ({ listen: '<span class="hint">Dinle</span>', you: '<span class="say">Aynen tekrar et</span>', with: '<span class="say">Sesle birlikte söyle</span>' }[p.phase] ||
-    '<span class="say">Şimdi bir kez sen söyle</span>' + (p.dictOpen ? ' <span class="hint">· sonra Kontrol et</span>' : ' <span class="mono hint" id="pkleft">' + pkLeft() + '</span>')) + '</p>';
+  /* the step counter sits in the status line, as on Gölgele: what to do · step/3 · with or without the text */
+  if (!shown) h += '<p class="pkstat">' + ({ listen: '<span class="hint">Dinle</span>', you: '<span class="say">Aynen tekrar et</span>', with: '<span class="say">Sesle birlikte söyle</span>' }[p.phase] || '<span class="say">Şimdi bir kez sen söyle</span>') +
+    ' <span class="mono hint">· ' + p.step + '/3 · ' + (p.step === 1 ? 'metinle' : p.step === 2 ? 'metinsiz' : 'kendin') + '</span>' +
+    (p.phase === 'recall' ? (p.dictOpen ? ' <span class="hint">· sonra Kontrol et</span>' : ' <span class="mono hint" id="pkleft">' + pkLeft() + '</span>') : '') + '</p>';
   h += '<div class="cardfoot"><span class="tier ' + esc(l.tier) + '">' + tierTxt(l) + '</span></div></article>';
   if (p.phase === 'recall') h += (dictOn() ? dictBox(p, 'pkCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="pkShow">Göster</button></div>';
   else if (shown) {
@@ -3505,11 +3507,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v63'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v64'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-21 15:40'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-22 14:19'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }

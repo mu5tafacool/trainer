@@ -35,17 +35,18 @@ const byTr = async () => { const { answers } = await seedOf(), m = {}; Object.va
 // runs the three steps and ends on the "shown" view
 async function runPk(page) {
   await expect(card(page)).toContainText('↻ Pekiştir');
-  await expect(card(page)).toContainText('1/3');
+  await expect(card(page).locator('.pkstat')).toContainText('1/3 · metinle'); // the counter is in the status line, as on Gölgele
+  await expect(card(page).locator('.ctx')).not.toContainText('/3');
   await expect(card(page).locator('.en:not(.masked)')).toHaveCount(1); // 1/3: with the text
   await end(page);
   await expect(card(page)).toContainText('Aynen tekrar et');
   await page.clock.fastForward(20000);
-  await expect(card(page)).toContainText('2/3');
+  await expect(card(page).locator('.pkstat')).toContainText('2/3 · metinsiz');
   await expect(card(page)).toContainText('Sesle birlikte söyle');
   await expect(card(page).locator('.en.masked')).toHaveCount(1); // 2/3: no text
   await end(page);
   await page.clock.fastForward(800);
-  await expect(card(page)).toContainText('3/3');
+  await expect(card(page).locator('.pkstat')).toContainText('3/3 · kendin');
   await expect(card(page)).toContainText('Şimdi bir kez sen söyle');
   await expect(card(page).locator('.en')).toHaveCount(0); // 3/3: from memory
   await expect(page.locator('#pkleft')).toHaveText(/\d+ sn/);
