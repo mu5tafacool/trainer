@@ -152,5 +152,35 @@ test.describe('grades without models', () => {
     expect(v3.check(line, 'the gardener sleeps', LEX, { nli: unsure(0.4) }).grade).toBe(0);
     expect(v3.check(line, 'the gardener waters tomatoes and cuts grass', LEX, { nli: unsure(0.6) }).grade).toBe(0);
   });
+  test('ezber: one dropped a / an / the outside the pattern chunks is İyi; inside a chunk, or with anything else wrong, it is not', () => {
+    const line = { en: 'I keep the map, the compass and the rope.', tier: 'ezber', mk: ['I keep the map'] };
+    const r = (said, l) => v3.check(l || line, said, LEX, null);
+    expect(r('I keep the map, the compass and the rope').grade).toBe(2);
+    const out = r('I keep the map, compass and the rope');
+    expect(out.acc).toBeLessThan(0.94);
+    expect(out.grade).toBe(2);
+    expect(out.why).toContain('article');
+    expect(r('I keep map, the compass and the rope').grade).toBe(1); // inside "I keep the map"
+    expect(r('I keep the map, compass and rope').grade).toBe(1); // two articles
+    expect(r('I keep the map, a compass and the rope').grade).toBe(1); // swapped, not dropped
+    expect(r('I keep the map, compass and the rope', { ...line, tier: 'anlam' }).why).not.toContain('article');
+    // works from the line's own text and chunks, so an edited line or a new one follows the same rule
+    const edited = { en: 'I keep the map, the compass and the rope.', tier: 'ezber', mk: ['the compass and'] };
+    expect(r('I keep the map, compass and the rope', edited).grade).toBe(1);
+    expect(r('I keep map, the compass and the rope', edited).grade).toBe(2);
+    // a chunk that no longer fits the text (its words said, but not found in the line) forgives nothing
+    expect(r('I keep the map, compass and the rope', { ...line, mk: ['rope and'] }).grade).toBe(1);
+    // the slip must be small: on a short line one article is too large a share of the words (under 90%)
+    expect(r('Open box now', { en: 'Open the box now.', tier: 'ezber', mk: ['box now'] }).grade).toBe(1);
+    // two dropped articles stay Zor even on a long line where the words are still 90%+ right
+    const long = { en: 'I keep the map, the compass, the rope and the lamp in the red bag by the door.', tier: 'ezber', mk: ['I keep'] };
+    const two = r('I keep map, the compass, rope and the lamp in the red bag by the door', long);
+    expect(two.acc).toBeGreaterThanOrEqual(0.9);
+    expect(two.grade).toBe(1);
+    // only a / an / the: a dropped content word stays Zor at the same share
+    const red = r('I keep the map, the compass, the rope and the lamp in the bag by the door', long);
+    expect(red.acc).toBeGreaterThanOrEqual(0.9);
+    expect(red.grade).toBe(1);
+  });
   test('empty answer is Tekrar', () => { expect(g('anlam', 'We ship weekly.', '')).toBe(0); });
 });

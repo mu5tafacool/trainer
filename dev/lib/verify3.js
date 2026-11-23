@@ -285,7 +285,7 @@
     while (i > 0 || j > 0) {
       var b = B[i][j];
       if (i > 0 && j > 0 && (b === 0 || b === 1)) { if (b === 1) edits.push({ op: 'sub', ref: ref[i - 1], said: hyp[j - 1] }); i--; j--; }
-      else if (i > 0 && (j === 0 || b === 2)) { edits.push({ op: 'del', ref: ref[i - 1] }); i--; }
+      else if (i > 0 && (j === 0 || b === 2)) { edits.push({ op: 'del', ref: ref[i - 1], at: i - 1 }); i--; }
       else { edits.push({ op: 'ins', said: hyp[j - 1] }); j--; }
     }
     edits.reverse();
@@ -293,6 +293,20 @@
     return { err: D[n][m], refW: refW, edits: edits };
   }
 
+  var ARTICLE = { a: 1, an: 1, the: 1 };
+  // true when reference word k is inside one of the pattern chunks (each chunk located in order in the reference);
+  // a chunk that cannot be located counts as covering everything, so the slip is not forgiven
+  function inChunk(ref, mk, k) {
+    var from = 0, hit = false;
+    (mk || []).forEach(function (m) {
+      if (hit) return;
+      var c = baseTokens(m), at = -1;
+      for (var i = from; i + c.length <= ref.length && at < 0; i++) if (phraseAt(ref, i, c)) at = i;
+      if (at < 0 || (k >= at && k < at + c.length)) { hit = true; return; }
+      from = at + c.length;
+    });
+    return hit;
+  }
   function count(toks, set) { var c = 0; toks.forEach(function (w) { if (set[w]) c++; }); return c; }
   function nums(toks) { return toks.filter(isNum); }
   function pairAfter(toks, a, b) { // "from X to Y" → [X, Y] with X, Y the first token after each marker
@@ -380,6 +394,9 @@
     else if (line.tier === 'ezber') {
       grade = acc >= T.ezberGood ? 2 : acc >= T.ezberOk ? 1 : 0;
       if (grade === 2 && mkMiss.length) { grade = 1; why.push('pattern'); }
+      // A single dropped a / an / the is a slip, not a memory gap: İyi, when it is the only difference, the words are 90%+
+      // right, and it is not inside a pattern chunk (the chunk must be said whole). Works from line.en and line.mk alone.
+      if (grade === 1 && acc >= 0.9 && a.edits.length === 1 && a.edits[0].op === 'del' && ARTICLE[a.edits[0].ref] && !inChunk(R.tokens, line.mk, a.edits[0].at)) { grade = 2; why.push('article'); }
       if (hard) { grade = 0; why.push('hard'); }
       else if (useNli && con >= T.anlamCon && acc < 0.999) { grade = 0; why.push('nli-contradiction'); }
     } else {
