@@ -27,6 +27,10 @@ test('meaning model: enable in Settings, judge, use on a card', async ({ page })
   const same = await page.evaluate(() => window.__nli.judge('We run the smoke tests before every release.', 'We run the smoke tests before every release.'));
   expect(same.fwd.ent).toBeGreaterThan(0.7);
   expect(same.back.ent).toBeGreaterThan(0.7);
+  // a number written in words against digits is not a contradiction (both texts reach the model in one form)
+  const num = await page.evaluate(() => window.__nli.judge('We planted 35 trees across the park.', 'We planted thirty-five trees across the park.'));
+  expect(num.fwd.con).toBeLessThan(0.5);
+  expect(num.fwd.ent).toBeGreaterThan(0.7);
 
   // the setting survives a reload (state "idle" = on, loads on first use)
   await page.reload();

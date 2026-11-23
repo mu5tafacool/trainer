@@ -25,6 +25,11 @@ test.describe('normalization', () => {
     ['fraction with "and"', 'x', '3 and 1/2 years', '3.5 years'],
     ['a number glued to /2 is not a fraction', 'x', 'on 11/2 we met', 'on 11 2 we met'],
     ['other slashes are left alone', 'x', 'support 24/7', 'support 24 7'],
+    ['"and" inside a number', 'x', 'we baked seven hundred and twenty, sold one hundred and forty-five', 'we baked 720 sold 145'],
+    ['"and" between two numbers stays', 'x', 'six hundred and four hundred and forty', '600 and 440'],
+    ['years said in pairs', 'x', 'twenty thirty-one, nineteen ninety-nine, twenty oh five', '2031 1999 2005'],
+    ['two small numbers are not a year', 'x', 'two or three, twenty', '2 or 3 20'],
+    ['ordinals and plus', 'x', '1st and 2nd, a promo + a fee', 'first and second a promo plus a fee'],
     ['number look-alike next to a stutter', 'I talked to 2 people.', 'I talked to to people', 'i talked to 2 people'],
     ['number look-alike becomes the number the reference needs', 'We ran four checks for the team.', 'we ran for checks for the team', 'we ran 4 checks for the team'],
     ['look-alike stays a word when no number is needed', 'We did it for the team.', 'we did it for the team', 'we did it for the team'],
@@ -181,6 +186,31 @@ test.describe('grades without models', () => {
     const red = r('I keep the map, the compass, the rope and the lamp in the bag by the door', long);
     expect(red.acc).toBeGreaterThanOrEqual(0.9);
     expect(red.grade).toBe(1);
+  });
+  test('the model reads numbers and symbols in one form, the rest as written', () => {
+    expect(v3.forModel('Baked seven hundred and twenty, sold six hundred.')).toBe('Baked 720, sold 600.');
+    expect(v3.forModel('a coupon + a 5% tax')).toBe(v3.forModel('a coupon plus a five-percent tax'));
+    expect(v3.forModel('From June twenty thirty-one, 2,400 jars at 300×250')).toBe('From June 2031, 2400 jars at 300 by 250');
+    expect(v3.forModel('The one person ran a one-year course: I own it.')).toBe('The one person ran a one-year course: I own it.');
+  });
+  test('"one" said for the digit 1 matches; "one" as a word stays', () => {
+    const R = v3.prepareRef('Set quantity 1 for the one item.', LEX);
+    expect(v3.normalizeSaid('set quantity one for the one item', R).join(' ')).toBe('set quantity 1 for the one item');
+  });
+  test('meaning: the same words after normalization are İyi even if the model calls them a contradiction', () => {
+    const line = { en: 'The bakery sold 740, not 650.', tier: 'anlam' };
+    const con = { fwd: { ent: 0.01, neu: 0.04, con: 0.95 }, back: { ent: 0.01, neu: 0.04, con: 0.95 } };
+    expect(v3.check(line, 'the bakery sold seven hundred and forty, not six hundred and fifty', LEX, { nli: con }).grade).toBe(2);
+    expect(v3.check(line, 'the bakery sold 740, not 650 at all', LEX, { nli: con }).grade).toBe(0);
+  });
+  test('meaning: a heap of the right words, almost none in order, is not İyi', () => {
+    const yes = { fwd: { ent: 0.99, neu: 0.01, con: 0 }, back: { ent: 0.99, neu: 0.01, con: 0 } };
+    const line = { en: 'After the kitchen moved to gas, I wrote a cookbook with more than 300 recipes.', tier: 'anlam' };
+    const heap = v3.check(line, 'cookbook recipes 300 gas kitchen wrote moved', LEX, { nli: yes });
+    expect(heap.cov).toBeGreaterThan(0.7);
+    expect(heap.acc).toBeLessThan(0.2);
+    expect(heap.grade).toBe(1);
+    expect(v3.check(line, 'I wrote a cookbook with over 300 recipes after the kitchen moved to gas', LEX, { nli: yes }).grade).toBe(2);
   });
   test('empty answer is Tekrar', () => { expect(g('anlam', 'We ship weekly.', '')).toBe(0); });
 });

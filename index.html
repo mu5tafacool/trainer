@@ -839,6 +839,8 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     },
     judge: function (ref, said) {
       if (N.state === 'off') return Promise.reject(new Error('off'));
+      // both texts in the checker's canonical form (verify3.forModel): numbers, %, + and contractions written one way
+      var v = window.verify3; if (v && v.forModel) { ref = v.forModel(ref); said = v.forModel(said); }
       return loadNli().then(function (m) {
         return nliOne(m, ref, said).then(function (fwd) { return nliOne(m, said, ref).then(function (back) { return { fwd: fwd, back: back }; }); });
       });
@@ -1092,6 +1094,7 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     "won't": 'will not', "wouldn't": 'would not', "couldn't": 'could not', "shouldn't": 'should not', "haven't": 'have not', "hasn't": 'has not', "hadn't": 'had not',
     dont: 'do not', doesnt: 'does not', didnt: 'did not', isnt: 'is not', wasnt: 'was not', arent: 'are not', cant: 'can not', wont: 'will not', havent: 'have not', hasnt: 'has not', im: 'i am', ive: 'i have', id: 'i would' };
   var UNITS = { zero: 0, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+  var ORD = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
   var TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
   var FILLERS = ['um', 'uh', 'er', 'erm', 'hmm', 'like', 'so', 'well', 'you know', 'i mean', 'basically', 'actually', 'okay', 'ok'];
   var CORRECTION = ['sorry', 'i mean', 'no wait', 'wait', 'rather'];
@@ -1109,20 +1112,30 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
       var w = tokens[i];
       var startsNum = UNITS[w] !== undefined || TENS[w] !== undefined || /^\d+(\.\d+)?$/.test(w) || (w === 'one' && i + 1 < tokens.length && (tokens[i + 1] === 'hundred' || tokens[i + 1] === 'thousand' || tokens[i + 1] === 'point'));
       if (!startsNum) { out.push(w); i++; continue; }
-      var total = 0, cur = 0, j = i, lastTens = false;
+      var total = 0, cur = 0, j = i, lastTens = false, afterH = false, fromWords = !/^\d/.test(w);
       if (/^\d+(\.\d+)?$/.test(w)) { cur = parseFloat(w); j = i + 1; }
       else {
         while (j < tokens.length) {
           var t = tokens[j];
-          if (t === 'one' && (j === i || lastTens)) { cur += 1; lastTens = false; j++; continue; }
-          if (UNITS[t] !== undefined && (j === i || lastTens)) { cur += UNITS[t]; lastTens = false; j++; continue; }
-          if (TENS[t] !== undefined && cur % 100 === 0) { cur += TENS[t]; lastTens = true; j++; continue; }
-          if (t === 'hundred' && cur > 0) { cur *= 100; lastTens = false; j++; continue; }
-          if (t === 'thousand') { total += (cur || 1) * 1000; cur = 0; lastTens = false; j++; continue; }
+          if (t === 'one' && (j === i || lastTens || afterH)) { cur += 1; lastTens = false; afterH = false; j++; continue; }
+          if (UNITS[t] !== undefined && (j === i || lastTens || afterH)) { cur += UNITS[t]; lastTens = false; afterH = false; j++; continue; }
+          if (TENS[t] !== undefined && cur % 100 === 0) { cur += TENS[t]; lastTens = true; afterH = false; j++; continue; }
+          if (t === 'hundred' && cur > 0) { cur *= 100; lastTens = false; afterH = true; j++; continue; }
+          // "seven hundred and twenty" → 720 (the British "and" inside a number)
+          if (t === 'and' && afterH && j + 1 < tokens.length && (UNITS[tokens[j + 1]] !== undefined || TENS[tokens[j + 1]] !== undefined || tokens[j + 1] === 'one') && tokens[j + 2] !== 'hundred' && tokens[j + 2] !== 'thousand') { j++; continue; }
+          if (t === 'thousand') { total += (cur || 1) * 1000; cur = 0; lastTens = false; afterH = true; j++; continue; }
           break;
         }
       }
       var val = total + cur;
+      // a year said as two pairs: "twenty twenty-four" → 2024, "nineteen ninety" → 1990, "twenty oh five" → 2005
+      if (fromWords && j === i + 1 && (val === 19 || val === 20) && j < tokens.length) {
+        var y = tokens[j], yv = -1, k = j + 1;
+        if ((y === 'oh' || y === 'o') && UNITS[tokens[k]] !== undefined && UNITS[tokens[k]] < 10) { yv = UNITS[tokens[k]]; k++; }
+        else if (UNITS[y] !== undefined && UNITS[y] >= 10) yv = UNITS[y];
+        else if (TENS[y] !== undefined) { yv = TENS[y]; if (UNITS[tokens[k]] !== undefined && UNITS[tokens[k]] < 10) { yv += UNITS[tokens[k]]; k++; } else if (tokens[k] === 'one') { yv += 1; k++; } }
+        if (yv >= 0) { val = val * 100 + yv; j = k; }
+      }
       if (tokens[j] === 'point' && j + 1 < tokens.length && (UNITS[tokens[j + 1]] !== undefined || tokens[j + 1] === 'zero' || /^\d$/.test(tokens[j + 1]))) {
         val = parseFloat(String(val) + '.' + (UNITS[tokens[j + 1]] !== undefined ? UNITS[tokens[j + 1]] : tokens[j + 1])); j += 2;
       }
@@ -1142,6 +1155,8 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     s = s.replace(/(\d+)(?:\s+and)?\s+1\/2(?![\d\/])/g, frac(0.5)).replace(/(\d+)(?:\s+and)?\s+1\/4(?![\d\/])/g, frac(0.25))
       .replace(/(\d+)(?:\s+and)?\s*½/g, frac(0.5)).replace(/(\d+)(?:\s+and)?\s*¼/g, frac(0.25))
       .replace(/(^|\s)(?:1\/2(?![\d\/])|½)/g, '$10.5').replace(/(^|\s)(?:1\/4(?![\d\/])|¼)/g, '$10.25');
+    // ordinals written with digits: "1st" → first (up to tenth; larger ones keep the number)
+    s = s.replace(/\b(\d+)(st|nd|rd|th)\b/g, function (m, n) { return ORD[+n] ? ' ' + ORD[+n] + ' ' : n; }).replace(/\+/g, ' plus ');
     s = s.replace(/(\d)\s*%/g, '$1 percent').replace(/%/g, ' percent').replace(/&/g, ' and ').replace(/(\d)\s*[×x](?=\d)/g, '$1 by ');
     s = s.replace(/([a-z])(\d)/g, '$1 $2').replace(/(\d)([a-z])/g, '$1 $2');
     s = s.replace(/(\d)\.(\d)/g, '$1§$2').replace(/[\/\-–—_]+/g, ' ').replace(/[^a-z0-9§' ]+/g, ' ').replace(/§/g, '.');
@@ -1155,9 +1170,10 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     return numberize(out);
   }
 
-  // Dictation writes some spoken numbers as words that sound the same ("four" → "for"). Fixed only when the reference has
-  // that number, the answer lacks it, and the answer has more of the look-alike word than the reference.
-  var HOMO = { 'for': '4', fore: '4', to: '2', too: '2', ate: '8' };
+  // Dictation writes some spoken numbers as words that sound the same ("four" → "for"), and "one" stays a word (it is
+  // also a pronoun). Fixed only when the reference has that number, the answer lacks it, and the answer has more of the
+  // look-alike word than the reference.
+  var HOMO = { one: '1', 'for': '4', fore: '4', to: '2', too: '2', ate: '8' };
   function fixHomophones(t, ref) {
     var cnt = function (arr, w) { var c = 0; arr.forEach(function (x) { if (x === w) c++; }); return c; };
     var out = t.slice();
@@ -1446,7 +1462,7 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
   /* Combines everything into a suggested grade (2 İyi, 1 Zor, 0 Tekrar).
      sig (optional) = { sim: cosine, nli: { fwd: {ent, neu, con}, back: {ent, neu, con} } }  — fwd: reference ⇒ said, back: said ⇒ reference. */
   // Chosen on the 85-case eval set (stable across the grid; see the prototype report).
-  var T = { ezberGood: 0.94, ezberOk: 0.7, anlamCon: 0.5, anlamEnt: 0.7, anlamSimGood: 0.8, anlamSimOk: 0.6, anlamCovGood: 0.5, anlamCovSome: 0.4 };
+  var T = { ezberGood: 0.94, ezberOk: 0.7, anlamCon: 0.5, anlamEnt: 0.7, anlamSimGood: 0.8, anlamSimOk: 0.6, anlamCovGood: 0.5, anlamCovSome: 0.4, anlamOrder: 0.2 };
   function check(line, said, lexicon, sig, opts) {
     opts = opts || {};
     var R = line._prep || prepareRef(line.en, lexicon), hyp = normalizeSaid(said, R);
@@ -1477,7 +1493,8 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
       else if (useNli && con >= T.anlamCon && acc < 0.999) { grade = 0; why.push('nli-contradiction'); }
     } else {
       if (hard) { grade = 0; why.push('hard'); }
-      else if (useNli && con >= T.anlamCon) { grade = 0; why.push('nli-contradiction'); }
+      // words identical once normalized: the model cannot overturn that (as on ezber)
+      else if (useNli && con >= T.anlamCon && acc < 0.999) { grade = 0; why.push('nli-contradiction'); }
       else if (acc >= 0.97) grade = 2;
       else if (useNli) {
         var both = entF >= T.anlamEnt && entB >= T.anlamEnt, one = entF >= T.anlamEnt || entB >= T.anlamEnt;
@@ -1487,6 +1504,8 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
         if (grade === 2 && issues.some(function (x) { return x.kind === 'number-missing'; })) grade = 1;
         // The model can call a short, garbled answer "entailed"; most of the reference's terms must be there for İyi.
         if (grade === 2 && cov < T.anlamCovGood) { grade = 1; why.push('low-coverage'); }
+        // the model can also call a word heap "entailed": with almost no words in order (under 1 in 5), not İyi
+        if (grade === 2 && acc < T.anlamOrder) { grade = 1; why.push('scrambled'); }
         why.push('nli');
       } else if (useSim) {
         grade = sig.sim >= T.anlamSimGood ? 2 : sig.sim >= T.anlamSimOk ? 1 : 0;
@@ -1500,7 +1519,31 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     return { grade: grade, acc: acc, issues: issues, edits: a.edits, bag: bag, cov: cov, mkMiss: mkMiss, said: hyp, ref: R.tokens, con: con, entF: entF, entB: entB, why: why };
   }
 
-  var api = { baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, findNames: findNames, sound: sound, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
+  // The text the meaning model reads. Only numbers and symbols are rewritten, the rest stays as written (case and
+  // punctuation help the model see a reversed meaning): number words → digits with the same numberize the rules use,
+  // "1,500" → 1500, "1st" → first, "+" → plus, "%" → percent, "300×250" → 300 by 250. Both texts get it, so how a
+  // number was written cannot look like a contradiction.
+  var NUMISH = { hundred: 1, thousand: 1, and: 1, oh: 1, a: 1, half: 1, point: 1, one: 1 };
+  function forModel(text) {
+    var s = String(text || '').replace(/(\d),(?=\d{3}\b)/g, '$1')
+      .replace(/\b(\d+)(st|nd|rd|th)\b/gi, function (m, n) { return ORD[+n] || n; })
+      .replace(/\s*\+\s*/g, ' plus ').replace(/(\d)\s*%/g, '$1 percent').replace(/%/g, ' percent').replace(/(\d)\s*[×x]\s*(?=\d)/g, '$1 by ');
+    var re = /[A-Za-z]+/g, m, words = [];
+    while ((m = re.exec(s))) words.push({ w: m[0].toLowerCase(), a: m.index, b: m.index + m[0].length });
+    var num = function (w) { return UNITS[w] !== undefined || TENS[w] !== undefined || NUMISH[w]; };
+    var out = '', last = 0;
+    for (var i = 0; i < words.length; i++) {
+      if (UNITS[words[i].w] === undefined && TENS[words[i].w] === undefined && words[i].w !== 'one') continue;
+      var j = i;
+      while (j + 1 < words.length && num(words[j + 1].w) && /^[\s-]*$/.test(s.slice(words[j].b, words[j + 1].a))) j++;
+      var run = words.slice(i, j + 1).map(function (x) { return x.w; }), conv = numberize(run);
+      if (conv.join(' ') !== run.join(' ')) { out += s.slice(last, words[i].a) + conv.join(' '); last = words[j].b; }
+      i = j;
+    }
+    return (out + s.slice(last)).replace(/(\d)-(?=[a-z])/gi, '$1 ').replace(/\s+/g, ' ').trim();
+  }
+
+  var api = { forModel: forModel, baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, findNames: findNames, sound: sound, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.verify3 = api;
 })(typeof window !== 'undefined' ? window : this);
 /* verify3:end */
@@ -3524,11 +3567,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v65'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v66'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-23 13:22'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-23 16:36'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
