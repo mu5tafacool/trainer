@@ -32,20 +32,20 @@ async function start(page, settings) {
 async function toRecall(page) {
   await page.locator('[data-act="shadow"]').click();
   for (let r = 1; r <= 2; r++) {
-    await expect(card(page)).toContainText('gölge ' + r + '/3');
+    // the shared status line (sayLine): grey while the voice plays ("Dinle ve oku" while the text shows), the step once
+    await expect(card(page).locator('.sayline')).toHaveText((r === 1 ? 'Dinle ve oku' : 'Dinle') + ' · ' + r + '/3');
     await end(page);
-    await expect(card(page)).toContainText('Şimdi sen söyle'); // rounds 1 and 2 keep the gap
+    await expect(card(page).locator('.sayline')).toHaveText('Tekrar et · ' + r + '/3'); // rounds 1 and 2 keep the gap
     await page.clock.fastForward(20000);
   }
-  await expect(card(page)).toContainText('gölge 3/3');
-  await expect(card(page)).toContainText('Sesle birlikte söyle');
+  await expect(card(page).locator('.sayline')).toHaveText('Birlikte söyle · 3/3');
   await expect(card(page).locator('.en.masked')).toHaveCount(1);
   await end(page);
   await page.clock.fastForward(600); // no gap after the 3rd round: straight to the image
   await expect(card(page)).toContainText('kendi hayatından bir sahneye');
   // the image countdown is a chain of 1 s waits: move the clock a second at a time so each step gets its turn
-  for (let k = 0; k < 15 && !(await card(page).textContent()).includes('İngilizcesini sen söyle'); k++) await page.clock.fastForward(1000);
-  await expect(card(page)).toContainText('İngilizcesini sen söyle');
+  for (let k = 0; k < 15 && !(await card(page).locator('.sayline').count()); k++) await page.clock.fastForward(1000);
+  await expect(card(page).locator('.sayline')).toHaveText('Sen söyle');
   await expect(card(page)).toContainText('Önce imgeni düşün');
 }
 
@@ -53,7 +53,19 @@ test('shadow round 3 together with the voice, then Hatırla: hidden, Göster, ti
   await start(page);
   await toRecall(page);
   await expect(card(page).locator('.en')).toHaveCount(0); // English not on the page
-  await expect(page.locator('#recleft')).toHaveText(/\d+ sn/);
+  await expect(card(page).locator('.cardfoot #recleft')).toHaveText(/^\d+ sn$/); // the countdown sits in the card foot
+  // on a phone the seconds stay at the card's bottom right, in view; from 375 px on, on the same row as the tag
+  for (const w of [320, 375, 390]) {
+    await page.setViewportSize({ width: w, height: 760 });
+    const b = await card(page).evaluate((c) => {
+      const r = (e) => e.getBoundingClientRect(), f = r(c.querySelector('.cardfoot')), t = r(c.querySelector('#recleft')), g = r(c.querySelector('.cardfoot .tier'));
+      return { right: f.right - t.right, inFoot: t.bottom <= f.bottom + 1 && t.left >= f.left, sameRow: Math.abs(t.top - g.top) < g.height, inView: t.right <= innerWidth };
+    });
+    expect(b.right, w + ' px').toBeLessThan(1);
+    expect(b.inFoot && b.inView, w + ' px').toBe(true);
+    if (w >= 375) expect(b.sameRow, w + ' px').toBe(true);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   const n0 = await spoken(page);
   await page.clock.fastForward(1000);
   expect(await spoken(page)).toBe(n0); // and not played

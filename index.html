@@ -150,6 +150,7 @@ mark.pkmiss { background: var(--warn-soft, transparent); color: var(--warn); bor
 .tier { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
 .tier.ezber { background: var(--bad-soft); color: var(--bad); }
 .timer { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cardfoot > .timer { margin-left: auto; } /* stays bottom right even if a narrow phone wraps it under the tag */
 .timer.slow { color: var(--warn); }
 .timer.big { font-size: 44px; color: var(--ink); line-height: 1; }
 .sesshead { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
@@ -2330,7 +2331,7 @@ function renderReview() {
     if (s.shown) h += '<p class="tr big">' + esc(it.l.tr) + '</p><p class="en small">' + hlEn(it.l) + '</p>';
     else h += (siriOn() ? '<p class="en masked">' + esc(it.l.en) + '</p>' : '') + '<p class="hint">Dinle ve anlamını Türkçe söyle.</p>';
   }
-  h += '<div class="cardfoot"><span class="tier ' + esc(it.l.tier) + '">' + tierTxt(it.l) + '</span><span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown && s.ms ? fmtSec(s.ms) : '') + '</span></div></article>';
+  h += cardFoot(it.l, '<span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown && s.ms ? fmtSec(s.ms) : '') + '</span>') + '</article>';
   if (s.shown || !isP) h += siriHint();
   if (!s.shown) {
     if (isP && dictOn()) h += dictBox(s, 'dictCheck', 'Kontrol et');
@@ -2488,7 +2489,7 @@ function renderIntro() {
     if (s.pk) return pkView(sessHead('Kontrol · ' + q.q.length + ' kaldı', 'Ara ver'), it);
     var h = sessHead('Kontrol · ' + q.q.length + ' kaldı', 'Ara ver');
     h += '<article class="icard"><div class="ctx"><b>Kontrol</b><span>TR → EN · sesli söyle</span></div><p class="tr big">' + esc(it.l.tr) + '</p>' +
-      (q.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') + '<div class="cardfoot"><span class="tier ' + esc(it.l.tier) + '">' + tierTxt(it.l) + '</span></div></article>' + (q.shown ? siriHint() : '');
+      (q.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') + cardFoot(it.l) + '</article>' + (q.shown ? siriHint() : '');
     // 🎤: the result suggests one of the two buttons (İyi → ✓, Tekrar → ↺; Zor → none); the choice stays yours
     var qg = q.shown && s.dict ? dictGrade(s.dict) : -1;
     if (q.shown) h += (s.dict ? dictRes(s.dict, s.dictText) : '') + (qg === 0 || qg === 1 ? '<button class="btn wide" data-act="pkStart" style="margin-bottom:8px">↻ Pekiştir</button>' : '') +
@@ -2507,11 +2508,11 @@ function renderIntro() {
   h2 += '<article class="icard"><div class="ctx"><span>' + esc(qLabel(it2.a)) + '</span>' + (recall ? '<span>TR → EN · sesli söyle</span>' : '') + '</div>' +
     (hideEn ? '' : '<p class="en' + (masked ? ' masked' : '') + '">' + (masked ? esc(it2.l.en) : hlEn(it2.l)) + '</p>');
   if (s.step >= 1) h2 += '<p class="tr' + (recall ? ' big' : '') + '">' + esc(it2.l.tr) + '</p>';
-  if (s.step === 2) h2 += '<p>' + (s.shPhase === 'with' ? '<span class="say">Sesle birlikte söyle</span>' : s.shPhase === 'you' ? '<span class="say">Şimdi sen söyle</span>' : '<span class="hint">Dinle</span>') + ' <span class="mono hint">· gölge ' + s.shadow + '/3 · ' + (s.shadow === 1 ? 'metinle' : 'metinsiz') + '</span></p>';
+  if (s.step === 2) h2 += sayLine(s.shPhase || 'listen', { step: s.shadow, total: 3, text: !masked });
   if (hideEn) h2 += '<p class="hint">Önce imgeni düşün; cümle oradan gelir.</p>';
-  if (hideEn) h2 += '<p><span class="say">İngilizcesini sen söyle</span>' + (s.dictOpen ? ' <span class="hint">· sonra Kontrol et</span>' : ' <span class="mono hint" id="recleft">' + recallLeft() + '</span>') + '</p>';
+  if (hideEn) h2 += sayLine('recall', { tail: s.dictOpen ? 'sonra Kontrol et' : '' });
   if (s.step === 3) h2 += '<p class="hint">Bu cümleyi kendi hayatından bir sahneye bağla.</p><p class="count">' + s.img + '</p>';
-  h2 += '<div class="cardfoot"><span class="tier ' + esc(it2.l.tier) + '">' + tierTxt(it2.l) + '</span></div></article>' + siriHint();
+  h2 += cardFoot(it2.l, hideEn && !s.dictOpen ? cardTimer('recleft', recallLeft()) : '') + '</article>' + siriHint();
   if (s.step <= 1) h2 += '<div class="row"><button class="btn ghost" data-act="replayIntro">▶ Dinle</button><button class="btn primary" data-act="shadow"' + (s.step === 0 ? ' disabled' : '') + '>Gölgele 3×</button></div><button class="link" data-act="introSkip">Adımları atla →</button>';
   else if (s.step === 2 || s.step === 3) h2 += '<div class="row"><button class="btn ghost" data-act="introSkip">Atla →</button></div>';
   else if (recall && !s.rec.shown) h2 += (dictOn() ? dictBox(s, 'recCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="recShow">Göster</button></div>';
@@ -2558,14 +2559,16 @@ function pkEn(l, miss) {
   var re = new RegExp('\\b(' + miss.map(function (w) { return w.replace(/[^a-z0-9]/gi, ''); }).filter(Boolean).join('|') + ')\\b', 'gi');
   return h.split(/(<[^>]+>)/).map(function (part) { return part.charAt(0) === '<' ? part : part.replace(re, '<mark class="pkmiss">$1</mark>'); }).join('');
 }
-/* One status line for the say-it steps, so every place words them the same (Pekiştir now; Gölgele and Yeni can call it
-   later): a short verb · step/total, and an optional tail. The verbs stay short so the line fits one row on a phone in
-   any language. The seconds left go to the card foot (cardFoot), where the review timer sits, so this line never
-   changes width while it counts down. */
-var SAY_TXT = { listen: 'Dinle', you: 'Tekrar et', with: 'Birlikte söyle', recall: 'Sen söyle' };
-function sayLine(phase, step, total, tail) {
-  return '<p class="sayline"><span class="' + (phase === 'listen' ? 'hint' : 'say') + '">' + (SAY_TXT[phase] || SAY_TXT.recall) + '</span>' +
-    (step ? ' <span class="mono hint">· ' + step + '/' + total + '</span>' : '') + (tail ? ' <span class="hint">· ' + tail + '</span>' : '') + '</p>';
+/* One status line for every say-it step (Gölgele, Hatırla, Pekiştir), so they all word it the same: a short verb, the
+   step once (o.step/o.total, left out where the screen has none) and an optional tail (o.tail). While the voice plays the
+   verb is "Dinle ve oku" if the text is on screen (o.text), else "Dinle"; it is grey, since nothing is asked of you yet.
+   The verbs stay short so the line fits one row on a phone in any language. The seconds left go to the card foot
+   (cardFoot + cardTimer), where the review timer sits, so this line never changes width while it counts down. */
+var SAY_TXT = { read: 'Dinle ve oku', listen: 'Dinle', you: 'Tekrar et', with: 'Birlikte söyle', recall: 'Sen söyle' };
+function sayLine(phase, o) {
+  o = o || {}; var k = phase === 'listen' && o.text ? 'read' : SAY_TXT[phase] ? phase : 'recall';
+  return '<p class="sayline"><span class="' + (phase === 'listen' ? 'hint' : 'say') + '">' + SAY_TXT[k] + '</span>' +
+    (o.step ? ' <span class="mono hint">· ' + o.step + '/' + o.total + '</span>' : '') + (o.tail ? ' <span class="hint">· ' + o.tail + '</span>' : '') + '</p>';
 }
 /* the card foot: the tier tag on the left, an optional timer or countdown (cardTimer) on the right */
 function cardFoot(l, right) { return '<div class="cardfoot"><span class="tier ' + esc(l.tier) + '">' + tierTxt(l) + '</span>' + (right || '') + '</div>'; }
@@ -2577,7 +2580,7 @@ function pkView(head, it) {
   else if (p.step === 2) h += '<p class="en masked">' + esc(l.en) + '</p>';
   h += '<p class="tr' + (p.step === 3 && !shown ? ' big' : '') + '">' + esc(l.tr) + '</p>';
   /* the step counter sits in the status line (sayLine); the seconds left sit in the card foot */
-  if (!shown) h += sayLine(p.phase, p.step, 3, p.phase === 'recall' && p.dictOpen ? 'sonra Kontrol et' : '');
+  if (!shown) h += sayLine(p.phase, { step: p.step, total: 3, text: p.step === 1, tail: p.phase === 'recall' && p.dictOpen ? 'sonra Kontrol et' : '' });
   h += cardFoot(l, p.phase === 'recall' && !p.dictOpen ? cardTimer('pkleft', pkLeft()) : '') + '</article>';
   if (p.phase === 'recall') h += (dictOn() ? dictBox(p, 'pkCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="pkShow">Göster</button></div>';
   else if (shown) {
@@ -2818,7 +2821,7 @@ function renderTest() {
   var it = s.q[s.i];
   var h2 = sessHead('Hız testi · ' + (s.i + 1) + '/' + s.q.length);
   h2 += '<article class="icard"><div class="ctx"><b>TR → EN</b><span>' + esc(qLabel(it.a)) + '</span></div><p class="tr big">' + esc(it.l.tr) + '</p>' + (s.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') +
-    '<div class="cardfoot"><span class="tier ' + esc(it.l.tier) + '">' + tierTxt(it.l) + '</span><span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown ? fmtSec(s.ms) : '') + '</span></div></article>' + (s.shown ? siriHint() : '');
+    cardFoot(it.l, '<span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown ? fmtSec(s.ms) : '') + '</span>') + '</article>' + (s.shown ? siriHint() : '');
   h2 += s.shown ? markRow({ act: 'testMark', data: ' data-ok="0"', txt: '✗ Yanlış' }, { act: 'testMark', data: ' data-ok="1"', txt: '✓ Doğru' }, -1)
     : '<button class="btn primary wide" data-act="testReveal">Göster</button>';
   return h2 + '<p class="kbd">Klavye: boşluk = göster · 1 = yanlış · 2 = doğru</p>';
@@ -3577,11 +3580,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v68'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v69'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-23 18:20'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-23 21:47'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }

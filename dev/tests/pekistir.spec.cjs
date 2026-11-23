@@ -35,11 +35,11 @@ const byTr = async () => { const { answers } = await seedOf(), m = {}; Object.va
 // runs the three steps and ends on the "shown" view
 async function runPk(page) {
   await expect(card(page)).toContainText('↻ Pekiştir');
-  await expect(card(page).locator('.sayline')).toContainText('1/3'); // the counter is in the status line (sayLine)
+  await expect(card(page).locator('.sayline')).toHaveText('Dinle ve oku · 1/3'); // the step is in the status line (sayLine), once
   await expect(card(page).locator('.ctx')).not.toContainText('/3');
   await expect(card(page).locator('.en:not(.masked)')).toHaveCount(1); // 1/3: with the text
   await end(page);
-  await expect(card(page).locator('.sayline')).toContainText('Tekrar et');
+  await expect(card(page).locator('.sayline')).toHaveText('Tekrar et · 1/3');
   await page.clock.fastForward(20000);
   await expect(card(page).locator('.sayline')).toHaveText('Birlikte söyle · 2/3');
   await expect(card(page).locator('.en.masked')).toHaveCount(1); // 2/3: no text
