@@ -149,7 +149,7 @@ mark.pkmiss { background: var(--warn-soft, transparent); color: var(--warn); bor
 .cardfoot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tier { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
 .tier.ezber { background: var(--bad-soft); color: var(--bad); }
-.timer { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.timer { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .timer.slow { color: var(--warn); }
 .timer.big { font-size: 44px; color: var(--ink); line-height: 1; }
 .sesshead { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
@@ -2558,17 +2558,27 @@ function pkEn(l, miss) {
   var re = new RegExp('\\b(' + miss.map(function (w) { return w.replace(/[^a-z0-9]/gi, ''); }).filter(Boolean).join('|') + ')\\b', 'gi');
   return h.split(/(<[^>]+>)/).map(function (part) { return part.charAt(0) === '<' ? part : part.replace(re, '<mark class="pkmiss">$1</mark>'); }).join('');
 }
+/* One status line for the say-it steps, so every place words them the same (Pekiştir now; Gölgele and Yeni can call it
+   later): a short verb · step/total, and an optional tail. The verbs stay short so the line fits one row on a phone in
+   any language. The seconds left go to the card foot (cardFoot), where the review timer sits, so this line never
+   changes width while it counts down. */
+var SAY_TXT = { listen: 'Dinle', you: 'Tekrar et', with: 'Birlikte söyle', recall: 'Sen söyle' };
+function sayLine(phase, step, total, tail) {
+  return '<p class="sayline"><span class="' + (phase === 'listen' ? 'hint' : 'say') + '">' + (SAY_TXT[phase] || SAY_TXT.recall) + '</span>' +
+    (step ? ' <span class="mono hint">· ' + step + '/' + total + '</span>' : '') + (tail ? ' <span class="hint">· ' + tail + '</span>' : '') + '</p>';
+}
+/* the card foot: the tier tag on the left, an optional timer or countdown (cardTimer) on the right */
+function cardFoot(l, right) { return '<div class="cardfoot"><span class="tier ' + esc(l.tier) + '">' + tierTxt(l) + '</span>' + (right || '') + '</div>'; }
+function cardTimer(id, text) { return '<span id="' + id + '" class="timer">' + text + '</span>'; }
 function pkView(head, it) {
   var p = S.sess.pk, l = it.l, shown = p.phase === 'shown';
   var h = head + '<article class="icard"><div class="ctx"><b>↻ Pekiştir</b><span>' + esc(qLabel(it.a)) + '</span></div>';
   if (p.step === 1 || shown) h += '<p class="en">' + pkEn(l, p.miss) + '</p>';
   else if (p.step === 2) h += '<p class="en masked">' + esc(l.en) + '</p>';
   h += '<p class="tr' + (p.step === 3 && !shown ? ' big' : '') + '">' + esc(l.tr) + '</p>';
-  /* the step counter sits in the status line, as on Gölgele: what to do · step/3 · with or without the text */
-  if (!shown) h += '<p class="pkstat">' + ({ listen: '<span class="hint">Dinle</span>', you: '<span class="say">Aynen tekrar et</span>', with: '<span class="say">Sesle birlikte söyle</span>' }[p.phase] || '<span class="say">Şimdi bir kez sen söyle</span>') +
-    ' <span class="mono hint">· ' + p.step + '/3 · ' + (p.step === 1 ? 'metinle' : p.step === 2 ? 'metinsiz' : 'kendin') + '</span>' +
-    (p.phase === 'recall' ? (p.dictOpen ? ' <span class="hint">· sonra Kontrol et</span>' : ' <span class="mono hint" id="pkleft">' + pkLeft() + '</span>') : '') + '</p>';
-  h += '<div class="cardfoot"><span class="tier ' + esc(l.tier) + '">' + tierTxt(l) + '</span></div></article>';
+  /* the step counter sits in the status line (sayLine); the seconds left sit in the card foot */
+  if (!shown) h += sayLine(p.phase, p.step, 3, p.phase === 'recall' && p.dictOpen ? 'sonra Kontrol et' : '');
+  h += cardFoot(l, p.phase === 'recall' && !p.dictOpen ? cardTimer('pkleft', pkLeft()) : '') + '</article>';
   if (p.phase === 'recall') h += (dictOn() ? dictBox(p, 'pkCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="pkShow">Göster</button></div>';
   else if (shown) {
     if (p.dict) h += '<div class="dres"><div><b class="sc ' + scoreCls(p.dict.pct) + '">%' + p.dict.pct + '</b> · ' + (l.tier === 'ezber' ? 'kelime' : 'terim') + ' isabeti</div>' +
@@ -3567,11 +3577,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v67'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v68'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-23 16:50'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-23 18:20'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }

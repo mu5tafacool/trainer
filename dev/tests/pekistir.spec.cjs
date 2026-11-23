@@ -35,21 +35,21 @@ const byTr = async () => { const { answers } = await seedOf(), m = {}; Object.va
 // runs the three steps and ends on the "shown" view
 async function runPk(page) {
   await expect(card(page)).toContainText('↻ Pekiştir');
-  await expect(card(page).locator('.pkstat')).toContainText('1/3 · metinle'); // the counter is in the status line, as on Gölgele
+  await expect(card(page).locator('.sayline')).toContainText('1/3'); // the counter is in the status line (sayLine)
   await expect(card(page).locator('.ctx')).not.toContainText('/3');
   await expect(card(page).locator('.en:not(.masked)')).toHaveCount(1); // 1/3: with the text
   await end(page);
-  await expect(card(page)).toContainText('Aynen tekrar et');
+  await expect(card(page).locator('.sayline')).toContainText('Tekrar et');
   await page.clock.fastForward(20000);
-  await expect(card(page).locator('.pkstat')).toContainText('2/3 · metinsiz');
-  await expect(card(page)).toContainText('Sesle birlikte söyle');
+  await expect(card(page).locator('.sayline')).toHaveText('Birlikte söyle · 2/3');
   await expect(card(page).locator('.en.masked')).toHaveCount(1); // 2/3: no text
   await end(page);
   await page.clock.fastForward(800);
-  await expect(card(page).locator('.pkstat')).toContainText('3/3 · kendin');
-  await expect(card(page)).toContainText('Şimdi bir kez sen söyle');
+  await expect(card(page).locator('.sayline')).toHaveText('Sen söyle · 3/3');
   await expect(card(page).locator('.en')).toHaveCount(0); // 3/3: from memory
-  await expect(page.locator('#pkleft')).toHaveText(/\d+ sn/);
+  await expect(card(page).locator('.cardfoot #pkleft')).toHaveText(/^\d+ sn$/); // the countdown sits in the card foot, not the status line
+  const rows = await card(page).locator('.sayline').evaluate((e) => e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).fontSize));
+  expect(rows).toBeLessThan(2.2); // one row at phone width (two rows would be about 3 font sizes tall)
   await page.clock.fastForward(30000); // recall time ends: opens by itself
   await expect(card(page).locator('.en')).toHaveCount(1);
   await expect(page.locator('[data-act="pkDone"]')).toBeVisible();
