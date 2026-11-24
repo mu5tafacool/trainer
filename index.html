@@ -3039,7 +3039,7 @@ function modeTxt(m) {
    recallMs and echoMs, so no timer runs while the page sleeps. Two ways, same content: one recording, or one track per card. A report (version, device, times; no sentences) says how long everything took and what
    played while the screen was off, and how soon the sound came after Devam. Parts: LOCK_*, lock*, window.__clipBuf, localStorage mt1:__locklog. ---- */
 var LOCK_TRIAL = { lock1: 'S1 · 1 tek kayıt', lock2: 'S1 · 2 çalma listesi' };
-var LOCK_HOW = { lock1: 'Bütün cümleler ve beklemeler tek kayıtta.', lock2: 'Her cümle, beklemeleriyle, ayrı bir parça.' };
+var LOCK_HOW = { lock1: 'Bütün cümleler ve beklemeler tek kayıtta; kilit ekranında her cümle ayrı parça gibi görünür.', lock2: 'Her cümle, beklemeleriyle, ayrı bir parça.' };
 var LOCK_LOG = 'mt1:__locklog';
 var LOCK_KEEP = 600; // seconds of silence the second player holds
 var lockT = { el: null, mode: 'B' };
@@ -3185,7 +3185,7 @@ function lockEl() {
     var R = lockT.run; if (!R) return;
     if (R.held) { if (R.off) R.off.held += Date.now() - R.held; R.held = 0; }
     if (R.want) { var ms = lockNow() - R.want; R.want = 0; if (R.start === undefined) R.start = ms; else R.sw.push(Math.round(ms)); }
-    lockQuiet(true); lockTitle(R); lockTick(); if (R.ui !== true) { R.ui = true; lockDraw(); }
+    lockQuiet(true); lockTick(); lockTitle(R); if (R.ui !== true) { R.ui = true; lockDraw(); }
   });
   a.addEventListener('pause', function () { if (lockT.run && !a.ended) { lockT.run.ui = false; lockNote('durdu'); mediaState('paused'); lockDraw(); } });
   a.addEventListener('ended', function () { var R = lockT.run; if (R && R.tracks.length > 1) lockTrack((R.i + 1) % R.tracks.length); });
@@ -3193,15 +3193,22 @@ function lockEl() {
   a.addEventListener('timeupdate', lockTick);
   return a;
 }
-/* the lock screen keeps the old title when it is set while a new track is still loading (seen on the phone in the Safari
-   home-screen app), so it is set again once the sound plays, with the place in the track */
+/* the lock screen: the sentence as the title, its own length and place, so one recording looks like a list of sentences.
+   Set once per change, on the same metadata object: a new object loads the picture again. Not while a new track is still
+   loading; the lock screen keeps the old title then (seen on the phone), 'playing' sets it. */
+function lockSpan(R) {
+  var t = R.tracks[R.i], at = -1, end = t.dur;
+  t.cues.forEach(function (c) { if (c.card === R.card && at < 0) at = c.at; else if (c.card > R.card && c.at < end) end = c.at; });
+  return { at: Math.max(0, at), dur: end - Math.max(0, at) };
+}
 function lockTitle(R) {
-  function set() {
-    var a = lockT.el; if (lockT.run !== R || a.paused || R.card === undefined) return;
-    mediaMeta(R.items[R.card]);
-    try { if (MSS && MSS.setPositionState && a.duration > 0 && isFinite(a.duration)) MSS.setPositionState({ duration: a.duration, playbackRate: a.playbackRate || 1, position: Math.min(a.currentTime, a.duration) }); } catch (e) {}
-  }
-  clearTimeout(R.t1); clearTimeout(R.t2); set(); R.t1 = setTimeout(set, 300); R.t2 = setTimeout(set, 1200);
+  var a = lockT.el, it = R.items[R.card]; if (!MSS || lockT.run !== R || !it) return;
+  try {
+    var m = MSS.metadata, s = lockSpan(R);
+    if (m && R.meta) { m.title = it.l.en; m.artist = qLabel(it.a); } else { mediaMeta(it); R.meta = true; }
+    MSS.playbackState = a.paused ? 'paused' : 'playing';
+    if (MSS.setPositionState) MSS.setPositionState({ duration: s.dur, playbackRate: a.playbackRate || 1, position: Math.max(0, Math.min(a.currentTime - s.at, s.dur)) });
+  } catch (e) {}
 }
 /* which step is playing now; runs on the player's own events, also while locked if the page is awake */
 function lockTick() {
@@ -3213,7 +3220,7 @@ function lockTick() {
   for (var i = 0; i < cs.length && cs[i].at <= a.currentTime + 0.02; i++) c = cs[i];
   if (c === R.cue) return;
   R.cue = c;
-  if (R.card !== c.card) { R.card = c.card; if (R.want) mediaMeta(R.items[c.card]); else lockTitle(R); if (R.off) lockNote('cümle ' + (c.card + 1)); }
+  if (R.card !== c.card) { R.card = c.card; if (!R.want) lockTitle(R); if (R.off) lockNote('cümle ' + (c.card + 1)); }
   if (lockShown()) { var p = document.getElementById('player'); if (p) p.innerHTML = lockCard(); }
 }
 function lockGo(d) {
@@ -3236,6 +3243,12 @@ function lockMedia() {
   msHandler('pause', function () { lockNote('kilit/kulaklık: duraklat'); var R = lockT.run; if (!R || lockT.el.paused) return; lockBack(R, true); R.held = Date.now(); lockT.el.pause(); });
   msHandler('play', function () { lockNote('kilit/kulaklık: devam'); if (lockT.run) lockOn(lockT.run); });
   msHandler('stop', function () { lockEnd(); lockDraw(); });
+  msHandler('seekto', function (d) { // the bar shows one sentence, so a drag stays inside it
+    var R = lockT.run, a = lockT.el; if (!R || R.card === undefined || !(d && d.seekTime >= 0)) return;
+    var s = lockSpan(R), to = s.at + Math.min(d.seekTime, Math.max(0, s.dur - 0.2));
+    if (R.off) R.off.pos += to - a.currentTime;
+    a.currentTime = to; lockTick(); lockTitle(R);
+  });
 }
 function lockPlay() {
   if (lockT.busy) return;
@@ -3563,7 +3576,8 @@ function mediaOn() {
 }
 function mediaOff() {
   if (!MSS) return;
-  ['previoustrack', 'nexttrack', 'pause', 'play', 'stop'].forEach(function (a) { msHandler(a, null); });
+  ['previoustrack', 'nexttrack', 'pause', 'play', 'stop', 'seekto'].forEach(function (a) { msHandler(a, null); });
+  try { if (MSS.setPositionState) MSS.setPositionState(); } catch (e) {}
   try { MSS.metadata = null; MSS.playbackState = 'none'; } catch (e) {}
 }
 function mediaMeta(it) {
@@ -3940,11 +3954,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v76'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v77'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-24 18:55'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-24 20:01'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }

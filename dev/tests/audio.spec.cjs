@@ -160,6 +160,7 @@ test('Kilit denemesi (trial d14): S1 is joined from the shipped clips and plays'
   });
   console.log('clip formats: ' + JSON.stringify(fmt));
   const s1 = Object.values(answers).find((a) => a.code === 'S1');
+  await page.evaluate(() => { const ms = navigator.mediaSession, set = ms.setPositionState.bind(ms); window.__pos = []; ms.setPositionState = (p) => { if (p) window.__pos.push(p); return set(p); }; });
   await page.getByRole('button', { name: 'Dinle', exact: true }).first().click();
   for (const way of ['lock1', 'lock2']) for (const m of ['A', 'B']) {
     await page.locator('#tr-scope').selectOption(way);
@@ -167,8 +168,15 @@ test('Kilit denemesi (trial d14): S1 is joined from the shipped clips and plays'
     await page.locator('[data-act="lockPlay"]').click();
     await expect(page.locator('#player .ctx .mono')).toHaveText('1/' + s1.lines.length);
     await expect.poll(() => page.evaluate(() => window.__lockTrial.t.el.currentTime > 0.5 && !window.__lockTrial.t.el.paused)).toBe(true);
+    await page.evaluate(() => { window.__meta = navigator.mediaSession.metadata; window.__pos.length = 0; });
     await page.locator('[data-act="lockNext"]').click();
     await expect(page.locator('#player .ctx .mono')).toHaveText('2/' + s1.lines.length);
+    // the lock screen: the new sentence on the same metadata object, with its own length, from its start
+    await expect.poll(() => page.evaluate(() => navigator.mediaSession.metadata.title)).toBe(await page.evaluate(() => window.__lockTrial.t.run.items[1].l.en));
+    const lockUi = await page.evaluate(() => { const R = window.__lockTrial.t.run; return { same: navigator.mediaSession.metadata === window.__meta, pos: window.__pos[0], whole: R.dur, n: R.items.length }; });
+    expect(lockUi.same).toBe(true);
+    expect(lockUi.pos.position).toBeLessThan(0.5);
+    expect(lockUi.pos.duration).toBeGreaterThan(1); expect(lockUi.pos.duration).toBeLessThan(lockUi.whole / 2);
     // a silent second player goes on through a pause (an iPhone home-screen app sleeps without it) and stops with the run
     const both = () => page.evaluate(() => { const t = window.__lockTrial.t; return [t.el.paused, t.z.paused]; });
     await expect.poll(both).toEqual([false, false]);
