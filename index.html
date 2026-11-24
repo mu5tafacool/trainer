@@ -2133,6 +2133,48 @@ function speakMs(text) { return wordN(text) * 420 / (U.settings.rateEn || 1); }
 function echoMs(heard, text) { return (heard && heard > 500 ? heard : Math.max(1200, speakMs(text))) * 1.15 + 600; }
 function recallMs(text) { return Math.round(Math.max(3000, (1500 + speakMs(text)) * (THINK[U.settings.think] || 1)) / 100) * 100; }
 function fluentMs(lines) { return Math.round(lines.reduce(function (n, l) { return n + wordN(l.en); }, 0) / 170 * 60) * 1000; }
+/* ---- say-along rounds: hear the line, then say it back (Gölgele, Dinle A/B, Pekiştir). One settings table, one method ----
+   rounds     how many; hideFrom  the text is hidden from this round on (0 = never)
+   withLast   the last round is said together with the voice, with no gap after it (needs at least 2 rounds)
+   lead       ms before the voice; sameGap  the first round's gap serves all rounds; gapAdd  ms added to the gap
+   after      steps that follow the rounds and count in the "· 1/3" (Pekiştir: once from memory)
+   Dinle's rounds and withLast are the user's own settings: use sayPlan(), not the table. */
+var SAY_PLAN = {
+  golgele:  { rounds: 3, hideFrom: 2, withLast: true, lead: 60 },
+  pekistir: { rounds: 2, hideFrom: 2, withLast: true, lead: 60, after: 1 },
+  dinleA:   { hideFrom: 3, sameGap: true, gapAdd: -100 },
+  dinleB:   { hideFrom: 0, sameGap: true, gapAdd: -100 }
+};
+var SAY_WITH = { before: 700, after: 500 }; // ms around the voice when it is said together
+function sayPlan(k) {
+  var p = Object.assign({}, SAY_PLAN[k]);
+  if (k === 'dinleA') { p.rounds = repN('A'); p.withLast = !!U.settings.simul; } else if (k === 'dinleB') p.rounds = repN('B');
+  p.total = p.rounds + (p.after || 0);
+  return p;
+}
+function sayHidden(p, round) { return !!p.hideFrom && round >= p.hideFrom; }
+/* o: text, tok, alive() false stops it, play() → promise of the voice's length, show(round, phase) draws "listen" / "you" /
+   "with", mute() true leaves the voice out of that round. Resolves after the last round; the caller checks alive() again. */
+function sayRounds(p, o) {
+  var q = Promise.resolve(), gap = 0;
+  function then(f) { q = q.then(function (x) { if (o.alive()) return f(x); }); }
+  function round(r) {
+    if (p.withLast && p.rounds >= 2 && r === p.rounds) {
+      then(function () { o.show(r, 'with'); return wait(SAY_WITH.before, o.tok); });
+      then(function () { return o.play(); });
+      then(function () { return wait(SAY_WITH.after, o.tok); });
+      return;
+    }
+    then(function () {
+      if (o.mute && o.mute()) return;
+      o.show(r, 'listen');
+      return p.lead ? wait(p.lead, o.tok).then(function () { if (o.alive()) return o.play(); }) : o.play();
+    });
+    then(function (ms) { if (!gap || !p.sameGap) gap = echoMs(ms, o.text) + (p.gapAdd || 0); o.show(r, 'you'); return wait(gap, o.tok); });
+  }
+  for (var r = 1; r <= p.rounds; r++) round(r);
+  return q;
+}
 window.__timing = { speakMs: speakMs, echoMs: echoMs, recallMs: recallMs, fluentMs: fluentMs }; // read by the tests
 function play(text, lang) { stopAudio(); var tok = audioTok; return wait(60, tok).then(function () { return speak(text, lang, tok); }); }
 /* ---- keep the screen on while studying (Screen Wake Lock; Home Screen apps on iOS 18.4+) ----
@@ -2441,37 +2483,20 @@ function introEnter() {
 }
 function runShadow() {
   var s = S.sess, it = curIntro(); stopAudio(); var tok = audioTok; s.step = 2;
-  var k = 0;
-  function cycle() {
-    if (S.sess !== s || tok !== audioTok) return;
-    k++;
-    if (k > 3) { return imagery(); }
-    s.shadow = k;
-    if (k === 3) {
-      // last round together with the voice, no gap after it (same as Dinle A's "Son tur eşzamanlı")
-      s.shPhase = 'with'; render();
-      wait(700, tok).then(function () { return speak(it.l.en, 'en', tok); }).then(function () { return wait(500, tok); }).then(function () {
-        if (S.sess !== s || tok !== audioTok) return; imagery();
-      });
-      return;
-    }
-    s.shPhase = 'listen'; render();
-    wait(60, tok).then(function () { return speak(it.l.en, 'en', tok); }).then(function (ms) {
-      if (S.sess !== s || tok !== audioTok) return;
-      s.shPhase = 'you'; render();
-      return wait(echoMs(ms, it.l.en), tok).then(cycle);
-    });
-  }
+  function alive() { return S.sess === s && tok === audioTok; }
   function imagery() {
     s.step = 3; s.img = 5; render();
     function tickImg() {
-      if (S.sess !== s || tok !== audioTok) return;
+      if (!alive()) return;
       if (s.img <= 0) { recallEnter(); return; }
-      wait(1000, tok).then(function () { if (S.sess !== s || tok !== audioTok) return; s.img--; render(); tickImg(); });
+      wait(1000, tok).then(function () { if (!alive()) return; s.img--; render(); tickImg(); });
     }
     tickImg();
   }
-  cycle();
+  sayRounds(sayPlan('golgele'), {
+    text: it.l.en, tok: tok, alive: alive, play: function () { return speak(it.l.en, 'en', tok); },
+    show: function (r, phase) { s.shadow = r; s.shPhase = phase; render(); }
+  }).then(function () { if (alive()) imagery(); });
 }
 /* Hatırla (step 4): only the Turkish is shown; say the English yourself within recallMs (same as Dinle B),
    then (or on Göster) the English opens and plays. Optional 🎤 check shows the percentage only: no grade, nothing saved. */
@@ -2544,11 +2569,11 @@ function renderIntro() {
   var active = Math.min(s.step, 5);
   var h2 = sessHead('Yeni · ' + introPos() + '/' + s.total, 'Ara ver');
   h2 += '<div class="steps">' + stepNames.map(function (n, k) { return '<span class="' + (k < active ? 'did' : k === active ? 'on' : '') + '">' + n + '</span>'; }).join('') + '</div>' + durakBar(it2.a, it2.l);
-  var masked = s.step === 2 && s.shadow >= 2, recall = s.step === 4, hideEn = recall && !s.rec.shown;
+  var plan = sayPlan('golgele'), masked = s.step === 2 && sayHidden(plan, s.shadow), recall = s.step === 4, hideEn = recall && !s.rec.shown;
   h2 += '<article class="icard"><div class="ctx"><span>' + esc(qLabel(it2.a)) + '</span>' + (recall ? '<span>TR → EN · sesli söyle</span>' : '') + '</div>' +
     (hideEn ? '' : '<p class="en' + (masked ? ' masked' : '') + '">' + (masked ? esc(it2.l.en) : hlEn(it2.l)) + '</p>');
   if (s.step >= 1) h2 += '<p class="tr' + (recall ? ' big' : '') + '">' + esc(it2.l.tr) + '</p>';
-  if (s.step === 2) h2 += sayLine(s.shPhase || 'listen', { step: s.shadow, total: 3, text: !masked });
+  if (s.step === 2) h2 += sayLine(s.shPhase || 'listen', { step: s.shadow, total: plan.total, text: !masked });
   if (hideEn) h2 += '<p class="hint">Önce imgeni düşün; cümle oradan gelir.</p>';
   if (hideEn) h2 += sayLine('recall', { tail: s.dictOpen ? 'sonra Kontrol et' : '' });
   if (s.step === 3) h2 += '<p class="hint">Bu cümleyi kendi hayatından bir sahneye bağla.</p><p class="count">' + s.img + '</p>';
@@ -2579,14 +2604,14 @@ function pkStart() {
   s.pk = { step: 1, phase: 'listen', miss: (s.dict && s.dict.mkMiss) || [], end: 0, dict: null, dictOpen: false, dictText: '' };
   hardBad(l.id, s.type === 'intro' && s.phase !== 'quiz' ? 'pkr' : 'pk');
   render(); top();
-  wait(60, tok).then(function () { return speakVoice(l.en, tok); })
-    .then(function (ms) { if (!pkAlive(s, tok)) return; s.pk.phase = 'you'; render(); return wait(echoMs(ms, l.en), tok); })
-    .then(function () { if (!pkAlive(s, tok)) return; s.pk.step = 2; s.pk.phase = 'with'; render(); return wait(700, tok); })
-    .then(function () { if (pkAlive(s, tok)) return speakVoice(l.en, tok); })
-    .then(function () { if (pkAlive(s, tok)) return wait(500, tok); })
+  var plan = sayPlan('pekistir');
+  sayRounds(plan, {
+    text: l.en, tok: tok, alive: function () { return pkAlive(s, tok); }, play: function () { return speakVoice(l.en, tok); },
+    show: function (r, phase) { if (s.pk.step === r && s.pk.phase === phase) return; s.pk.step = r; s.pk.phase = phase; render(); }
+  })
     .then(function () {
       if (!pkAlive(s, tok)) return;
-      var ms = recallMs(l.en); s.pk.step = 3; s.pk.phase = 'recall'; s.pk.end = Date.now() + ms; render();
+      var ms = recallMs(l.en); s.pk.step = plan.total; s.pk.phase = 'recall'; s.pk.end = Date.now() + ms; render();
       return wait(ms, tok).then(function () { if (pkAlive(s, tok) && s.pk.phase === 'recall') pkShow(); });
     });
 }
@@ -2599,7 +2624,7 @@ function pkEn(l, miss) {
   var re = new RegExp('\\b(' + miss.map(function (w) { return w.replace(/[^a-z0-9]/gi, ''); }).filter(Boolean).join('|') + ')\\b', 'gi');
   return h.split(/(<[^>]+>)/).map(function (part) { return part.charAt(0) === '<' ? part : part.replace(re, '<mark class="pkmiss">$1</mark>'); }).join('');
 }
-/* One status line for every say-it step (Gölgele, Hatırla, Pekiştir), so they all word it the same: a short verb, the
+/* One status line for every say-it step (Gölgele, Hatırla, Pekiştir, Dinle), so they all word it the same: a short verb, the
    step once (o.step/o.total, left out where the screen has none) and an optional tail (o.tail). While the voice plays the
    verb is "Dinle ve oku" if the text is on screen (o.text), else "Dinle"; it is grey, since nothing is asked of you yet.
    The verbs stay short so the line fits one row on a phone in any language. The seconds left go to the card foot
@@ -2614,13 +2639,13 @@ function sayLine(phase, o) {
 function cardFoot(l, right) { return '<div class="cardfoot"><span class="tier ' + esc(l.tier) + '">' + tierTxt(l) + '</span>' + (right || '') + '</div>'; }
 function cardTimer(id, text) { return '<span id="' + id + '" class="timer">' + text + '</span>'; }
 function pkView(head, it) {
-  var p = S.sess.pk, l = it.l, shown = p.phase === 'shown';
+  var p = S.sess.pk, l = it.l, shown = p.phase === 'shown', plan = sayPlan('pekistir'), alone = p.step > plan.rounds; // alone: the step from memory
   var h = head + '<article class="icard"><div class="ctx"><b>↻ Pekiştir</b><span>' + esc(qLabel(it.a)) + '</span></div>';
-  if (p.step === 1 || shown) h += '<p class="en">' + pkEn(l, p.miss) + '</p>';
-  else if (p.step === 2) h += '<p class="en masked">' + esc(l.en) + '</p>';
-  h += '<p class="tr' + (p.step === 3 && !shown ? ' big' : '') + '">' + esc(l.tr) + '</p>';
+  if (shown || (!alone && !sayHidden(plan, p.step))) h += '<p class="en">' + pkEn(l, p.miss) + '</p>';
+  else if (!alone) h += '<p class="en masked">' + esc(l.en) + '</p>';
+  h += '<p class="tr' + (alone && !shown ? ' big' : '') + '">' + esc(l.tr) + '</p>';
   /* the step counter sits in the status line (sayLine); the seconds left sit in the card foot */
-  if (!shown) h += sayLine(p.phase, { step: p.step, total: 3, text: p.step === 1, tail: p.phase === 'recall' && p.dictOpen ? 'sonra Kontrol et' : '' });
+  if (!shown) h += sayLine(p.phase, { step: p.step, total: plan.total, text: !sayHidden(plan, p.step), tail: p.phase === 'recall' && p.dictOpen ? 'sonra Kontrol et' : '' });
   h += cardFoot(l, p.phase === 'recall' && !p.dictOpen ? cardTimer('pkleft', pkLeft()) : '') + '</article>';
   if (p.phase === 'recall') h += (dictOn() ? dictBox(p, 'pkCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="pkShow">Göster</button></div>';
   else if (shown) {
@@ -3002,7 +3027,7 @@ function trFirstFor(it) {
   return !(s && s.p) || lapsed(s.p) || lapsed(s.l);
 }
 function modeTxt(m) {
-  if (m === 'A') return ({ auto: 'Öğrenilmemiş ve unutulmuş satırlarda önce TR 1× · ', always: 'Önce TR 1× · ', off: '' }[U.settings.trFirst || 'auto'] || '') + 'EN ×' + repN('A') + '; her birinden sonra aynen tekrar et. İlk 2 turda metin görünür, sonra gizlenir.' + (U.settings.simul ? ' Son turda sesle birlikte söyle.' : '');
+  if (m === 'A') return ({ auto: 'Öğrenilmemiş ve unutulmuş satırlarda önce TR 1× · ', always: 'Önce TR 1× · ', off: '' }[U.settings.trFirst || 'auto'] || '') + 'EN ×' + repN('A') + '; her birinden sonra aynen tekrar et. İlk ' + (SAY_PLAN.dinleA.hideFrom - 1) + ' turda metin görünür, sonra gizlenir.' + (U.settings.simul ? ' Son turda sesle birlikte söyle.' : '');
   if (m === 'B') return 'TR · düşünme süresi (cümle uzunluğuna ve hıza göre, en az 3 sn): İngilizcesini sen söyle · sonra EN ×' + repN('B') + ', her birinden sonra tekrar et. İngilizceyi duyunca kartın köşesinden işaretle: ✓ bildim, ✗ bilemedim.';
   return 'Cevabın tamamı sırayla. Akışı kulağa yerleştir.';
 }
@@ -3060,9 +3085,9 @@ function playerInner() {
   var T = S.track, c = S.trackCfg;
   if (!T) return '<p class="modetxt">' + modeTxt(c.mode) + '</p><p class="hint">Başlat\'a bas. Ses ' + (enV ? esc(enV.name) : 'cihaz varsayılanı') + ', hız ' + U.settings.rateEn.toFixed(2) + '.</p>';
   var it = T.items[T.i]; if (!it) return '';
-  var showTr = c.mode === 'B' || (c.mode === 'A' && T.trOn && T.rep <= 2), showEn = c.mode !== 'B' || T.phase === 'en' || T.phase === 'you';
+  var hidden = c.mode === 'A' && sayHidden(sayPlan('dinleA'), T.rep), showTr = c.mode === 'B' || (c.mode === 'A' && T.trOn && !hidden), showEn = c.mode !== 'B' || T.phase === 'en' || T.phase === 'you';
   // the same status line as Gölgele, Hatırla and Pekiştir (sayLine); C has nothing to say along
-  var o = c.mode !== 'C' && T.rep ? { step: T.rep, total: T.n } : {}; o.text = c.text && (c.mode === 'A' ? T.rep >= 1 && T.rep <= 2 : T.phase === 'en') && c.mode !== 'C';
+  var o = c.mode !== 'C' && T.rep ? { step: T.rep, total: T.n } : {}; o.text = c.text && (c.mode === 'A' ? T.rep >= 1 && !hidden : T.phase === 'en') && c.mode !== 'C';
   var say = T.paused ? '<p class="hint">Duraklatıldı</p>' : T.phase === 'q' ? '<p class="hint">Soru</p>' : T.phase === 'tr' && c.mode === 'A' ? '<p class="hint">Anlam</p>' :
     sayLine({ gap: 'recall', you: 'you', 'with': 'with' }[T.phase] || 'listen', o);
   var h = '<div class="ctx"><span class="mono">' + (T.i + 1) + '/' + T.items.length + '</span><span>' + esc(qLabel(it.a)) + '</span></div>';
@@ -3070,7 +3095,7 @@ function playerInner() {
   if (T.phase === 'q') return h + '<p class="bigq">' + esc(it.a.q) + '</p>';
   if (c.text) {
     if (showTr) h += '<p class="tr ' + (c.mode === 'B' ? 'big' : 'anchor') + '">' + esc(it.l.tr) + '</p>';
-    if (showEn) { var blur = c.mode === 'A' && T.rep > 2; h += '<p class="en' + (blur ? ' masked' : '') + '">' + (blur ? esc(it.l.en) : hlEn(it.l)) + '</p>'; }
+    if (showEn) h += '<p class="en' + (hidden ? ' masked' : '') + '">' + (hidden ? esc(it.l.en) : hlEn(it.l)) + '</p>';
   }
   return h + say + (c.mode === 'C' ? '' : cardFoot(it.l, T.phase === 'gap' && !T.paused ? cardTimer('gapleft', gapLeft(T)) : ''));
 }
@@ -3166,37 +3191,27 @@ function trackRun() {
     if (askQ && (T.i === 0 || T.items[T.i - 1].a !== it.a)) {
       p = p.then(function () { T.phase = 'q'; updPlayer(); return speak(it.a.q, 'en', tok); }).then(function () { return wait(900, tok); });
     }
-    /* one EN replay followed by a gap to say it back; repeated n times */
-    function echoLoop(n) {
-      var q = Promise.resolve(), gap = 0;
-      T.n = n;
-      for (var r = 1; r <= n; r++) {
-        (function (r) {
-          var withIt = cfg.mode === 'A' && U.settings.simul && n >= 2 && r === n;
-          if (withIt) {
-            q = q.then(function () { if (!alive()) return; T.rep = r; T.phase = 'with'; T.revealed = true; updPlayer(); return wait(700, tok); })
-              .then(function () { if (!alive()) return; return speak(it.l.en, 'en', tok); })
-              .then(function () { if (!alive()) return; return wait(500, tok); });
-            return;
-          }
-          q = q.then(function () { if (!alive()) return; if (it.mark && it.mark.v === 'ok') return; T.rep = r; T.phase = 'en'; T.revealed = true; updPlayer(); return speak(it.l.en, 'en', tok); })
-            .then(function (ms) { if (!alive()) return; if (!gap) gap = echoMs(ms, it.l.en) - 100; T.phase = 'you'; updPlayer(); return wait(gap, tok); });
-        })(r);
-      }
-      return q;
+    /* one EN replay followed by a gap to say it back, as many times as the mode's plan says */
+    function echoLoop(plan) {
+      T.n = plan.rounds;
+      return sayRounds(plan, {
+        text: it.l.en, tok: tok, alive: alive, play: function () { return speak(it.l.en, 'en', tok); },
+        mute: function () { return !!(it.mark && it.mark.v === 'ok'); },
+        show: function (r, phase) { if (phase !== 'you') { T.rep = r; T.revealed = true; } T.phase = phase === 'listen' ? 'en' : phase; updPlayer(); }
+      });
     }
     T.rep = 0; T.n = 0;
     if (cfg.mode === 'B') {
       p = p.then(function () { if (!alive()) return; T.phase = 'tr'; updPlayer(); return speak(it.l.tr, 'tr', tok); })
         .then(function () { if (!alive()) return; T.phase = 'gap'; T.gapMs = recallMs(it.l.en); T.gapEnd = Date.now() + T.gapMs; updPlayer(); return wait(T.gapMs, tok); })
-        .then(function () { if (!alive()) return; return echoLoop(repN('B')); })
+        .then(function () { if (!alive()) return; return echoLoop(sayPlan('dinleB')); })
         .then(function () { return wait(600, tok); });
     } else if (cfg.mode === 'A') {
       if (trFirstFor(it)) {
         p = p.then(function () { if (!alive()) return; T.trOn = true; T.phase = 'tr'; updPlayer(); return speak(it.l.tr, 'tr', tok); })
           .then(function () { if (!alive()) return; return wait(500, tok); });
       }
-      p = p.then(function () { return echoLoop(repN('A')); });
+      p = p.then(function () { return echoLoop(sayPlan('dinleA')); });
     } else {
       p = p.then(function () { if (!alive()) return; T.phase = 'en'; updPlayer(); return speak(it.l.en, 'en', tok); }).then(function () { return wait(650, tok); });
     }
@@ -3623,11 +3638,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v71'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v72'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-24 09:49'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-24 09:57'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3837,6 +3852,18 @@ function helpPanel() {
       '<b>Bugün geç →</b> (Göster\'den önce, ya da G): kart bugünkü listeden çıkar, puanı ve takvimi değişmez, yarın yine gelir. Aynı kartı 3 gün üst üste geçersen kartın üstünde not çıkar; puan verince sayım sıfırlanır.',
       'Dinle B\'deki ✓/✗ ve Hız testindeki yanlışlar da aynı takvime işlenir.',
       '<b>↻ Pekiştir</b> (Hatırla\'da her zaman; Kontrol ve Tekrar\'da 🎤 sonucu Zor ya da Tekrar ise): ~20 sn. 1/3 metinle dinle ve aynen tekrar et (eksik kalıp kelimeleri turuncu), 2/3 metinsiz sesle birlikte söyle, 3/3 bir kez kendin söyle (🎤 sadece yüzde). Puan ilk denemene göre kalır. Siri modunda da hazır sesi çalar.'
+    ])) +
+    d('Söyle ve kontrol et nasıl karşılaştırır', ul([
+      'Sonuç bir <b>öneridir</b>; puanı sen seçersin. Aşağıdaki cümleler yalnız örnektir.',
+      '<b>Önce aynı biçim</b>: yazım farkı hata sayılmaz. Hedef “closes at 5”, dikte “closes at five” yazarsa aynıdır.',
+      '<b>Ezber</b> satırı kelime kelime karşılaştırılır: %94 ve üstü İyi, %70 ve üstü Zor. Mavi kalıptan bir kelime eksikse en fazla Zor. <b>Anlam</b> satırında sıra ve ekler (pan / pans) sorun değil; ana fikir ve terimler yeter.',
+      '<b>Sayı, olumsuzluk ve zıt anlam</b> her satırda önemlidir: hedef “opens at 7”, sen “opens at eight” dersen öneri Tekrar olur.',
+      '<b>Farklı</b>: aynı kelimenin başka halini söylersen tek satırda görünür. Hedef “wash the <b>pan</b>”, sen “wash the <b>pans</b>” → <b>Farklı: pan → pans</b>. Yalnız gösterim böyledir; puan yine yukarıdaki kurala göre çıkar. Başka kelimeler <b>Eksik</b> ve <b>Fazla</b> olarak kalır.',
+      '<b>Duyulduğu gibi yazılan isim</b>: dikte bilmediği bir adı sese göre yazabilir. Hedef “The parts came from <b>Paris</b>”, dikte “the parts came from <b>pairs</b>” → Paris sayılır.',
+      '<b>Doğru söylenen kelime isme çevrilmez</b> (1): satırın kendi kelimesinin başka hali olduğu gibi kalır. Hedef “The <b>parts</b> came from Paris”, sen “the <b>part</b> came from Paris” → part, Paris yapılmaz; Ezber\'de Farklı: parts → part.',
+      '<b>Doğru söylenen kelime isme çevrilmez</b> (2): ad, satırda kaç kez geçiyorsa en fazla o kadar tamamlanır, sesi en yakın olan önce. Hedef “The boxes came from Paris”, sen “the parts came from Paris” → Paris zaten söylendi, parts olduğu gibi kalır.',
+      '<b>Satırda geçen ifade başka terime çevrilmez</b> (3): “American” normalde US sayılır; ama hedef “An American friend lives in the US” ise ikisi de olduğu gibi kalır.',
+      '<b>Sınırı</b>: adı hiç söylemezsen ve benzer sesli, satırda olmayan bir kelime dersen yine ada çevrilebilir. Hedef “The boxes came from Paris”, sen “the parts came late” → parts, Paris sanılır.'
     ])) +
     d('Zorlandıklarım', ul([
       'Zorlandığın satırlar burada toplanır. Sen bir şey işaretlemezsin; uygulama kendisi ekler ve çıkarır.',
