@@ -7,6 +7,11 @@ const LEX = { SaaS: ['sass', 'sauce'], TypeScript: ['type script'], PR: ['p r', 
 const norm = (ref, said) => v3.normalizeSaid(said, v3.prepareRef(ref, LEX)).join(' ');
 const issues = (ref, said) => v3.hardChecks(v3.prepareRef(ref, LEX), v3.normalizeSaid(said, v3.prepareRef(ref, LEX))).filter((x) => x.hard).map((x) => x.kind);
 
+test('two forms of one word are alike; other words, numbers, small words and negations are not', () => {
+  for (const [a, b] of [['oven', 'ovens'], ['baked', 'bake'], ['careful', 'carefully'], ['recipe', 'recipes']]) expect(v3.alike(a, b)).toBe(true);
+  for (const [a, b] of [['oven', 'park'], ['job', 'jab'], ['kitchen', 'recipe'], ['10', '12'], ['a', 'an'], ['not', 'never'], ['oven', 'oven']]) expect(v3.alike(a, b)).toBe(false);
+});
+
 test.describe('normalization', () => {
   const cases = [
     ['numbers: words to digits', 'x', 'three and a half years, fifteen hundred tests, twenty five days', '3.5 years 1500 tests 25 days'],
@@ -89,6 +94,19 @@ test.describe('proper names (found from the texts, none in code)', () => {
     expect(n2).toEqual({ quorvex: 1, labs: 1 });
     const R2 = v3.prepareRef('In March 2024, I joined Quorvex Labs on a Monday.', {}, n2);
     expect(v3.normalizeSaid('in march 2024 i joined qourvex labs', R2).join(' ')).toBe('in march 2024 i joined quorvex labs');
+  });
+  test('a word said right is not turned into a name that sounds like it', () => {
+    const n4 = v3.findNames(['The bakery uses Dest for orders.']);
+    const R4 = v3.prepareRef('The three tests run in Dest.', {}, n4);
+    const f4 = (said) => v3.normalizeSaid(said, R4).join(' ');
+    expect(f4('the 3 test run in dest')).toBe('the 3 test run in dest'); // a form of the line's own word
+    expect(f4('the 3 test run in dast')).toBe('the 3 test run in dest'); // the misheard name is still repaired
+    expect(f4('the 3 tasks run in dest')).toBe('the 3 tasks run in dest'); // the name is already there once
+    expect(f4('the 3 tast run in dast')).toBe('the 3 tast run in dest'); // one name to fill in: the closest sound gets it
+  });
+  test('a phrase the line says itself is not read as a variant of another term in it', () => {
+    expect(norm('The PR bot greets a pull request.', 'the PR bot greets a pull request')).toBe('the pr bot greets a pull request');
+    expect(norm('The PR bot is fast.', 'the pull request bot is fast')).toBe('the pr bot is fast');
   });
   test('the closest name wins, not the first one close enough', () => {
     const R3 = v3.prepareRef('We joined Delmark after Delmar.', {}, { delmar: 1, delmark: 1 });

@@ -51,3 +51,24 @@ test.describe('current dictation scoring', () => {
     }
   });
 });
+
+test('🎤 result: a word said in another form is one "Farklı" row, not missing + extra; the score stays', async ({ page }) => {
+  await page.goto(PAGE);
+  await page.waitForFunction(() => window.__dict && typeof window.__dict.res === 'function');
+  const run = (l, said) => page.evaluate(([l, said]) => {
+    const d = window.__dict.check(l, said), e = document.createElement('div'); e.innerHTML = window.__dict.res(d, said);
+    return { score: d.score, miss: d.miss, extra: d.extra, rows: [...e.querySelectorAll('.miss, .extra')].map((x) => x.textContent) };
+  }, [l, said]);
+  const en = 'The cooks follow the recipe before the doors open.', l = { en, tier: 'ezber', mk: ['follow the recipe'] };
+  let r = await run(l, 'the cooks follow the recipes before the doors open');
+  expect(r.rows).toEqual(['Farklı: recipe → recipes (kalıpta)']);
+  r = await run({ en: 'The cooks wash the pan twice.', tier: 'ezber', mk: ['wash the pan'] }, 'the cooks wash the pans twice');
+  expect(r.rows).toEqual(['Farklı: pan → pans (kalıpta)']);
+  expect(r.miss).toEqual(['pan']); expect(r.extra).toEqual(['pans']); // grading data unchanged
+  r = await run(l, 'cooks follow the recipes before the windows open');
+  expect(r.rows).toEqual(['Farklı: recipe → recipes (kalıpta)', 'Eksik: the, doors', 'Fazla: windows']);
+  r = await run(l, 'the cooks follow the before the doors open');
+  expect(r.rows).toEqual(['Eksik: recipe', 'Kalıpta eksik: recipe']);
+  r = await run({ en: 'The careful cook waited outside.', tier: 'anlam', mk: [] }, 'the carefully cook waited outside');
+  expect(r.rows.filter((x) => /^(Farklı|Eksik)/.test(x))).toEqual(['Farklı: careful → carefully']);
+});

@@ -1197,23 +1197,32 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
   // Dictation spells names it doesn't know by sound ("Solar tricks" for a name like "Zoltrix"). A said word (or two said
   // words written together) that sounds like a name of this line becomes that name; a number right after a name's
   // letter head becomes the name's number (product codes are not quizzed as numbers).
+  // Two guards keep a word that was said right (a name that sounds like "test" must not swallow "test"): a form of one of
+  // the line's own ordinary words is left alone, and a name is filled in only as often as the line has it, the closest
+  // sound first.
   function fixNames(t, R) {
     var names = Object.keys(R.names || {}); if (!names.length && !Object.keys(R.nameHeads || {}).length) return t;
+    var plain = R.tokens.filter(function (w) { return !R.names[w] && !FUNC[w] && !isNum(w); });
+    var own = function (w) { return plain.some(function (p) { return stemEq(p, w); }); };
+    var left = {}; names.forEach(function (n) { left[n] = countOf(R.tokens, n) - countOf(t, n); });
+    var cand = [], pick = {}, used = {};
+    t.forEach(function (w, i) {
+      if (R.vocab[w] || FUNC[w] || isNum(w) || own(w)) return;
+      names.forEach(function (n) {
+        if (left[n] <= 0) return;
+        var nx = t[i + 1], two = nx !== undefined && !R.vocab[nx] && !isNum(nx) && !own(nx) && soundsLike(w + nx, n) && !soundsLike(w, n);
+        if (two || soundsLike(w, n)) cand.push({ i: i, n: n, two: two, d: levN(sound(two ? w + nx : w), sound(n)) });
+      });
+    });
+    cand.sort(function (x, y) { return x.d - y.d || x.i - y.i; });
+    cand.forEach(function (c) {
+      if (left[c.n] <= 0 || used[c.i] || (c.two && used[c.i + 1])) return;
+      left[c.n]--; pick[c.i] = c; used[c.i] = 1; if (c.two) used[c.i + 1] = 1;
+    });
     var out = [];
     for (var i = 0; i < t.length; i++) {
-      var w = t[i], done = false;
-      if (!R.vocab[w] && !FUNC[w] && !isNum(w)) {
-        // the closest name wins (same sound key before one-letter-off; a name of this line before other lines' names)
-        var best = null;
-        names.forEach(function (n) {
-          var two = i + 1 < t.length && !R.vocab[t[i + 1]] && !isNum(t[i + 1]) && soundsLike(w + t[i + 1], n) && !soundsLike(w, n);
-          if (!two && !soundsLike(w, n)) return;
-          var d = levN(sound(two ? w + t[i + 1] : w), sound(n)) * 2 + (R.vocab[n] ? 0 : 1);
-          if (!best || d < best.d) best = { n: n, two: two, d: d };
-        });
-        if (best) { out.push(best.n); if (best.two) i++; done = true; }
-      }
-      if (done) continue;
+      var w = t[i];
+      if (pick[i]) { out.push(pick[i].n); if (pick[i].two) i++; continue; }
       if (isNum(w) && out.length && R.nameHeads && R.nameHeads[out[out.length - 1]] && !R.nameNums[w]) {
         var head = out[out.length - 1], k2 = R.tokens.indexOf(head);
         if (k2 >= 0 && isNum(R.tokens[k2 + 1] || '')) { out.push(R.tokens[k2 + 1]); continue; }
@@ -1222,6 +1231,7 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     }
     return out;
   }
+  function countOf(arr, w) { var c = 0; arr.forEach(function (x) { if (x === w) c++; }); return c; }
 
   function phraseAt(toks, i, phrase) { for (var k = 0; k < phrase.length; k++) if (toks[i + k] !== phrase[k]) return false; return true; }
   function hasPhrase(toks, phrase) { for (var i = 0; i + phrase.length <= toks.length; i++) if (phraseAt(toks, i, phrase)) return true; return false; }
@@ -1305,10 +1315,10 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
       out.push(t[i]);
     }
     t = out; out = [];
-    // dictation variants → canonical term (only terms that are in the reference)
+    // dictation variants → canonical term (only terms that are in the reference, and never a phrase the line says itself)
     for (i = 0; i < t.length; i++) {
       var rep = null;
-      for (k = 0; k < R.lex.length; k++) if (phraseAt(t, i, R.lex[k].from)) { rep = R.lex[k]; break; }
+      for (k = 0; k < R.lex.length; k++) if (phraseAt(t, i, R.lex[k].from) && !hasPhrase(R.tokens, R.lex[k].from)) { rep = R.lex[k]; break; }
       if (rep) { out.push.apply(out, rep.to); i += rep.from.length - 1; continue; }
       out.push(t[i]);
     }
@@ -1359,6 +1369,13 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     if (a === b || tokEq(a, b)) return true;
     if (FUNC[a] || FUNC[b] || NEG[a] || NEG[b]) return false; // "not", "no", "the"… match only exactly
     var x = stems(a), y = stems(b); return x.some(function (v) { return y.indexOf(v) >= 0; }); }
+  // The same word said in another form ("recipe" → "recipes", "careful" → "carefully"): for showing the two together, not for grading.
+  function alike(a, b) {
+    if (a === b || isNum(a) || isNum(b) || FUNC[a] || FUNC[b] || NEG[a] || NEG[b]) return false;
+    if (stemEq(a, b)) return true;
+    var d = Math.min(a.length, b.length) >= 4 && a.slice(0, 2) === b.slice(0, 2) ? levN(a, b) : 9;
+    return d <= 2 && d * 3 <= Math.max(a.length, b.length);
+  }
   function isNum(w) { return /^\d+(\.\d+)?$/.test(w); }
   function tokEq(a, b) { return a === b || (!isNum(a) && !isNum(b) && a.length >= 5 && b.length >= 5 && lev1(a, b)); }
   function weight(w, R) { if (isNum(w) || NEG[w]) return 2; if (FUNC[w]) return 0.5; return 1; }
@@ -1544,7 +1561,7 @@ function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t
     return (out + s.slice(last)).replace(/(\d)-(?=[a-z])/gi, '$1 ').replace(/\s+/g, ' ').trim();
   }
 
-  var api = { forModel: forModel, baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, findNames: findNames, sound: sound, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
+  var api = { forModel: forModel, baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, alike: alike, findNames: findNames, sound: sound, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.verify3 = api;
 })(typeof window !== 'undefined' ? window : this);
 /* verify3:end */
@@ -1577,7 +1594,10 @@ function dictCheck3(l, said, sig) {
     // a word said, but in another place, shows once as "moved" instead of in both lists
     miss = miss.filter(function (w) { var k = extra.indexOf(w); if (k < 0) return true; extra.splice(k, 1); moved.push(w); return false; });
   } else { miss = r.bag.miss; extra = r.bag.extra; }
-  return { v: 3, tier: line.tier, grade: r.grade, score: Math.round(100 * r.acc), cov: Math.round(100 * r.cov), mkMiss: r.mkMiss, miss: miss, extra: extra, moved: moved, issues: r.issues, nli: !!sig, con: r.con, entF: r.entF, entB: r.entB, text: said };
+  // a pattern word said in a form so close that the score takes it (a letter more or less): shown as that form, not as missing
+  var said1 = verify3.baseTokens(said).filter(function (w) { return !line._prep.vocab[w]; }), mkAs = [];
+  r.mkMiss.forEach(function (m) { if (miss.indexOf(m) < 0) for (var k = 0; k < said1.length; k++) if (verify3.alike(m, said1[k])) { mkAs.push([m, said1[k]]); break; } });
+  return { v: 3, tier: line.tier, grade: r.grade, score: Math.round(100 * r.acc), cov: Math.round(100 * r.cov), mkMiss: r.mkMiss, mkAs: mkAs, miss: miss, extra: extra, moved: moved, issues: r.issues, nli: !!sig, con: r.con, entF: r.entF, entB: r.entB, text: said };
 }
 function dictNli(s, l, txt) {
   var M = window.__nli; if (!M || !String(txt).trim() || M.info().state === 'off') return;
@@ -1592,6 +1612,23 @@ var DICT_ISSUE = {
   antonym: function (x) { return 'Ters anlam: <b>' + esc(x.ref) + '</b> olmalı, sen <b>' + esc(x.said) + '</b> dedin'; },
   order: function (x) { return 'Sıra ters: <b>' + esc(x.ref) + '</b> olmalı, sen <b>' + esc(x.said) + '</b> dedin'; }
 };
+/* A missing word and an extra word that are forms of one word show once, as "Farklı: recipe → recipes", on every result box;
+   what is left stays missing / extra. Display only: the grade and the percentages do not change. */
+function dictPairs(miss, extra) {
+  var x = extra.slice(), pairs = [], take = function (same) {
+    miss = miss.filter(function (m) {
+      for (var k = 0; k < x.length; k++) if (same(m, x[k])) { pairs.push([m, x.splice(k, 1)[0]]); return false; }
+      return true;
+    });
+  };
+  take(verify3.stemEq); take(verify3.alike);
+  return { pairs: pairs, miss: miss, extra: x };
+}
+function dictPairRow(pairs, mkMiss) {
+  return !pairs.length ? '' : '<div class="miss">Farklı: ' + pairs.slice(0, 8).map(function (p) {
+    return '<b>' + esc(p[0] + ' → ' + p[1]) + '</b>' + ((mkMiss || []).indexOf(p[0]) >= 0 ? ' <span class="said">(kalıpta)</span>' : '');
+  }).join(', ') + (pairs.length > 8 ? ' …' : '') + '</div>';
+}
 function dictRes3(d, said) {
   var cls = ['low', 'mid', 'ok'][d.grade], h = '<div class="dres"><div>';
   if (d.tier === 'ezber') h += '<b class="sc ' + cls + '">%' + d.score + '</b> · kelime isabeti';
@@ -1602,17 +1639,20 @@ function dictRes3(d, said) {
   else if (d.nli && d.tier !== 'ezber' && d.cov < 100 * verify3.THRESHOLDS.anlamCovGood) h += '<div class="extra">Hedefteki terimlerin yarısından azı var.</div>';
   else if (d.nli && d.tier !== 'ezber' && d.entB < verify3.THRESHOLDS.anlamEnt) h += '<div class="extra">Hedefteki bilginin bir kısmı eksik görünüyor.</div>';
   else if (d.nli && d.tier !== 'ezber' && d.entF < verify3.THRESHOLDS.anlamEnt) h += '<div class="extra">Hedefte olmayan ya da farklı bir bilgi var.</div>';
-  if (d.miss.length) h += '<div class="miss">' + (d.tier === 'ezber' ? 'Eksik ya da farklı' : 'Eksik terimler') + ': <b>' + esc(d.miss.slice(0, 8).join(', ')) + (d.miss.length > 8 ? ' …' : '') + '</b></div>';
-  if (d.mkMiss && d.mkMiss.length) h += '<div class="miss">Kalıpta eksik: <b>' + esc(d.mkMiss.join(', ')) + '</b>' + (d.tier === 'ezber' ? '' : ' <span class="said">(puanı değiştirmez)</span>') + '</div>';
+  var P = dictPairs(d.miss, d.extra); P.pairs = P.pairs.concat(d.mkAs || []);
+  var mkM = (d.mkMiss || []).filter(function (w) { return !P.pairs.some(function (p) { return p[0] === w; }); });
+  h += dictPairRow(P.pairs, d.mkMiss);
+  if (P.miss.length) h += '<div class="miss">' + (d.tier === 'ezber' ? 'Eksik' : 'Eksik terimler') + ': <b>' + esc(P.miss.slice(0, 8).join(', ')) + (P.miss.length > 8 ? ' …' : '') + '</b></div>';
+  if (mkM.length) h += '<div class="miss">Kalıpta eksik: <b>' + esc(mkM.join(', ')) + '</b>' + (d.tier === 'ezber' ? '' : ' <span class="said">(puanı değiştirmez)</span>') + '</div>';
   if (d.moved && d.moved.length) h += '<div class="extra">Yeri farklı: <b>' + esc(d.moved.slice(0, 8).join(', ')) + '</b></div>';
-  if (d.extra.length) h += '<div class="extra">' + (d.tier === 'ezber' ? 'Fazla' : 'Farklı ya da fazla') + ': <b>' + esc(d.extra.slice(0, 8).join(', ')) + (d.extra.length > 8 ? ' …' : '') + '</b></div>';
+  if (P.extra.length) h += '<div class="extra">' + (d.tier === 'ezber' ? 'Fazla' : 'Farklı ya da fazla') + ': <b>' + esc(P.extra.slice(0, 8).join(', ')) + (P.extra.length > 8 ? ' …' : '') + '</b></div>';
   var M = window.__nli, st = M ? M.info().state : 'off';
   if (d.pending) h += '<div class="said">Anlam kontrol ediliyor…</div>';
   else if (d.nliErr) h += '<div class="said">Anlam modeli çalışmadı; sadece kelime ve kural kontrolü yapıldı.</div>';
   else if (!d.nli && d.tier !== 'ezber' && st === 'off') h += '<div class="said">Anlam modeli kapalı; sadece kelime ve kural kontrolü yapıldı (Ayarlar → Anlam kontrolü).</div>';
   return h + '<div class="said">Sen: ' + esc(said) + '</div></div>';
 }
-window.__dict = { score: dictScore, cover: dictCover, check: dictCheck3,
+window.__dict = { score: dictScore, res: dictRes, cover: dictCover, check: dictCheck3,
   // tests/eval: use these texts for name detection instead of the unlocked answer set
   fix: function (l, said) { var R = dictPrep[l.en] || (dictPrep[l.en] = verify3.prepareRef(l.en, DICT_LEX, dictNameSet())); return verify3.normalizeSaid(said, R).join(' '); },
   setNames: function (texts) { dictNames = verify3.findNames(texts); dictNamesN = (S.answers || []).reduce(function (n, a) { return n + a.lines.length; }, 0); dictPrep = {}; } };
@@ -2584,8 +2624,9 @@ function pkView(head, it) {
   h += cardFoot(l, p.phase === 'recall' && !p.dictOpen ? cardTimer('pkleft', pkLeft()) : '') + '</article>';
   if (p.phase === 'recall') h += (dictOn() ? dictBox(p, 'pkCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="pkShow">Göster</button></div>';
   else if (shown) {
+    var P = p.dict && dictPairs(p.dict.miss, p.dict.extra);
     if (p.dict) h += '<div class="dres"><div><b class="sc ' + scoreCls(p.dict.pct) + '">%' + p.dict.pct + '</b> · ' + (l.tier === 'ezber' ? 'kelime' : 'terim') + ' isabeti</div>' +
-      (p.dict.miss.length ? '<div class="miss">Eksik: <b>' + esc(p.dict.miss.slice(0, 8).join(', ')) + '</b></div>' : '') + '<div class="said">Sen: ' + esc(p.dictText) + '</div></div>';
+      dictPairRow(P.pairs, p.dict.mkMiss) + (P.miss.length ? '<div class="miss">Eksik: <b>' + esc(P.miss.slice(0, 8).join(', ')) + '</b></div>' : '') + '<div class="said">Sen: ' + esc(p.dictText) + '</div></div>';
     h += '<div class="row"><button class="btn ghost" data-act="pkStart">↻ Bir tur daha</button><button class="btn primary" data-act="pkDone">Karta dön</button></div>';
   } else h += '<div class="row"><button class="btn ghost" data-act="pkDone">Bırak</button></div>';
   return h + '<p class="hint">Puan ilk denemene göre kalır.</p>';
@@ -3020,16 +3061,18 @@ function playerInner() {
   if (!T) return '<p class="modetxt">' + modeTxt(c.mode) + '</p><p class="hint">Başlat\'a bas. Ses ' + (enV ? esc(enV.name) : 'cihaz varsayılanı') + ', hız ' + U.settings.rateEn.toFixed(2) + '.</p>';
   var it = T.items[T.i]; if (!it) return '';
   var showTr = c.mode === 'B' || (c.mode === 'A' && T.trOn && T.rep <= 2), showEn = c.mode !== 'B' || T.phase === 'en' || T.phase === 'you';
-  var phaseTxt = T.paused ? '<span class="hint">Duraklatıldı</span>' : T.phase === 'gap' ? '<span class="say">Şimdi sen söyle</span> <span class="mono hint" id="gapleft">' + gapLeft(T) + '</span>' : T.phase === 'you' ? '<span class="say">Aynen tekrar et</span>' : T.phase === 'with' ? '<span class="say">Sesle birlikte söyle</span>' : (T.phase === 'tr' && c.mode === 'A') ? '<span class="hint">Anlam</span>' : T.phase === 'q' ? '<span class="hint">Soru</span>' : '<span class="hint">Dinle</span>';
-  var repTxt = (c.mode !== 'C' && T.rep) ? ' · tekrar ' + T.rep + '/' + T.n : '';
-  var h = '<div class="ctx"><span class="mono">' + (T.i + 1) + '/' + T.items.length + repTxt + '</span><span>' + esc(qLabel(it.a)) + '</span></div>';
+  // the same status line as Gölgele, Hatırla and Pekiştir (sayLine); C has nothing to say along
+  var o = c.mode !== 'C' && T.rep ? { step: T.rep, total: T.n } : {}; o.text = c.text && (c.mode === 'A' ? T.rep >= 1 && T.rep <= 2 : T.phase === 'en') && c.mode !== 'C';
+  var say = T.paused ? '<p class="hint">Duraklatıldı</p>' : T.phase === 'q' ? '<p class="hint">Soru</p>' : T.phase === 'tr' && c.mode === 'A' ? '<p class="hint">Anlam</p>' :
+    sayLine({ gap: 'recall', you: 'you', 'with': 'with' }[T.phase] || 'listen', o);
+  var h = '<div class="ctx"><span class="mono">' + (T.i + 1) + '/' + T.items.length + '</span><span>' + esc(qLabel(it.a)) + '</span></div>';
   if (c.mode === 'B') h = '<div class="markrow">' + markBox(T, it, 'no') + h + markBox(T, it, 'ok') + '</div>';
   if (T.phase === 'q') return h + '<p class="bigq">' + esc(it.a.q) + '</p>';
   if (c.text) {
     if (showTr) h += '<p class="tr ' + (c.mode === 'B' ? 'big' : 'anchor') + '">' + esc(it.l.tr) + '</p>';
     if (showEn) { var blur = c.mode === 'A' && T.rep > 2; h += '<p class="en' + (blur ? ' masked' : '') + '">' + (blur ? esc(it.l.en) : hlEn(it.l)) + '</p>'; }
   }
-  return h + '<p>' + phaseTxt + '</p>';
+  return h + say + (c.mode === 'C' ? '' : cardFoot(it.l, T.phase === 'gap' && !T.paused ? cardTimer('gapleft', gapLeft(T)) : ''));
 }
 function gapLeft(T) { return T.gapEnd ? Math.max(0, Math.ceil((T.gapEnd - Date.now()) / 1000)) + ' sn' : ''; }
 setInterval(function () { var e = document.getElementById('gapleft'), T = S.track; if (e && T && T.phase === 'gap' && !T.paused) e.textContent = gapLeft(T); }, 250);
@@ -3580,11 +3623,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v69'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v70'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-23 21:47'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-24 00:05'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3826,7 +3869,7 @@ function helpPanel() {
     d('Süreler', ul([
       'Bütün "sen söyle" süreleri tek bir hesaptan gelir, cümlenin uzunluğuna ve İngilizce konuşma hızına göre. Akış değişmez; sadece bekleme ve uyarı süreleri cümleye uyar.',
       '<b>Taban</b>: kelime başına 0,42 sn ÷ konuşma hızı. 12 kelime: 1,0× hızda 5 sn, 0,7× hızda 7,2 sn.',
-      '<b>Aynen tekrar et</b> (Gölgele, Dinle A): duyduğun sesin süresi × 1,15 + 0,6 sn.',
+      '<b>Tekrar et</b> (Gölgele, Dinle A): duyduğun sesin süresi × 1,15 + 0,6 sn.',
       '<b>Hafızadan söyle</b> (Hatırla, Dinle B, kart sayacı, Hız testi): (1,5 sn + taban) × Düşünme süresi (Kısa 0,75 · Normal 1 · Uzun 1,35), en az 3 sn. Örnek, Normal: 6 kelime ~4 sn, 12 kelime ~6,5 sn, 24 kelime ~11,6 sn (0,7× hızda ~15,9 sn).',
       '<b>Kart sayacı</b> Tekrar, Kontrol ve Hız testinde bu süreye kadar gri, sonra turuncu. Sadece gösterge; puanı sen verirsin.',
       '<b>Hız testi</b>: kartı bu süre içinde ve doğru söylersen "doğru ve süresinde" sayılır.',
@@ -3877,7 +3920,7 @@ var ACT = {
     if (!txt || !txt.trim()) { toast('Önce söyle ya da yaz.'); dictFocus(); return; }
     try { if (t) t.blur(); } catch (e) {}
     var d = dictCheck3(pkItem().l, txt);
-    p.dictText = txt; p.dict = { pct: d.tier === 'ezber' ? d.score : d.cov, miss: d.miss }; pkShow();
+    p.dictText = txt; p.dict = { pct: d.tier === 'ezber' ? d.score : d.cov, miss: d.miss, extra: d.extra, mkMiss: d.mkMiss }; pkShow();
   },
   // 🎤 on Hatırla: the percentage and missing words only; no grade suggestion, nothing written to the schedule
   recCheck: function () {

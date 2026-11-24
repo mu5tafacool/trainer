@@ -118,23 +118,32 @@
   // Dictation spells names it doesn't know by sound ("Solar tricks" for a name like "Zoltrix"). A said word (or two said
   // words written together) that sounds like a name of this line becomes that name; a number right after a name's
   // letter head becomes the name's number (product codes are not quizzed as numbers).
+  // Two guards keep a word that was said right (a name that sounds like "test" must not swallow "test"): a form of one of
+  // the line's own ordinary words is left alone, and a name is filled in only as often as the line has it, the closest
+  // sound first.
   function fixNames(t, R) {
     var names = Object.keys(R.names || {}); if (!names.length && !Object.keys(R.nameHeads || {}).length) return t;
+    var plain = R.tokens.filter(function (w) { return !R.names[w] && !FUNC[w] && !isNum(w); });
+    var own = function (w) { return plain.some(function (p) { return stemEq(p, w); }); };
+    var left = {}; names.forEach(function (n) { left[n] = countOf(R.tokens, n) - countOf(t, n); });
+    var cand = [], pick = {}, used = {};
+    t.forEach(function (w, i) {
+      if (R.vocab[w] || FUNC[w] || isNum(w) || own(w)) return;
+      names.forEach(function (n) {
+        if (left[n] <= 0) return;
+        var nx = t[i + 1], two = nx !== undefined && !R.vocab[nx] && !isNum(nx) && !own(nx) && soundsLike(w + nx, n) && !soundsLike(w, n);
+        if (two || soundsLike(w, n)) cand.push({ i: i, n: n, two: two, d: levN(sound(two ? w + nx : w), sound(n)) });
+      });
+    });
+    cand.sort(function (x, y) { return x.d - y.d || x.i - y.i; });
+    cand.forEach(function (c) {
+      if (left[c.n] <= 0 || used[c.i] || (c.two && used[c.i + 1])) return;
+      left[c.n]--; pick[c.i] = c; used[c.i] = 1; if (c.two) used[c.i + 1] = 1;
+    });
     var out = [];
     for (var i = 0; i < t.length; i++) {
-      var w = t[i], done = false;
-      if (!R.vocab[w] && !FUNC[w] && !isNum(w)) {
-        // the closest name wins (same sound key before one-letter-off; a name of this line before other lines' names)
-        var best = null;
-        names.forEach(function (n) {
-          var two = i + 1 < t.length && !R.vocab[t[i + 1]] && !isNum(t[i + 1]) && soundsLike(w + t[i + 1], n) && !soundsLike(w, n);
-          if (!two && !soundsLike(w, n)) return;
-          var d = levN(sound(two ? w + t[i + 1] : w), sound(n)) * 2 + (R.vocab[n] ? 0 : 1);
-          if (!best || d < best.d) best = { n: n, two: two, d: d };
-        });
-        if (best) { out.push(best.n); if (best.two) i++; done = true; }
-      }
-      if (done) continue;
+      var w = t[i];
+      if (pick[i]) { out.push(pick[i].n); if (pick[i].two) i++; continue; }
       if (isNum(w) && out.length && R.nameHeads && R.nameHeads[out[out.length - 1]] && !R.nameNums[w]) {
         var head = out[out.length - 1], k2 = R.tokens.indexOf(head);
         if (k2 >= 0 && isNum(R.tokens[k2 + 1] || '')) { out.push(R.tokens[k2 + 1]); continue; }
@@ -143,6 +152,7 @@
     }
     return out;
   }
+  function countOf(arr, w) { var c = 0; arr.forEach(function (x) { if (x === w) c++; }); return c; }
 
   function phraseAt(toks, i, phrase) { for (var k = 0; k < phrase.length; k++) if (toks[i + k] !== phrase[k]) return false; return true; }
   function hasPhrase(toks, phrase) { for (var i = 0; i + phrase.length <= toks.length; i++) if (phraseAt(toks, i, phrase)) return true; return false; }
@@ -226,10 +236,10 @@
       out.push(t[i]);
     }
     t = out; out = [];
-    // dictation variants → canonical term (only terms that are in the reference)
+    // dictation variants → canonical term (only terms that are in the reference, and never a phrase the line says itself)
     for (i = 0; i < t.length; i++) {
       var rep = null;
-      for (k = 0; k < R.lex.length; k++) if (phraseAt(t, i, R.lex[k].from)) { rep = R.lex[k]; break; }
+      for (k = 0; k < R.lex.length; k++) if (phraseAt(t, i, R.lex[k].from) && !hasPhrase(R.tokens, R.lex[k].from)) { rep = R.lex[k]; break; }
       if (rep) { out.push.apply(out, rep.to); i += rep.from.length - 1; continue; }
       out.push(t[i]);
     }
@@ -280,6 +290,13 @@
     if (a === b || tokEq(a, b)) return true;
     if (FUNC[a] || FUNC[b] || NEG[a] || NEG[b]) return false; // "not", "no", "the"… match only exactly
     var x = stems(a), y = stems(b); return x.some(function (v) { return y.indexOf(v) >= 0; }); }
+  // The same word said in another form ("recipe" → "recipes", "careful" → "carefully"): for showing the two together, not for grading.
+  function alike(a, b) {
+    if (a === b || isNum(a) || isNum(b) || FUNC[a] || FUNC[b] || NEG[a] || NEG[b]) return false;
+    if (stemEq(a, b)) return true;
+    var d = Math.min(a.length, b.length) >= 4 && a.slice(0, 2) === b.slice(0, 2) ? levN(a, b) : 9;
+    return d <= 2 && d * 3 <= Math.max(a.length, b.length);
+  }
   function isNum(w) { return /^\d+(\.\d+)?$/.test(w); }
   function tokEq(a, b) { return a === b || (!isNum(a) && !isNum(b) && a.length >= 5 && b.length >= 5 && lev1(a, b)); }
   function weight(w, R) { if (isNum(w) || NEG[w]) return 2; if (FUNC[w]) return 0.5; return 1; }
@@ -465,6 +482,6 @@
     return (out + s.slice(last)).replace(/(\d)-(?=[a-z])/gi, '$1 ').replace(/\s+/g, ' ').trim();
   }
 
-  var api = { forModel: forModel, baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, findNames: findNames, sound: sound, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
+  var api = { forModel: forModel, baseTokens: baseTokens, prepareRef: prepareRef, normalizeSaid: normalizeSaid, align: align, hardChecks: hardChecks, check: check, stemEq: stemEq, alike: alike, findNames: findNames, sound: sound, THRESHOLDS: T, isFunc: function (w) { return !!FUNC[w]; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.verify3 = api;
 })(typeof window !== 'undefined' ? window : this);

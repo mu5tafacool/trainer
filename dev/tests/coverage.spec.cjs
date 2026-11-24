@@ -122,9 +122,37 @@ test('Dinle A · Eşzamanlı: the last round is said with the voice, only when i
     return phases.join(' | ');
   };
   await dinleA(page, { trFirst: 'off', simul: true });
-  expect(await seen()).toContain('Sesle birlikte söyle');
+  expect(await seen()).toContain('Birlikte söyle · 2/2');
   await dinleA(page, { trFirst: 'off', simul: false }, true);
-  expect(await seen()).not.toContain('Sesle birlikte söyle');
+  expect(await seen()).not.toContain('Birlikte söyle');
+});
+
+test('Dinle: the status line is the shared one, with the step once and the seconds bottom right', async ({ page }) => {
+  await dinleA(page, { trFirst: 'off', repA: 3, simul: false });
+  const line = page.locator('#player .sayline');
+  for (let r = 1; r <= 3; r++) {
+    await expect(line).toHaveText((r < 3 ? 'Dinle ve oku' : 'Dinle') + ' · ' + r + '/3'); // round 3 is blurred
+    await expect(page.locator('#player .ctx')).not.toContainText('tekrar');
+    await end(page); await page.clock.fastForward(50);
+    await expect(line).toHaveText('Tekrar et · ' + r + '/3');
+    await page.clock.fastForward(15000);
+  }
+  await page.locator('[data-act="trackStop"]').click();
+  await page.locator('[data-act="trackMode"][data-m="B"]').click();
+  await page.locator('[data-act="trackPlay"]').click();
+  await page.clock.fastForward(1500);
+  await expect(line).toHaveText('Dinle'); // the Turkish plays
+  await end(page); await page.clock.fastForward(50);
+  await expect(line).toHaveText('Sen söyle');
+  await expect(page.locator('#player .cardfoot #gapleft')).toHaveText(/^\d+ sn$/);
+  for (const width of [320, 375, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const gap = await page.evaluate(() => { const r = (q) => document.querySelector(q).getBoundingClientRect(); return r('#player .cardfoot').right - r('#gapleft').right; });
+    expect(Math.abs(gap)).toBeLessThan(1);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.fastForward(60000);
+  await expect(line).toHaveText(/^Dinle ve oku · 1\//);
 });
 
 test('Prova 🎤: each line shows how much of it was said, and the total', async ({ page }) => {
