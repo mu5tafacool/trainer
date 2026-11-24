@@ -85,16 +85,47 @@ test('Dinle B: going back to a card marked ✓ plays its English again', async (
   await expect(ok).toHaveAttribute('aria-pressed', 'true'); // the mark stays
 });
 
-test('Kilit denemesi (trial d14): two scopes, sound file ready, back to the normal Dinle', async ({ page }) => {
+test('Kilit denemesi (trial d14): three scopes for S1, A and B, and back to the normal Dinle', async ({ page }) => {
   await setup(page);
   const pick = (v) => page.locator('#tr-scope').selectOption(v);
-  await pick('lock1');
+  for (const k of ['lock1', 'lock2', 'lock3']) {
+    await pick(k);
+    await expect(page.locator('[data-act="lockPlay"]')).toBeEnabled();
+    await expect(page.locator('#player')).toContainText('cümle');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.locator('[data-act="lockMode"][data-m="A"]').click();
+  await expect(page.locator('[data-act="lockMode"][data-m="A"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('[data-act="lockPlay"]').click(); // no voice pack in this test: it says so and can be started again
+  await expect(page.locator('#player')).toContainText('uygun ses yok');
   await expect(page.locator('[data-act="lockPlay"]')).toBeEnabled();
-  await expect(page.locator('.player')).toContainText('Telefonu kilitle');
-  await pick('lock2');
-  await expect(page.locator('[data-act="lockShare"]')).toBeEnabled();
-  await expect(page.locator('[data-act="lockPlay"]')).toHaveCount(0);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await pick('learned');
   await expect(page.locator('[data-act="trackPlay"]')).toBeVisible();
+});
+
+test('Kilit denemesi: clips and waits are joined with the shared times (made-up clips, no passphrase)', async ({ page }) => {
+  await page.goto('index.html');
+  const r = await page.evaluate(() => {
+    const L = window.__lockTrial;
+    // 24 kHz mono 48 kb/s frames: 144 bytes, 24 ms; first an ID3 tag and an Info frame, which are left out
+    const frame = (tag) => { const f = new Uint8Array(144); f.set([0xff, 0xf3, 0x64, 0xc4]); if (tag) f.set([73, 110, 102, 111], 13); return f; };
+    const mk = (n) => { const id3 = [0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 5, 1, 2, 3, 4, 5], u = new Uint8Array(15 + 144 * (n + 1)); u.set(id3); u.set(frame(true), 15); for (let i = 1; i <= n; i++) u.set(frame(), 15 + 144 * i); return u; };
+    const en = L.mp3Clip(mk(100)), tr = L.mp3Clip(mk(50)), it = { a: { id: 'x', lines: [] }, l: { id: 'x1', en: 'The bakery opens at seven.', tr: 'Fırın yedide açılır.' } };
+    const clip = (lang) => (lang === 'en' ? en : tr), items = [it, it, it], out = { n: en.n, sig: en.sig, ms: en.ms };
+    out.steps = L.steps(it, 'B', clip).map((s) => (s.ref ? s.ph : Math.round(s.ms)));
+    out.recall = window.__timing.recallMs(it.l.en); out.echo = Math.round(window.__timing.echoMs(2400 / 0.9, it.l.en) - 100);
+    ['lock1', 'lock2', 'lock3'].forEach((w) => { const j = L.join(items, w, 'B', clip); out[w] = { tracks: j.tracks.length, dur: j.dur, bytes: j.tracks.reduce((n, t) => n + t.parts.reduce((m, p) => m + p.length, 0), 0), cards: j.tracks.map((t) => t.cues[0].card), firsts: [].concat(...j.tracks.map((t) => t.cues)).filter((c) => c.first).length }; });
+    out.bad = (() => { try { L.mp3Clip(new Uint8Array([82, 73, 70, 70, 1, 2, 3, 4])); return 'ok'; } catch (e) { return 'thrown'; } })();
+    return out;
+  });
+  expect(r.n).toBe(100); expect(r.sig).toBe('24000 mono 48'); expect(r.ms).toBeCloseTo(2400, 3);
+  expect(r.steps).toEqual(['tr', r.recall, 'en', r.echo, 'en', r.echo, 'en', r.echo, 600]);
+  expect([r.lock1.tracks, r.lock2.tracks, r.lock3.tracks]).toEqual([1, 3, 27]);
+  // the same content whichever way: same length, same bytes, 3 card starts; waits are stored at speed 0.9
+  expect(r.lock2.dur).toBeCloseTo(r.lock1.dur, 6); expect(r.lock3.bytes).toBe(r.lock1.bytes); expect(r.lock2.bytes).toBe(r.lock1.bytes);
+  expect([r.lock1.firsts, r.lock2.firsts, r.lock3.firsts]).toEqual([3, 3, 3]);
+  const want = 3 * (1.2 + 3 * 2.4 + (r.recall + 3 * r.echo + 600) / 1000 * 0.9);
+  expect(Math.abs(r.lock1.dur - want)).toBeLessThan(0.2);
+  expect(r.lock1.bytes).toBe(Math.round(r.lock1.dur / 0.024) * 144);
+  expect(r.bad).toBe('thrown');
 });

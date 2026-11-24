@@ -146,3 +146,34 @@ test('a re-voicing pack replaces the older clips of the same lines', async ({ pa
   const fromNewest = Object.keys(stored).filter((k) => stored[k] === newest.v);
   expect(fromNewest.length).toBe(newest.n); // every clip of the newest pack is the one kept for its key
 });
+
+// TRIAL d14: S1's shipped clips share one MP3 format, so they can be joined; the three ways play and write a report without sentences.
+test('Kilit denemesi (trial d14): S1 is joined from the shipped clips and plays', async ({ page }) => {
+  requirePass(test);
+  const { answers } = await seedOf();
+  await unlock(page);
+  await ready(page, 120000);
+  const fmt = await page.evaluate(async () => {
+    const out = {}; // every shipped clip
+    for (const ref of Object.values(window.__LOCAL_AUDIO)) { const v = await window.__clipBuf(ref); let s; try { s = window.__lockTrial.mp3Clip(new Uint8Array(v.buf)).sig; } catch (e) { s = String(e.message); } out[s] = (out[s] || 0) + 1; }
+    return out;
+  });
+  console.log('clip formats: ' + JSON.stringify(fmt));
+  const s1 = Object.values(answers).find((a) => a.code === 'S1');
+  await page.getByRole('button', { name: 'Dinle', exact: true }).first().click();
+  for (const way of ['lock1', 'lock2', 'lock3']) for (const m of ['A', 'B']) {
+    await page.locator('#tr-scope').selectOption(way);
+    await page.locator(`[data-act="lockMode"][data-m="${m}"]`).click();
+    await page.locator('[data-act="lockPlay"]').click();
+    await expect(page.locator('#player .ctx .mono')).toHaveText('1/' + s1.lines.length);
+    await expect.poll(() => page.evaluate(() => window.__lockTrial.t.el.currentTime > 0.5 && !window.__lockTrial.t.el.paused)).toBe(true);
+    await page.locator('[data-act="lockNext"]').click();
+    await expect(page.locator('#player .ctx .mono')).toHaveText('2/' + s1.lines.length);
+    await page.locator('[data-act="lockEnd"]').click();
+  }
+  const rep = await page.locator('#lockrep').inputValue();
+  console.log(rep);
+  expect(rep).toContain(s1.lines.length + ' cümle');
+  expect(rep).not.toContain('atlanan');
+  Object.values(answers).forEach((a) => a.lines.forEach((l) => { expect(rep).not.toContain(l.en.slice(0, 20)); expect(rep).not.toContain(l.tr.slice(0, 20)); }));
+});

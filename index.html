@@ -711,6 +711,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
       return url;
     });
   };
+  window.__clipBuf = function (ref) { var m = /^(idb|gen):([\s\S]*)$/.exec(ref || ''); return m ? idbGet(m[1] === 'idb' ? 'clips' : 'gen', m[2]).then(function (v) { if (!v || !v.buf) throw new Error('clip missing'); return v; }) : Promise.reject(new Error('no clip')); }; // TRIAL d14
   window.__clipUrlsKept = function () { return URLS.length; };
   function dropUrl(ref) { URLS = URLS.filter(function (u) { if (u.ref !== ref) return true; URL.revokeObjectURL(u.url); return false; }); }
   function loadGen() {
@@ -3033,62 +3034,255 @@ function modeTxt(m) {
   if (m === 'B') return 'TR · düşünme süresi (cümle uzunluğuna ve hıza göre, en az 3 sn): İngilizcesini sen söyle · sonra EN ×' + repN('B') + ', her birinden sonra tekrar et. İngilizceyi duyunca kartın köşesinden işaretle: ✓ bildim, ✗ bilemedim.';
   return 'Cevabın tamamı sırayla. Akışı kulağa yerleştir.';
 }
-/* ---- TRIAL (d14, remove after the phone test): does one single sound file keep playing while the screen is locked?
-   Two scopes in Dinle: played inside the app, and shared as a file for the Files app. Made-up sentences, one m4a with the
-   repeat gaps inside, so no timer runs while the page is suspended. Parts: LOCK_*, lock*, trial-lock.m4a. ---- */
-var LOCK_TRIAL = { lock1: 'Deneme 1 · uygulamada çal', lock2: 'Deneme 2 · Dosyalar\'da çal' };
-var LOCK_SAY = ['The bakery opens at seven.', 'Take the second street on the left.', 'My train leaves in ten minutes.', 'Could you bring me some water, please?'];
-var lockT = { el: null, blob: null, at: null, log: [] };
+/* ---- TRIAL (d14, remove after the phone test): does S1 keep playing in Dinle while the screen is locked? ----
+   Başlat joins the answer's own clips and real silence (the waits) into MP3 sound in memory, with the times of sayPlan,
+   recallMs and echoMs, so no timer runs while the page sleeps. Three ways, same content: one recording, one track per
+   card, one track per step. A report (version, device, times; no sentences) says how long everything took and what
+   played while the screen was off. Parts: LOCK_*, lock*, window.__clipBuf, localStorage mt1:__locklog. ---- */
+var LOCK_TRIAL = { lock1: 'S1 · 1 tek kayıt', lock2: 'S1 · 2 çalma listesi', lock3: 'S1 · 3 boş kayıt' };
+var LOCK_HOW = { lock1: 'Bütün cümleler ve beklemeler tek kayıtta.', lock2: 'Her cümle, beklemeleriyle, ayrı bir parça.', lock3: 'Her ses ayrı; beklerken sessiz kayıt çalar.' };
+var LOCK_LOG = 'mt1:__locklog';
+var lockT = { el: null, mode: 'B' };
 function lockOpts(scope) { return '<optgroup label="Kilit denemesi (geçici)">' + Object.keys(LOCK_TRIAL).map(function (k) { return '<option value="' + k + '"' + (scope === k ? ' selected' : '') + '>' + esc(LOCK_TRIAL[k]) + '</option>'; }).join('') + '</optgroup>'; }
-function lockLoad() {
-  if (lockT.blob || lockT.busy) return; lockT.busy = true;
-  fetch('trial-lock.m4a').then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
-    .then(function (b) { lockT.blob = new Blob([b], { type: 'audio/mp4' }); lockT.url = URL.createObjectURL(lockT.blob); }, function () { lockT.err = true; })
-    .then(function () { lockT.busy = false; if (S.tab === 'track' && !S.sess) render(); });
+function lockItems() { var a = S.answers.filter(function (x) { return x.code === 'S1'; })[0]; return a ? a.lines.map(function (l) { return { a: a, l: l }; }) : []; }
+function lockNow() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
+function lockClock(t) { return new Date(t).toTimeString().slice(0, 8); }
+function lockSec(s) { s = Math.round(s); return s < 60 ? s + ' sn' : Math.floor(s / 60) + ' dk ' + (s % 60) + ' sn'; }
+
+/* an MP3 clip as its sound frames (tags and the Xing/Info frame left out) and what a frame of it looks like */
+function mp3Clip(u8) {
+  var BR = { 3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], 2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160] }, SR = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000] };
+  var i = 0, start = -1, n = 0, sig = '', sr = 0, br = 0, spf = 0, size = 0, head = null;
+  if (u8[0] === 0x49 && u8[1] === 0x44 && u8[2] === 0x33) i = 10 + ((u8[6] & 127) << 21 | (u8[7] & 127) << 14 | (u8[8] & 127) << 7 | (u8[9] & 127));
+  while (i + 4 <= u8.length) {
+    if (u8[i] !== 0xff || (u8[i + 1] & 0xe6) !== 0xe2) break; // not a Layer III frame: the end (a tag after the sound)
+    var ver = (u8[i + 1] >> 3) & 3, b = BR[ver] && BR[ver][u8[i + 2] >> 4], r = SR[ver] && SR[ver][(u8[i + 2] >> 2) & 3], mono = (u8[i + 3] >> 6) === 3;
+    if (!b || !r) throw new Error('mp3 format');
+    var f = (ver === 3 ? 144000 : 72000) * b / r, len = Math.floor(f) + ((u8[i + 2] >> 1) & 1);
+    if (i + len > u8.length) break;
+    var info = i + 4 + (ver === 3 ? (mono ? 17 : 32) : (mono ? 9 : 17)), tag = String.fromCharCode(u8[info], u8[info + 1], u8[info + 2], u8[info + 3]);
+    if (n || (tag !== 'Xing' && tag !== 'Info')) {
+      var s = r + (mono ? ' mono ' : ' stereo ') + b;
+      if (!n) { start = i; sig = s; sr = r; br = b; spf = ver === 3 ? 1152 : 576; size = Math.floor(f); head = [u8[i], u8[i + 1] | 1, u8[i + 2] & 0xfd, u8[i + 3]]; }
+      else if (s !== sig) sig = 'karışık';
+      n++;
+    }
+    i += len;
+  }
+  if (!n) throw new Error('mp3 empty');
+  return { data: u8.subarray(start, i), n: n, sig: sig, ms: n * spf * 1000 / sr, frameMs: spf * 1000 / sr, size: size, head: head };
 }
-function lockStop() { if (lockT.el && !lockT.el.paused) { lockT.el.pause(); } }
+/* one silent frame that fits between the clip's own: its header, then no sound */
+function mp3Silent(c) { var z = new Uint8Array(c.size); z.set(c.head); return z; }
+
+/* the steps of one card, with the shared times: a clip ({ ref }) or a wait ({ ms }); ph/rep are what the screen shows */
+function lockSteps(it, mode, clip) {
+  var en = clip('en', it.l.en), tr = clip('tr', it.l.tr), out = [], rate = U.settings.rateEn || 1;
+  function say(c, ph, rep) { out.push({ ref: c, ph: ph, rep: rep || 0 }); }
+  function gap(ms, ph, rep) { out.push({ ms: ms, ph: ph, rep: rep || 0 }); }
+  var plan = sayPlan(mode === 'B' ? 'dinleB' : 'dinleA'), trOn = mode === 'B' || trFirstFor(it);
+  if (trOn) say(tr, 'tr');
+  if (mode === 'B') gap(recallMs(it.l.en), 'gap'); else if (trOn) gap(500, 'tr');
+  var echo = echoMs(en.ms / rate, it.l.en) + (plan.gapAdd || 0);
+  for (var r = 1; r <= plan.rounds; r++) {
+    if (plan.withLast && plan.rounds >= 2 && r === plan.rounds) { gap(SAY_WITH.before, 'with', r); say(en, 'with', r); gap(SAY_WITH.after, 'with', r); }
+    else { say(en, 'en', r); gap(echo, 'you', r); }
+  }
+  if (mode === 'B') gap(600, '');
+  return out;
+}
+/* items → tracks [{ parts, cues: [{ at, card, ph, rep }], dur }], times in seconds of the recording (the speech speed is
+   applied while it plays, so a wait is stored that much shorter) */
+function lockJoin(items, way, mode, clip) {
+  var rate = U.settings.rateEn || 1, first = clip('en', items[0].l.en), z = mp3Silent(first), tracks = [], cur = null;
+  function open() { cur = { parts: [], cues: [], n: 0 }; tracks.push(cur); }
+  items.forEach(function (it, card) {
+    if (way === 'lock2' || !cur) open();
+    lockSteps(it, mode, clip).forEach(function (s, k) {
+      if (way === 'lock3' && cur.n) open();
+      cur.cues.push({ at: cur.n * first.frameMs / 1000, card: card, ph: s.ph, rep: s.rep, first: k === 0 });
+      if (s.ref) { cur.parts.push(s.ref.data); cur.n += s.ref.n; }
+      else { var n = Math.max(1, Math.round(s.ms * rate / first.frameMs)); for (var i = 0; i < n; i++) cur.parts.push(z); cur.n += n; }
+    });
+  });
+  var at = 0;
+  tracks.forEach(function (t) { t.dur = t.n * first.frameMs / 1000; t.at = at; at += t.dur; });
+  return { tracks: tracks, dur: at, sig: first.sig };
+}
+window.__lockTrial = { mp3Clip: mp3Clip, steps: lockSteps, join: lockJoin, t: lockT };
+
+/* reads the clips, joins them and leaves lockT.run ready to play */
+function lockBuild(way, mode) {
+  var t0 = lockNow(), items = lockItems(), bufs = {}, skip = 0, bad = {};
+  var keys = {};
+  items.forEach(function (it) { keys['en|' + it.l.en] = 1; keys['tr|' + it.l.tr] = 1; });
+  return Promise.all(Object.keys(keys).map(function (k) {
+    var ref = audIdx[k]; if (!ref || !window.__clipBuf) return null;
+    return window.__clipBuf(ref).then(function (v) { try { bufs[k] = mp3Clip(new Uint8Array(v.buf)); } catch (e) { bad[v.type || '?'] = 1; } }, function () {});
+  })).then(function () {
+    var t1 = lockNow(), sigs = {}, main = '';
+    Object.keys(bufs).forEach(function (k) { sigs[bufs[k].sig] = (sigs[bufs[k].sig] || 0) + 1; });
+    Object.keys(sigs).forEach(function (s) { if (!main || sigs[s] > sigs[main]) main = s; });
+    var fits = function (k) { return bufs[k] && bufs[k].sig === main; };
+    var use = items.filter(function (it) { var ok = fits('en|' + it.l.en) && fits('tr|' + it.l.tr); if (!ok) skip++; return ok; });
+    if (!use.length) throw new Error('S1 için uygun ses yok' + (Object.keys(sigs).length || Object.keys(bad).length ? ' (' + Object.keys(sigs).concat(Object.keys(bad)).join(', ') + ')' : '; ses paketi inmemiş olabilir') + '.');
+    var j = lockJoin(use, way, mode, function (lang, text) { return bufs[lang + '|' + text]; }), bytes = 0;
+    j.tracks.forEach(function (t) { var b = new Blob(t.parts, { type: 'audio/mpeg' }); bytes += b.size; t.url = URL.createObjectURL(b); t.parts = null; });
+    return { way: way, mode: mode, items: use, tracks: j.tracks, dur: j.dur, sigs: sigs, bytes: bytes, skip: skip, clips: Object.keys(bufs).length, i: 0, cue: null, read: t1 - t0, join: lockNow() - t1, sw: [], on: true };
+  });
+}
+function lockFree() { var R = lockT.run; if (R) R.tracks.forEach(function (t) { URL.revokeObjectURL(t.url); }); lockT.run = null; }
+function lockStop() { // pauses; the sound stays ready (Devam)
+  if (lockT.el && !lockT.el.paused) lockT.el.pause();
+}
+function lockEnd() { lockT.tok = (lockT.tok || 0) + 1; lockT.busy = false; if (lockT.el) { lockT.el.pause(); lockT.el.removeAttribute('src'); } if (lockT.run) lockSave('bitti'); lockFree(); mediaOff(); }
+function lockShown() { return S.tab === 'track' && !S.sess && !!LOCK_TRIAL[S.trackCfg.scope]; }
+function lockDraw() { if (lockShown()) render(); }
+function lockPos() { var R = lockT.run; return R ? R.tracks[R.i].at + (lockT.el.currentTime || 0) : 0; }
+function lockTrack(i, at) {
+  var R = lockT.run, a = lockT.el, t = R.tracks[i], want = lockNow();
+  R.i = i; R.cue = null; R.want = want; R.first = R.first === undefined;
+  a.loop = R.tracks.length === 1;
+  a.defaultPlaybackRate = U.settings.rateEn || 1; a.src = t.url; a.playbackRate = a.defaultPlaybackRate;
+  if (at) { R.seek = at; }
+  var p = a.play(); if (p && p.catch) p.catch(function (e) { lockNote('çal hatası ' + (e && e.name || '')); lockDraw(); });
+}
+function lockEl() {
+  if (lockT.el) return lockT.el;
+  var a = lockT.el = new Audio(); a.preload = 'auto';
+  try { a.preservesPitch = true; a.webkitPreservesPitch = true; } catch (e) {}
+  a.addEventListener('loadedmetadata', function () { var R = lockT.run; if (R && R.seek) { a.currentTime = R.seek; R.seek = 0; } });
+  a.addEventListener('playing', function () {
+    var R = lockT.run; if (!R) return;
+    if (R.want) { var ms = lockNow() - R.want; R.want = 0; if (R.start === undefined) R.start = ms; else R.sw.push(Math.round(ms)); }
+    mediaState('playing'); lockTick(); if (R.ui !== true) { R.ui = true; lockDraw(); }
+  });
+  a.addEventListener('pause', function () { if (lockT.run && !a.ended) { lockT.run.ui = false; lockNote('durdu'); mediaState('paused'); lockDraw(); } });
+  a.addEventListener('ended', function () { var R = lockT.run; if (R && R.tracks.length > 1) lockTrack((R.i + 1) % R.tracks.length); });
+  a.addEventListener('error', function () { if (lockT.run) { lockNote('ses hatası'); lockDraw(); } });
+  a.addEventListener('timeupdate', lockTick);
+  return a;
+}
+/* which step is playing now; runs on the player's own events, also while locked if the page is awake */
+function lockTick() {
+  var R = lockT.run, a = lockT.el; if (!R || !a) return;
+  var now = Date.now();
+  if (R.off) { R.off.ticks++; R.off.gap = Math.max(R.off.gap, now - (R.off.last || R.off.t)); R.off.last = now; }
+  var cs = R.tracks[R.i].cues, c = cs[0];
+  for (var i = 0; i < cs.length && cs[i].at <= a.currentTime + 0.02; i++) c = cs[i];
+  if (c === R.cue) return;
+  R.cue = c;
+  if (R.card !== c.card) { R.card = c.card; mediaMeta(R.items[c.card]); if (R.off) lockNote('cümle ' + (c.card + 1)); }
+  if (lockShown()) { var p = document.getElementById('player'); if (p) p.innerHTML = lockCard(); }
+}
+function lockGo(d) {
+  var R = lockT.run; if (!R) return;
+  var n = R.items.length, cur = R.cue ? R.cue.card : 0, to = (cur + d + n) % n;
+  lockNote(d > 0 ? 'sonraki' : 'önceki');
+  for (var i = 0; i < R.tracks.length; i++) for (var k = 0; k < R.tracks[i].cues.length; k++) {
+    var c = R.tracks[i].cues[k];
+    if (c.card === to && c.first) {
+      if (R.off) R.off.pos += R.tracks[i].at + c.at - lockPos(); // a jump is not time that played
+      if (R.tracks.length === 1) { lockT.el.currentTime = c.at; R.cue = null; if (lockT.el.paused) lockT.el.play().catch(function () {}); lockTick(); lockDraw(); }
+      else lockTrack(i, c.at);
+      return;
+    }
+  }
+}
+function lockMedia() {
+  if (!MSS) return;
+  msHandler('previoustrack', function () { lockGo(-1); }); msHandler('nexttrack', function () { lockGo(1); });
+  msHandler('pause', function () { lockNote('kilit/kulaklık: duraklat'); lockStop(); });
+  msHandler('play', function () { lockNote('kilit/kulaklık: devam'); if (lockT.run) lockT.el.play().catch(function (e) { lockNote('çal hatası ' + (e && e.name || '')); }); });
+  msHandler('stop', function () { lockEnd(); lockDraw(); });
+}
 function lockPlay() {
-  if (!lockT.blob) return;
-  if (!lockT.el) {
-    lockT.el = new Audio(); lockT.el.loop = true; lockT.el.src = lockT.url;
-    ['play', 'pause'].forEach(function (e) { lockT.el.addEventListener(e, function () { if (S.tab === 'track' && !S.sess && LOCK_TRIAL[S.trackCfg.scope]) render(); }); });
-  }
-  if (!lockT.el.paused) { lockT.el.pause(); return; }
-  stopAudio();
-  if (MSS) {
-    try { MSS.metadata = new MediaMetadata({ title: 'Kilit denemesi', artist: 'Dinle' }); } catch (e) {}
-    msHandler('play', function () { lockT.el.play(); }); msHandler('pause', function () { lockT.el.pause(); });
-  }
-  lockT.el.play().catch(function () { toast('Ses başlatılamadı.'); });
+  if (lockT.busy) return;
+  var a = lockEl(), R = lockT.run;
+  if (R) { if (a.paused) a.play().catch(function () { toast('Ses başlatılamadı.'); }); else a.pause(); return; }
+  stopAudio(); if (S.track) trackStop(true);
+  lockT.err = ''; lockT.busy = true; lockT.log = null;
+  a.loop = false; a.src = SILENT; var p = a.play(); if (p && p.catch) p.catch(function () {}); // unlocks the player inside the tap
+  var t0 = lockNow(), way = S.trackCfg.scope, mode = lockT.mode, tok = lockT.tok = (lockT.tok || 0) + 1;
+  lockDraw();
+  lockBuild(way, mode).then(function (run) {
+    if (tok !== lockT.tok) { run.tracks.forEach(function (t) { URL.revokeObjectURL(t.url); }); return; }
+    lockT.busy = false; lockT.run = run; run.t0 = t0; run.at = Date.now(); run.notes = []; run.offs = [];
+    lockMedia(); lockTrack(0); run.want = t0; // the first sound is counted from the tap
+    lockDraw();
+  }, function (e) { if (tok !== lockT.tok) return; lockT.busy = false; lockT.err = e && e.message ? String(e.message) : 'Hazırlanamadı.'; lockDraw(); });
 }
-function lockShare() {
-  if (!lockT.blob) return;
-  var f = new File([lockT.blob], 'kilit-denemesi.m4a', { type: 'audio/mp4' });
-  if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f] }).catch(function () {}); return; }
-  var a = document.createElement('a'); a.href = lockT.url; a.download = f.name; a.click();
+/* ---- the report ---- */
+function lockNote(t) { var R = lockT.run; if (!R || !R.notes) return; R.notes.push({ t: Date.now(), x: t, off: !!R.off }); if (R.notes.length > 120) R.notes.shift(); lockSave(); }
+function lockRep() {
+  var R = lockT.run; if (!R) return '';
+  var sig = Object.keys(R.sigs).map(function (s) { var p = s.split(' '); return p.length === 3 ? (p[0] / 1000) + ' kHz ' + p[1] + ' ' + p[2] + ' kb/sn' : s; }).join(' + ');
+  var plan = sayPlan(R.mode === 'B' ? 'dinleB' : 'dinleA');
+  var out = ['trainer ' + appVer() + ' · ' + deviceTxt() + ' · kilit denemesi ' + LOCK_TRIAL[R.way] + ' · mod ' + R.mode + ' · ' + lockClock(R.at),
+    'ayar: hız ' + (U.settings.rateEn || 1).toFixed(2) + ' · EN ×' + plan.rounds + (plan.withLast ? ' eşzamanlı' : '') + (R.mode === 'B' ? ' · düşünme ' + (U.settings.think || 'normal') : ' · önce TR ' + (U.settings.trFirst || 'auto')),
+    'hazırlama: okuma ' + Math.round(R.read) + ' ms · birleştirme ' + Math.round(R.join) + ' ms · dokunuştan ilk sese ' + (R.start === undefined ? '-' : Math.round(R.start) + ' ms'),
+    'kayıt: ' + R.items.length + ' cümle · ' + R.clips + ' ses · ' + R.tracks.length + ' parça · ' + lockSec(R.dur / (U.settings.rateEn || 1)) + ' · ' + (R.bytes / 1e6).toFixed(1) + ' MB · ' + sig + (R.skip ? ' · atlanan ' + R.skip : '')];
+  if (R.sw.length) out.push('parça geçişi: ' + R.sw.length + ' kez · medyan ' + median(R.sw) + ' ms · en yavaş ' + Math.max.apply(null, R.sw) + ' ms');
+  R.offs.forEach(function (o, k) {
+    out.push('kapalı ' + (k + 1) + ': ' + lockClock(o.t) + '–' + lockClock(o.end) + ' (' + lockSec((o.end - o.t) / 1000) + ') · ' + o.res + ' · sayfa ' + o.ticks + ' kez uyandı, en uzun ara ' + lockSec(o.gap / 1000));
+  });
+  var off = R.notes.filter(function (n) { return n.off; }).slice(-40);
+  if (off.length) out.push('kapalıyken: ' + off.map(function (n) { return lockClock(n.t) + ' ' + n.x; }).join(' · '));
+  var on = R.notes.filter(function (n) { return !n.off && /hata/.test(n.x); }).slice(-5);
+  if (on.length) out.push('açıkken: ' + on.map(function (n) { return lockClock(n.t) + ' ' + n.x; }).join(' · '));
+  return out.join('\n');
 }
-/* writes down by itself what happened while the page was hidden (locked or another app) */
+/* kept on the device (the last 6 runs), so a page that iOS closed while locked still has its report */
+function lockLogs() { try { return JSON.parse(localStorage.getItem(LOCK_LOG) || '[]'); } catch (e) { return []; } }
+function lockSave(end) {
+  var R = lockT.run; if (!R) return;
+  var l = lockLogs().filter(function (x) { return x.at !== R.at; }); l.unshift({ at: R.at, txt: lockRep() + (R.off ? '\nkapalı (sürüyor): ' + lockClock(R.off.t) + ' sonrası' : '') + (end ? '\n' + end : '') });
+  try { localStorage.setItem(LOCK_LOG, JSON.stringify(l.slice(0, 6))); } catch (e) {}
+}
+function lockReport() { return lockLogs().map(function (x) { return x.txt; }).join('\n\n'); }
+function lockCopy() { var txt = lockReport(); if (txt) copyText(txt, 'locktxt', 'Günlük'); }
+function lockClear() { try { localStorage.removeItem(LOCK_LOG); } catch (e) {} render(); }
+/* screen off or another app: how much of that time really played. The place in the recording is compared with the clock,
+   and whether the sound moves now */
 document.addEventListener('visibilitychange', function () {
-  var a = lockT.el; if (!a) return;
-  if (document.visibilityState === 'hidden') { lockT.at = a.paused ? null : { t: Date.now(), c: a.currentTime }; return; }
-  if (!lockT.at) return;
-  var el = (Date.now() - lockT.at.t) / 1000, d = a.duration || 1, went = ((a.currentTime - lockT.at.c) % d + d) % d, off = Math.abs(went - el % d); off = Math.min(off, d - off);
-  var ok = !a.paused && off < 3;
-  lockT.at = null; if (el >= 3) lockT.log.unshift({ ok: ok, s: Math.round(el) });
-  if (S.tab === 'track' && !S.sess && LOCK_TRIAL[S.trackCfg.scope]) render();
+  var R = lockT.run, a = lockT.el; if (!R || !a) return;
+  if (document.visibilityState === 'hidden') { if (!a.paused) { R.off = { t: Date.now(), pos: lockPos(), ticks: 0, gap: 0, last: 0 }; lockSave(); } return; }
+  var o = R.off; if (!o) return;
+  var rate = U.settings.rateEn || 1; o.end = Date.now(); o.gap = Math.max(o.gap, o.end - (o.last || o.t));
+  var el = (o.end - o.t) / 1000, p0 = lockPos(), went = (((p0 - o.pos) % R.dur + R.dur) % R.dur) / rate, whole = R.dur / rate;
+  var slack = 3 + el * 0.08, rounds = Math.floor((el - went + slack) / whole); // only whole rounds that fit; a stop is never counted as one
+  var pausedNow = a.paused, sure = rounds < 1 || o.gap < 15000; // after a full round the place alone proves nothing unless the page was awake
+  if (rounds > 0) went += rounds * whole;
+  setTimeout(function () {
+    if (lockT.run !== R) return;
+    var moves = !a.paused && Math.abs(lockPos() - p0) > 0.2, behind = el - went;
+    o.res = !sure ? 'belirsiz (bir turdan uzun)' : (!pausedNow && moves && behind < slack ? 'sürdü ✓ (' : 'durdu ✗ (') + lockSec(went) + ' çaldı)';
+    R.offs.push(o); R.off = null; lockSave(); lockDraw();
+  }, 900);
 });
+function lockCard() {
+  var R = lockT.run, how = S.trackCfg.scope, set = sayPlan(lockT.mode === 'B' ? 'dinleB' : 'dinleA');
+  if (!R) return '<p class="modetxt">' + esc(LOCK_HOW[how]) + '</p><p class="hint">' + lockItems().length + ' cümle · hız ' + (U.settings.rateEn || 1).toFixed(2) + ' · EN ×' + set.rounds + '. Ayarlar Dinle\'deki gibi; değiştirmek için Dinle\'ye dön.</p>' +
+    (lockT.busy ? '<p class="say">Hazırlanıyor…</p>' : '') + (lockT.err ? '<p class="hint" style="color:var(--bad)">' + esc(lockT.err) + '</p>' : '');
+  var c = R.cue || R.tracks[R.i].cues[0], it = R.items[c.card], hidden = R.mode === 'A' && sayHidden(sayPlan('dinleA'), c.rep), B = R.mode === 'B';
+  var showEn = c.ph !== 'tr' && c.ph !== 'gap';
+  return '<div class="ctx"><span class="mono">' + (c.card + 1) + '/' + R.items.length + '</span><span>' + esc(qLabel(it.a)) + '</span></div>' +
+    (B || c.ph === 'tr' ? '<p class="tr ' + (B ? 'big' : 'anchor') + '">' + esc(it.l.tr) + '</p>' : '') +
+    (showEn || !B ? '<p class="en' + (hidden ? ' masked' : '') + '">' + (hidden ? esc(it.l.en) : hlEn(it.l)) + '</p>' : '') +
+    (lockT.el.paused ? '<p class="hint">Duraklatıldı</p>' : c.ph === 'tr' ? '<p class="hint">Anlam</p>' : sayLine({ gap: 'recall', you: 'you', 'with': 'with' }[c.ph] || 'listen', c.rep ? { step: c.rep, total: set.rounds } : {}));
+}
 function lockView(k) {
-  lockLoad();
-  var on = lockT.el && !lockT.el.paused, ready = !!lockT.blob;
+  var R = lockT.run, on = R && !lockT.el.paused, log = lockReport();
   var h = '<section class="hero"><h1>Dinle</h1><p class="sub">Kilit denemesi: geçici, denemeden sonra kaldırılacak.</p></section>' +
+    '<div class="seg">' + [['A', 'A · Gölgeleme'], ['B', 'B · Sesli recall']].map(function (m) { return '<button data-act="lockMode" data-m="' + m[0] + '" aria-pressed="' + (lockT.mode === m[0]) + '">' + m[1] + '</button>'; }).join('') + '</div>' +
     '<div class="ctl"><label class="kap"><span>Kapsam</span><select id="tr-scope"><option value="learned">‹ Dinle\'ye dön</option>' + lockOpts(k) + '</select></label></div>' +
-    '<div class="player"><p class="hint">' + (k === 'lock1' ? '1. Başlat\'a bas. 2. Telefonu kilitle, en az 30 sn bekle. 3. Kilidi aç; sonuç burada yazar.'
-      : '1. Paylaş\'a bas, <b>Dosyalar\'a Kaydet</b>\'i seç. 2. Dosyalar\'da açıp çal. 3. Telefonu kilitle, ses sürüyor mu dinle.') + '</p>' +
-    LOCK_SAY.map(function (t) { return '<p class="tr">' + esc(t) + '</p>'; }).join('') + '<p class="hint">Her cümle 3 kez, arada tekrar boşluğu; toplam 49 sn' + (k === 'lock1' ? ', başa döner' : '') + '.</p>' +
-    (k === 'lock1' ? lockT.log.map(function (x) { return '<p class="say">' + x.s + ' sn kapalıydı: ses ' + (x.ok ? 'sürdü ✓' : 'durdu ✗') + '</p>'; }).join('') : '') + '</div>' +
-    '<div class="trackbar">' + (lockT.err ? '<p class="hint">Deneme dosyası indirilemedi (internet gerekir).</p>' : '') +
-    (k === 'lock1' ? '<button class="btn primary wide" data-act="lockPlay"' + (ready ? '' : ' disabled') + '>' + (on ? ICON.pause + ' Duraklat' : ICON.play + ' Başlat') + '</button>'
-      : '<button class="btn primary wide" data-act="lockShare"' + (ready ? '' : ' disabled') + '>Paylaş</button>') + '</div>';
+    '<div class="player' + (R ? '' : ' idle') + '" id="player">' + lockCard() + '</div>' +
+    '<div class="speedbox"><p class="hint">1. Başlat. 2. Telefonu kilitle, 2–3 dk bekle, sesi dinle; Sonraki\'yi de dene. 3. Kilidi aç, Günlüğü kopyala, Claude\'a yapıştır. Günlükte cümle yok, yalnız süreler var.</p>' +
+    (log ? '<div class="row"><button class="btn" data-act="lockCopy">Günlüğü kopyala</button> <button class="btn" data-act="lockClear">Günlüğü sil</button></div><div id="locktxt"></div><textarea id="lockrep" class="mono" rows="6" readonly>' + esc(log) + '</textarea>' : '') + '</div>' +
+    '<div id="trackctl" class="trackbar">' + (R ? '<div class="transport"><button class="btn" data-act="lockPrev" aria-label="Önceki cümle">' + ICON.prev + '<span>Önceki</span></button>' +
+      '<button class="btn primary" data-act="lockPlay">' + (on ? ICON.pause + '<span>Duraklat</span>' : ICON.play + '<span>Devam</span>') + '</button>' +
+      '<button class="btn" data-act="lockNext" aria-label="Sonraki cümle"><span>Sonraki</span>' + ICON.next + '</button></div><button class="link endtrack" data-act="lockEnd">Bitir</button>'
+      : '<button class="btn primary wide" data-act="lockPlay"' + (lockT.busy ? ' disabled' : '') + '>' + ICON.play + ' Başlat</button>') + '</div>';
   return h;
 }
 /* ---- end of TRIAL ---- */
@@ -3701,11 +3895,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v73'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v74'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-24 10:31'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-24 13:41'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -4083,7 +4277,8 @@ var ACT = {
   trackStop: function () { trackStop(); },
   trackPrev: function () { trackJump(-1); },
   mark: function (el) { trackMark(el.dataset.v); },
-  trackUndo: trackUndo, lockPlay: lockPlay, lockShare: lockShare, // lock*: TRIAL d14
+  trackUndo: trackUndo, lockPlay: lockPlay, lockEnd: function () { lockEnd(); render(); }, lockPrev: function () { lockGo(-1); }, lockNext: function () { lockGo(1); },
+  lockMode: function (el) { lockEnd(); lockT.mode = el.dataset.m; render(); }, lockCopy: lockCopy, lockClear: lockClear, // lock*: TRIAL d14
   trackNext: function () { trackJump(1); },
   trackToggle: function () { if (S.track && S.track.paused) trackResume(); else trackPause(); },
   toggleAns: function (el) { var id = el.dataset.id; S.openAns[id] = !S.openAns[id]; render(); },
@@ -4147,7 +4342,7 @@ document.addEventListener('change', function (e) {
   else if (t.id === 'pk-trfirst') { U.settings.trFirst = t.value; save('settings'); render(); }
   else if (t.id === 'pk-think') { U.settings.think = t.value; save('settings'); render(); }
   else if (t.id === 'pk-rep') { var n = +t.value; if (S.trackCfg.mode === 'A') U.settings.repA = n; else U.settings.repB = n; save('settings'); if (S.track) trackStop(true); render(); }
-  else if (t.id === 'tr-scope') { lockStop(); if (S.track) trackStop(true); S.trackCfg.scope = t.value; S.trackCfg.once = false; render(); }
+  else if (t.id === 'tr-scope') { lockEnd(); if (S.track) trackStop(true); S.trackCfg.scope = t.value; S.trackCfg.once = false; render(); }
   else if (t.id === 'tr-shuffle') { S.trackCfg.shuffle = t.checked; U.settings.trShuffle = t.checked; save('settings'); }
   else if (t.id === 'reh-fu') { U.settings.fuOn = t.checked; save('settings'); }
   else if (t.id === 'set-dict') { U.settings.dict = t.checked; save('settings'); }
