@@ -3037,10 +3037,11 @@ function modeTxt(m) {
 /* ---- TRIAL (d14, remove after the phone test): does S1 keep playing in Dinle while the screen is locked? ----
    Başlat joins the answer's own clips and real silence (the waits) into MP3 sound in memory, with the times of sayPlan,
    recallMs and echoMs, so no timer runs while the page sleeps. Two ways, same content: one recording, or one track per card. A report (version, device, times; no sentences) says how long everything took and what
-   played while the screen was off. Parts: LOCK_*, lock*, window.__clipBuf, localStorage mt1:__locklog. ---- */
+   played while the screen was off, and how soon the sound came after Devam. Parts: LOCK_*, lock*, window.__clipBuf, localStorage mt1:__locklog. ---- */
 var LOCK_TRIAL = { lock1: 'S1 · 1 tek kayıt', lock2: 'S1 · 2 çalma listesi' };
 var LOCK_HOW = { lock1: 'Bütün cümleler ve beklemeler tek kayıtta.', lock2: 'Her cümle, beklemeleriyle, ayrı bir parça.' };
 var LOCK_LOG = 'mt1:__locklog';
+var LOCK_KEEP = 600; // seconds of silence the second player holds
 var lockT = { el: null, mode: 'B' };
 function lockOpts(scope) { return '<optgroup label="Kilit denemesi (geçici)">' + Object.keys(LOCK_TRIAL).map(function (k) { return '<option value="' + k + '"' + (scope === k ? ' selected' : '') + '>' + esc(LOCK_TRIAL[k]) + '</option>'; }).join('') + '</optgroup>'; }
 function lockItems() { var a = S.answers.filter(function (x) { return x.code === 'S1'; })[0]; return a ? a.lines.map(function (l) { return { a: a, l: l }; }) : []; }
@@ -3132,8 +3133,38 @@ function lockBuild(way, mode) {
 function lockFree() { var R = lockT.run; if (R) R.tracks.forEach(function (t) { URL.revokeObjectURL(t.url); }); lockT.run = null; }
 function lockStop() { // pauses; the sound stays ready (Devam)
   if (lockT.el && !lockT.el.paused) lockT.el.pause();
+  lockQuiet(false);
 }
-function lockEnd() { lockT.tok = (lockT.tok || 0) + 1; lockT.busy = false; if (lockT.el) { lockT.el.pause(); lockT.el.removeAttribute('src'); } if (lockT.run) lockSave('bitti'); lockFree(); mediaOff(); }
+/* iOS puts a home-screen app to sleep seconds after its sound is paused; Devam on the lock screen then starts nothing
+   (WebKit bug 243258, open). So a second player plays silence while the run is on, also through a pause. It does not loop:
+   when it starts over, iOS takes it for the playing sound and sends Duraklat again instead of Devam (seen in the
+   simulator). lockTick takes it back to the start only while the sentences play, so a pause can last 5 to 10 minutes. */
+function lockQuiet(on) {
+  var z = lockT.z; lockT.zOn = on;
+  if (!on) { if (z) z.pause(); return; }
+  if (!z) {
+    var n = LOCK_KEEP * 8000, b = new Uint8Array(44 + n).fill(128), v = new DataView(b.buffer), txt = function (o, s) { for (var i = 0; i < s.length; i++) b[o + i] = s.charCodeAt(i); };
+    txt(0, 'RIFF'); v.setUint32(4, 36 + n, true); txt(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); txt(36, 'data'); v.setUint32(40, n, true);
+    z = lockT.z = new Audio(); z.src = URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+    z.addEventListener('ended', function () { lockNote('bekleme sınırı doldu'); });
+    z.addEventListener('pause', function () { if (lockT.zOn && !z.ended) lockNote('sessiz çalar durdu'); }); // a call, another app's sound, headphones out: not forced back
+  }
+  if (z.paused) { if (z.ended) z.currentTime = 0; var p = z.play(); if (p && p.catch) p.catch(function (e) { if (lockT.zOn) lockNote('sessiz çalar hatası ' + (e && e.name || '')); }); }
+}
+/* plays on after a pause; the report says how long the sound took to come, or that it did not */
+function lockOn(R) {
+  R.back = { t: Date.now(), pos: lockT.el.currentTime }; lockQuiet(true);
+  lockT.el.play().catch(function (e) { lockNote('çal hatası ' + (e && e.name || '')); });
+}
+function lockBack(R, over) { // over: another button, or the screen is on again
+  var b = R.back; if (!b) return;
+  var ms = Date.now() - b.t, came = lockT.el.currentTime > b.pos + 0.1;
+  if (!came && !over) return;
+  R.back = null;
+  if (came || ms > 1500) { R.backs.push(came ? ms : -1); lockNote(came ? 'ses geldi ' + ms + ' ms' : 'devamda ses gelmedi'); }
+}
+function lockEnd() { lockT.tok = (lockT.tok || 0) + 1; lockT.busy = false; if (lockT.el) { lockT.el.pause(); lockT.el.removeAttribute('src'); } if (lockT.run) lockSave('bitti'); lockQuiet(false); lockFree(); mediaOff(); }
 function lockShown() { return S.tab === 'track' && !S.sess && !!LOCK_TRIAL[S.trackCfg.scope]; }
 function lockDraw() { if (lockShown()) render(); }
 function lockPos() { var R = lockT.run; return R ? R.tracks[R.i].at + (lockT.el.currentTime || 0) : 0; }
@@ -3154,7 +3185,7 @@ function lockEl() {
     var R = lockT.run; if (!R) return;
     if (R.held) { if (R.off) R.off.held += Date.now() - R.held; R.held = 0; }
     if (R.want) { var ms = lockNow() - R.want; R.want = 0; if (R.start === undefined) R.start = ms; else R.sw.push(Math.round(ms)); }
-    lockTitle(R); lockTick(); if (R.ui !== true) { R.ui = true; lockDraw(); }
+    lockQuiet(true); lockTitle(R); lockTick(); if (R.ui !== true) { R.ui = true; lockDraw(); }
   });
   a.addEventListener('pause', function () { if (lockT.run && !a.ended) { lockT.run.ui = false; lockNote('durdu'); mediaState('paused'); lockDraw(); } });
   a.addEventListener('ended', function () { var R = lockT.run; if (R && R.tracks.length > 1) lockTrack((R.i + 1) % R.tracks.length); });
@@ -3175,7 +3206,8 @@ function lockTitle(R) {
 /* which step is playing now; runs on the player's own events, also while locked if the page is awake */
 function lockTick() {
   var R = lockT.run, a = lockT.el; if (!R || !a) return;
-  var now = Date.now();
+  var now = Date.now(), z = lockT.z; lockBack(R);
+  if (z && !a.paused && z.currentTime > LOCK_KEEP / 2) z.currentTime = 0;
   if (R.off) { R.off.ticks++; R.off.gap = Math.max(R.off.gap, now - (R.off.last || R.off.t)); R.off.last = now; }
   var cs = R.tracks[R.i].cues, c = cs[0];
   for (var i = 0; i < cs.length && cs[i].at <= a.currentTime + 0.02; i++) c = cs[i];
@@ -3187,7 +3219,7 @@ function lockTick() {
 function lockGo(d) {
   var R = lockT.run; if (!R) return;
   var n = R.items.length, cur = R.cue ? R.cue.card : 0, to = (cur + d + n) % n;
-  lockNote(d > 0 ? 'sonraki' : 'önceki');
+  lockBack(R, true); lockNote(d > 0 ? 'sonraki' : 'önceki');
   for (var i = 0; i < R.tracks.length; i++) for (var k = 0; k < R.tracks[i].cues.length; k++) {
     var c = R.tracks[i].cues[k];
     if (c.card === to && c.first) {
@@ -3201,25 +3233,26 @@ function lockGo(d) {
 function lockMedia() {
   if (!MSS) return;
   msHandler('previoustrack', function () { lockGo(-1); }); msHandler('nexttrack', function () { lockGo(1); });
-  msHandler('pause', function () { lockNote('kilit/kulaklık: duraklat'); if (lockT.run && !lockT.el.paused) lockT.run.held = Date.now(); lockStop(); });
-  msHandler('play', function () { lockNote('kilit/kulaklık: devam'); if (lockT.run) lockT.el.play().catch(function (e) { lockNote('çal hatası ' + (e && e.name || '')); }); });
+  msHandler('pause', function () { lockNote('kilit/kulaklık: duraklat'); var R = lockT.run; if (!R || lockT.el.paused) return; lockBack(R, true); R.held = Date.now(); lockT.el.pause(); });
+  msHandler('play', function () { lockNote('kilit/kulaklık: devam'); if (lockT.run) lockOn(lockT.run); });
   msHandler('stop', function () { lockEnd(); lockDraw(); });
 }
 function lockPlay() {
   if (lockT.busy) return;
   var a = lockEl(), R = lockT.run;
-  if (R) { if (a.paused) a.play().catch(function () { toast('Ses başlatılamadı.'); }); else a.pause(); return; }
+  if (R) { if (a.paused) { lockQuiet(true); a.play().catch(function () { toast('Ses başlatılamadı.'); }); } else a.pause(); return; }
   stopAudio(); if (S.track) trackStop(true);
+  lockQuiet(true);
   lockT.err = ''; lockT.busy = true; lockT.log = null;
   a.loop = false; a.src = SILENT; var p = a.play(); if (p && p.catch) p.catch(function () {}); // unlocks the player inside the tap
   var t0 = lockNow(), way = S.trackCfg.scope, mode = lockT.mode, tok = lockT.tok = (lockT.tok || 0) + 1;
   lockDraw();
   lockBuild(way, mode).then(function (run) {
     if (tok !== lockT.tok) { run.tracks.forEach(function (t) { URL.revokeObjectURL(t.url); }); return; }
-    lockT.busy = false; lockT.run = run; run.t0 = t0; run.at = Date.now(); run.notes = []; run.offs = [];
+    lockT.busy = false; lockT.run = run; run.backs = []; run.t0 = t0; run.at = Date.now(); run.notes = []; run.offs = [];
     lockMedia(); lockTrack(0); run.want = t0; // the first sound is counted from the tap
     lockDraw();
-  }, function (e) { if (tok !== lockT.tok) return; lockT.busy = false; lockT.err = e && e.message ? String(e.message) : 'Hazırlanamadı.'; lockDraw(); });
+  }, function (e) { if (tok !== lockT.tok) return; lockT.busy = false; lockQuiet(false); lockT.err = e && e.message ? String(e.message) : 'Hazırlanamadı.'; lockDraw(); });
 }
 /* ---- the report ---- */
 function lockNote(t) { var R = lockT.run; if (!R || !R.notes) return; R.notes.push({ t: Date.now(), x: t, off: !!R.off }); if (R.notes.length > 120) R.notes.shift(); lockSave(); }
@@ -3232,6 +3265,7 @@ function lockRep() {
     'hazırlama: okuma ' + Math.round(R.read) + ' ms · birleştirme ' + Math.round(R.join) + ' ms · dokunuştan ilk sese ' + (R.start === undefined ? '-' : Math.round(R.start) + ' ms'),
     'kayıt: ' + R.items.length + ' cümle · ' + R.clips + ' ses · ' + R.tracks.length + ' parça · ' + lockSec(R.dur / (U.settings.rateEn || 1)) + ' · ' + (R.bytes / 1e6).toFixed(1) + ' MB · ' + sig + (R.skip ? ' · atlanan ' + R.skip : '')];
   if (R.sw.length) out.push('parça geçişi: ' + R.sw.length + ' kez · medyan ' + median(R.sw) + ' ms · en yavaş ' + Math.max.apply(null, R.sw) + ' ms');
+  if (R.backs.length) { var ok = R.backs.filter(function (x) { return x >= 0; }); out.push('duraklat → devam: ' + R.backs.length + ' kez · ses geldi ' + ok.length + (ok.length ? ' · medyan ' + median(ok) + ' ms · en yavaş ' + Math.max.apply(null, ok) + ' ms' : '') + ' · sessiz çalar ' + (lockT.z && !lockT.z.paused ? 'açık' : 'kapalı')); }
   R.offs.forEach(function (o, k) {
     out.push('kapalı ' + (k + 1) + ': ' + lockClock(o.t) + '–' + lockClock(o.end) + ' (' + lockSec((o.end - o.t) / 1000) + ') · ' + o.res + ' · sayfa ' + o.ticks + ' kez uyandı, en uzun ara ' + lockSec(o.gap / 1000));
   });
@@ -3257,6 +3291,7 @@ document.addEventListener('visibilitychange', function () {
   var R = lockT.run, a = lockT.el; if (!R || !a) return;
   if (document.visibilityState === 'hidden') { if (!a.paused) { R.off = { t: Date.now(), pos: lockPos(), ticks: 0, gap: 0, last: 0, held: 0 }; lockSave(); } return; }
   var o = R.off; if (!o) return;
+  lockBack(R, true);
   var rate = U.settings.rateEn || 1; o.end = Date.now(); o.gap = Math.max(o.gap, o.end - (o.last || o.t));
   if (R.held) o.held += o.end - R.held;
   var mine = !!R.held, el = (o.end - o.t - o.held) / 1000, p0 = lockPos(), went = (((p0 - o.pos) % R.dur + R.dur) % R.dur) / rate, whole = R.dur / rate;
@@ -3287,7 +3322,7 @@ function lockView(k) {
     '<div class="seg">' + [['A', 'A · Gölgeleme'], ['B', 'B · Sesli recall']].map(function (m) { return '<button data-act="lockMode" data-m="' + m[0] + '" aria-pressed="' + (lockT.mode === m[0]) + '">' + m[1] + '</button>'; }).join('') + '</div>' +
     '<div class="ctl"><label class="kap"><span>Kapsam</span><select id="tr-scope"><option value="learned">‹ Dinle\'ye dön</option>' + lockOpts(k) + '</select></label></div>' +
     '<div class="player' + (R ? '' : ' idle') + '" id="player">' + lockCard() + '</div>' +
-    '<div class="speedbox"><p class="hint">1. Başlat. 2. Telefonu kilitle, sesi dinle, kilit ekranındaki cümleye bak; Sonraki\'yi de dene. 3. Kilidi aç, Günlüğü kopyala, Claude\'a yapıştır. Günlükte cümle yok, yalnız süreler var.</p>' +
+    '<div class="speedbox"><p class="hint">1. Başlat. 2. Telefonu kilitle; kilit ekranındaki cümleye bak, Duraklat, Devam ve Sonraki\'yi dene. Duraklatınca en az 5 dk kilit ekranından devam edebilirsin. 3. Kilidi aç, Günlüğü kopyala, Claude\'a yapıştır. Günlükte cümle yok, yalnız süreler var.</p>' +
     (log ? '<div class="row"><button class="btn" data-act="lockCopy">Günlüğü kopyala</button> <button class="btn" data-act="lockClear">Günlüğü sil</button></div><div id="locktxt"></div><textarea id="lockrep" class="mono" rows="6" readonly>' + esc(log) + '</textarea>' : '') + '</div>' +
     '<div id="trackctl" class="trackbar">' + (R ? '<div class="transport"><button class="btn" data-act="lockPrev" aria-label="Önceki cümle">' + ICON.prev + '<span>Önceki</span></button>' +
       '<button class="btn primary" data-act="lockPlay">' + (on ? ICON.pause + '<span>Duraklat</span>' : ICON.play + '<span>Devam</span>') + '</button>' +
@@ -3905,11 +3940,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v75'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v76'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-24 15:32'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-24 18:55'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }

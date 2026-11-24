@@ -169,7 +169,15 @@ test('Kilit denemesi (trial d14): S1 is joined from the shipped clips and plays'
     await expect.poll(() => page.evaluate(() => window.__lockTrial.t.el.currentTime > 0.5 && !window.__lockTrial.t.el.paused)).toBe(true);
     await page.locator('[data-act="lockNext"]').click();
     await expect(page.locator('#player .ctx .mono')).toHaveText('2/' + s1.lines.length);
+    // a silent second player goes on through a pause (an iPhone home-screen app sleeps without it) and stops with the run
+    const both = () => page.evaluate(() => { const t = window.__lockTrial.t; return [t.el.paused, t.z.paused]; });
+    await expect.poll(both).toEqual([false, false]);
+    await page.locator('[data-act="lockPlay"]').click();
+    await expect.poll(both).toEqual([true, false]);
+    await page.locator('[data-act="lockPlay"]').click();
+    await expect.poll(both).toEqual([false, false]);
     await page.locator('[data-act="lockEnd"]').click();
+    expect(await both()).toEqual([true, true]);
   }
   const rep = await page.locator('#lockrep').inputValue();
   console.log(rep);
