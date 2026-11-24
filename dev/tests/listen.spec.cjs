@@ -85,10 +85,10 @@ test('Dinle B: going back to a card marked ✓ plays its English again', async (
   await expect(ok).toHaveAttribute('aria-pressed', 'true'); // the mark stays
 });
 
-test('Kilit denemesi (trial d14): three scopes for S1, A and B, and back to the normal Dinle', async ({ page }) => {
+test('Kilit denemesi (trial d14): two scopes for S1, A and B, and back to the normal Dinle', async ({ page }) => {
   await setup(page);
   const pick = (v) => page.locator('#tr-scope').selectOption(v);
-  for (const k of ['lock1', 'lock2', 'lock3']) {
+  for (const k of ['lock1', 'lock2']) {
     await pick(k);
     await expect(page.locator('[data-act="lockPlay"]')).toBeEnabled();
     await expect(page.locator('#player')).toContainText('cümle');
@@ -114,16 +114,16 @@ test('Kilit denemesi: clips and waits are joined with the shared times (made-up 
     const clip = (lang) => (lang === 'en' ? en : tr), items = [it, it, it], out = { n: en.n, sig: en.sig, ms: en.ms };
     out.steps = L.steps(it, 'B', clip).map((s) => (s.ref ? s.ph : Math.round(s.ms)));
     out.recall = window.__timing.recallMs(it.l.en); out.echo = Math.round(window.__timing.echoMs(2400 / 0.9, it.l.en) - 100);
-    ['lock1', 'lock2', 'lock3'].forEach((w) => { const j = L.join(items, w, 'B', clip); out[w] = { tracks: j.tracks.length, dur: j.dur, bytes: j.tracks.reduce((n, t) => n + t.parts.reduce((m, p) => m + p.length, 0), 0), cards: j.tracks.map((t) => t.cues[0].card), firsts: [].concat(...j.tracks.map((t) => t.cues)).filter((c) => c.first).length }; });
+    ['lock1', 'lock2'].forEach((w) => { const j = L.join(items, w, 'B', clip); out[w] = { tracks: j.tracks.length, dur: j.dur, bytes: j.tracks.reduce((n, t) => n + t.parts.reduce((m, p) => m + p.length, 0), 0), cards: j.tracks.map((t) => t.cues[0].card), firsts: [].concat(...j.tracks.map((t) => t.cues)).filter((c) => c.first).length }; });
     out.bad = (() => { try { L.mp3Clip(new Uint8Array([82, 73, 70, 70, 1, 2, 3, 4])); return 'ok'; } catch (e) { return 'thrown'; } })();
     return out;
   });
   expect(r.n).toBe(100); expect(r.sig).toBe('24000 mono 48'); expect(r.ms).toBeCloseTo(2400, 3);
   expect(r.steps).toEqual(['tr', r.recall, 'en', r.echo, 'en', r.echo, 'en', r.echo, 600]);
-  expect([r.lock1.tracks, r.lock2.tracks, r.lock3.tracks]).toEqual([1, 3, 27]);
+  expect([r.lock1.tracks, r.lock2.tracks]).toEqual([1, 3]);
   // the same content whichever way: same length, same bytes, 3 card starts; waits are stored at speed 0.9
-  expect(r.lock2.dur).toBeCloseTo(r.lock1.dur, 6); expect(r.lock3.bytes).toBe(r.lock1.bytes); expect(r.lock2.bytes).toBe(r.lock1.bytes);
-  expect([r.lock1.firsts, r.lock2.firsts, r.lock3.firsts]).toEqual([3, 3, 3]);
+  expect(r.lock2.dur).toBeCloseTo(r.lock1.dur, 6); expect(r.lock2.bytes).toBe(r.lock1.bytes);
+  expect([r.lock1.firsts, r.lock2.firsts]).toEqual([3, 3]);
   const want = 3 * (1.2 + 3 * 2.4 + (r.recall + 3 * r.echo + 600) / 1000 * 0.9);
   expect(Math.abs(r.lock1.dur - want)).toBeLessThan(0.2);
   expect(r.lock1.bytes).toBe(Math.round(r.lock1.dur / 0.024) * 144);

@@ -147,7 +147,7 @@ test('a re-voicing pack replaces the older clips of the same lines', async ({ pa
   expect(fromNewest.length).toBe(newest.n); // every clip of the newest pack is the one kept for its key
 });
 
-// TRIAL d14: S1's shipped clips share one MP3 format, so they can be joined; the three ways play and write a report without sentences.
+// TRIAL d14: S1's shipped clips share one MP3 format, so they can be joined; the two ways play and write a report without sentences.
 test('Kilit denemesi (trial d14): S1 is joined from the shipped clips and plays', async ({ page }) => {
   requirePass(test);
   const { answers } = await seedOf();
@@ -161,7 +161,7 @@ test('Kilit denemesi (trial d14): S1 is joined from the shipped clips and plays'
   console.log('clip formats: ' + JSON.stringify(fmt));
   const s1 = Object.values(answers).find((a) => a.code === 'S1');
   await page.getByRole('button', { name: 'Dinle', exact: true }).first().click();
-  for (const way of ['lock1', 'lock2', 'lock3']) for (const m of ['A', 'B']) {
+  for (const way of ['lock1', 'lock2']) for (const m of ['A', 'B']) {
     await page.locator('#tr-scope').selectOption(way);
     await page.locator(`[data-act="lockMode"][data-m="${m}"]`).click();
     await page.locator('[data-act="lockPlay"]').click();
