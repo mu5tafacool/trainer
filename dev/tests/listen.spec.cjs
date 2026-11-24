@@ -67,3 +67,34 @@ test('Dinle B: ✓ and ✗ marks change the schedule and can be undone', async (
   await expect(pos(page)).toHaveText(/^1\/4/);
   expect((await srs())[lines[0].id]).toEqual(before[lines[0].id]);
 });
+
+test('Dinle B: going back to a card marked ✓ plays its English again', async ({ page }) => {
+  const { lines } = await setup(page);
+  await page.locator('[data-act="trackPlay"]').click();
+  const ok = page.locator('[data-act="mark"][data-v="ok"]');
+  for (let k = 0; k < 30 && await ok.isDisabled(); k++) { await page.evaluate(() => window.__speechEnd()); await page.clock.fastForward(1500); }
+  await ok.click();
+  await expect(pos(page)).toHaveText(/^2\/4/);
+  await page.locator('[data-act="trackPrev"]').click();
+  await expect(pos(page)).toHaveText(/^1\/4/);
+  const n = () => page.evaluate((en) => window.__spoken.filter((t) => t === en).length, lines[0].en);
+  const before = await n();
+  for (let k = 0; k < 20 && await n() === before; k++) { await page.evaluate(() => window.__speechEnd()); await page.clock.fastForward(1500); }
+  expect(await n()).toBe(before + 1);
+  await expect(page.locator('#player .sayline')).toHaveText(/^Dinle ve oku · 1\//);
+  await expect(ok).toHaveAttribute('aria-pressed', 'true'); // the mark stays
+});
+
+test('Kilit denemesi (trial d14): two scopes, sound file ready, back to the normal Dinle', async ({ page }) => {
+  await setup(page);
+  const pick = (v) => page.locator('#tr-scope').selectOption(v);
+  await pick('lock1');
+  await expect(page.locator('[data-act="lockPlay"]')).toBeEnabled();
+  await expect(page.locator('.player')).toContainText('Telefonu kilitle');
+  await pick('lock2');
+  await expect(page.locator('[data-act="lockShare"]')).toBeEnabled();
+  await expect(page.locator('[data-act="lockPlay"]')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await pick('learned');
+  await expect(page.locator('[data-act="trackPlay"]')).toBeVisible();
+});

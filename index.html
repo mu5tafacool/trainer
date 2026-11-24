@@ -146,7 +146,7 @@ mark.pkmiss { background: var(--warn-soft, transparent); color: var(--warn); bor
 .tr { font-size: 17px; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
 .tr.big { font-size: clamp(19px, 5vw, 22px); color: var(--ink); }
 .masked { filter: blur(7px); user-select: none; }
-.cardfoot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cardfoot { margin-top: auto; min-height: 22px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tier { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
 .tier.ezber { background: var(--bad-soft); color: var(--bad); }
 .timer { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -2114,7 +2114,7 @@ function ttsSpeak(text, lang, tok) {
   });
 }
 function stopAudio() {
-  audioTok++;
+  audioTok++; lockStop();
   if (synth) { try { synth.cancel(); } catch (e) {} }
   if (aEl) { try { aEl.pause(); } catch (e) {} }
   if (curFin) curFin(true);
@@ -2330,6 +2330,8 @@ function siriHint() {
   return '<p class="siri-hint">Siri: ' + (DESKTOP ? 'İngilizce cümle seçili; <kbd>⌥ Esc</kbd> ile dinle.' : 'kumandadaki el simgesine dokun, sonra İngilizce cümleye dokun.') + '</p>';
 }
 function sessHead(label, endTxt) { return '<div class="sesshead"><button class="link" data-act="endSess">← ' + (endTxt || 'Bitir') + '</button><span class="mono">' + label + '</span></div>'; }
+/* a line's type: ezber (word for word), anlam (main idea) or '' (none chosen: no tag on the card, graded like anlam) */
+function tierOf(l) { return l.tier === 'ezber' || l.tier === '' ? l.tier : 'anlam'; }
 function tierTxt(l) { return l.tier === 'ezber' ? 'Ezber · kelimesi kelimesine' : 'Anlam · ana fikir ve terimler yeter'; }
 /* ---- Niyet / iskelet. line.intent (seed v10) = a 1–3 word Turkish label for the line's job in the answer ("Sonuç").
    Yeni: a stop bar above the card (where this line sits in the answer, the stops before and after it).
@@ -2636,7 +2638,7 @@ function sayLine(phase, o) {
     (o.step ? ' <span class="mono hint">· ' + o.step + '/' + o.total + '</span>' : '') + (o.tail ? ' <span class="hint">· ' + o.tail + '</span>' : '') + '</p>';
 }
 /* the card foot: the tier tag on the left, an optional timer or countdown (cardTimer) on the right */
-function cardFoot(l, right) { return '<div class="cardfoot"><span class="tier ' + esc(l.tier) + '">' + tierTxt(l) + '</span>' + (right || '') + '</div>'; }
+function cardFoot(l, right) { var t = tierOf(l); return '<div class="cardfoot">' + (t ? '<span class="tier ' + t + '">' + tierTxt(l) + '</span>' : '') + (right || '') + '</div>'; }
 function cardTimer(id, text) { return '<span id="' + id + '" class="timer">' + text + '</span>'; }
 function pkView(head, it) {
   var p = S.sess.pk, l = it.l, shown = p.phase === 'shown', plan = sayPlan('pekistir'), alone = p.step > plan.rounds; // alone: the step from memory
@@ -3031,10 +3033,70 @@ function modeTxt(m) {
   if (m === 'B') return 'TR · düşünme süresi (cümle uzunluğuna ve hıza göre, en az 3 sn): İngilizcesini sen söyle · sonra EN ×' + repN('B') + ', her birinden sonra tekrar et. İngilizceyi duyunca kartın köşesinden işaretle: ✓ bildim, ✗ bilemedim.';
   return 'Cevabın tamamı sırayla. Akışı kulağa yerleştir.';
 }
+/* ---- TRIAL (d14, remove after the phone test): does one single sound file keep playing while the screen is locked?
+   Two scopes in Dinle: played inside the app, and shared as a file for the Files app. Made-up sentences, one m4a with the
+   repeat gaps inside, so no timer runs while the page is suspended. Parts: LOCK_*, lock*, trial-lock.m4a. ---- */
+var LOCK_TRIAL = { lock1: 'Deneme 1 · uygulamada çal', lock2: 'Deneme 2 · Dosyalar\'da çal' };
+var LOCK_SAY = ['The bakery opens at seven.', 'Take the second street on the left.', 'My train leaves in ten minutes.', 'Could you bring me some water, please?'];
+var lockT = { el: null, blob: null, at: null, log: [] };
+function lockOpts(scope) { return '<optgroup label="Kilit denemesi (geçici)">' + Object.keys(LOCK_TRIAL).map(function (k) { return '<option value="' + k + '"' + (scope === k ? ' selected' : '') + '>' + esc(LOCK_TRIAL[k]) + '</option>'; }).join('') + '</optgroup>'; }
+function lockLoad() {
+  if (lockT.blob || lockT.busy) return; lockT.busy = true;
+  fetch('trial-lock.m4a').then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
+    .then(function (b) { lockT.blob = new Blob([b], { type: 'audio/mp4' }); lockT.url = URL.createObjectURL(lockT.blob); }, function () { lockT.err = true; })
+    .then(function () { lockT.busy = false; if (S.tab === 'track' && !S.sess) render(); });
+}
+function lockStop() { if (lockT.el && !lockT.el.paused) { lockT.el.pause(); } }
+function lockPlay() {
+  if (!lockT.blob) return;
+  if (!lockT.el) {
+    lockT.el = new Audio(); lockT.el.loop = true; lockT.el.src = lockT.url;
+    ['play', 'pause'].forEach(function (e) { lockT.el.addEventListener(e, function () { if (S.tab === 'track' && !S.sess && LOCK_TRIAL[S.trackCfg.scope]) render(); }); });
+  }
+  if (!lockT.el.paused) { lockT.el.pause(); return; }
+  stopAudio();
+  if (MSS) {
+    try { MSS.metadata = new MediaMetadata({ title: 'Kilit denemesi', artist: 'Dinle' }); } catch (e) {}
+    msHandler('play', function () { lockT.el.play(); }); msHandler('pause', function () { lockT.el.pause(); });
+  }
+  lockT.el.play().catch(function () { toast('Ses başlatılamadı.'); });
+}
+function lockShare() {
+  if (!lockT.blob) return;
+  var f = new File([lockT.blob], 'kilit-denemesi.m4a', { type: 'audio/mp4' });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f] }).catch(function () {}); return; }
+  var a = document.createElement('a'); a.href = lockT.url; a.download = f.name; a.click();
+}
+/* writes down by itself what happened while the page was hidden (locked or another app) */
+document.addEventListener('visibilitychange', function () {
+  var a = lockT.el; if (!a) return;
+  if (document.visibilityState === 'hidden') { lockT.at = a.paused ? null : { t: Date.now(), c: a.currentTime }; return; }
+  if (!lockT.at) return;
+  var el = (Date.now() - lockT.at.t) / 1000, d = a.duration || 1, went = ((a.currentTime - lockT.at.c) % d + d) % d, off = Math.abs(went - el % d); off = Math.min(off, d - off);
+  var ok = !a.paused && off < 3;
+  lockT.at = null; if (el >= 3) lockT.log.unshift({ ok: ok, s: Math.round(el) });
+  if (S.tab === 'track' && !S.sess && LOCK_TRIAL[S.trackCfg.scope]) render();
+});
+function lockView(k) {
+  lockLoad();
+  var on = lockT.el && !lockT.el.paused, ready = !!lockT.blob;
+  var h = '<section class="hero"><h1>Dinle</h1><p class="sub">Kilit denemesi: geçici, denemeden sonra kaldırılacak.</p></section>' +
+    '<div class="ctl"><label class="kap"><span>Kapsam</span><select id="tr-scope"><option value="learned">‹ Dinle\'ye dön</option>' + lockOpts(k) + '</select></label></div>' +
+    '<div class="player"><p class="hint">' + (k === 'lock1' ? '1. Başlat\'a bas. 2. Telefonu kilitle, en az 30 sn bekle. 3. Kilidi aç; sonuç burada yazar.'
+      : '1. Paylaş\'a bas, <b>Dosyalar\'a Kaydet</b>\'i seç. 2. Dosyalar\'da açıp çal. 3. Telefonu kilitle, ses sürüyor mu dinle.') + '</p>' +
+    LOCK_SAY.map(function (t) { return '<p class="tr">' + esc(t) + '</p>'; }).join('') + '<p class="hint">Her cümle 3 kez, arada tekrar boşluğu; toplam 49 sn' + (k === 'lock1' ? ', başa döner' : '') + '.</p>' +
+    (k === 'lock1' ? lockT.log.map(function (x) { return '<p class="say">' + x.s + ' sn kapalıydı: ses ' + (x.ok ? 'sürdü ✓' : 'durdu ✗') + '</p>'; }).join('') : '') + '</div>' +
+    '<div class="trackbar">' + (lockT.err ? '<p class="hint">Deneme dosyası indirilemedi (internet gerekir).</p>' : '') +
+    (k === 'lock1' ? '<button class="btn primary wide" data-act="lockPlay"' + (ready ? '' : ' disabled') + '>' + (on ? ICON.pause + ' Duraklat' : ICON.play + ' Başlat') + '</button>'
+      : '<button class="btn primary wide" data-act="lockShare"' + (ready ? '' : ' disabled') + '>Paylaş</button>') + '</div>';
+  return h;
+}
+/* ---- end of TRIAL ---- */
 function renderTrack() {
   var c = S.trackCfg, playing = !!S.track, anyLearned = learnedLines().length > 0;
   if (!S.trackOpts) { c.shuffle = !!U.settings.trShuffle; c.text = U.settings.trText !== false; S.trackOpts = true; }
   if (c.scope === 'due' && c.mode === 'C') c.scope = 'learned';
+  if (LOCK_TRIAL[c.scope]) return lockView(c.scope);
   var scope = (c.scope === 'learned' && !anyLearned) ? 'all' : c.scope;
   var nDue = trackItems({ scope: 'due', mode: 'C' }).length;
   var h = '<section class="hero"><h1>Dinle</h1><p class="sub">Ekran açık kalmalı; kilitlenince ses durur.</p></section>';
@@ -3055,7 +3117,7 @@ function renderTrack() {
       var anyL = list.some(function (a) { return started(a); });
       return '<optgroup label="' + esc(lab) + '">' + (gl.length > 1 ? (anyL ? opt('gl:' + g.id, lab + ' · öğrendiklerim') : '') + opt('g:' + g.id, lab + ' · tüm satırlar') : '') +
         list.map(function (a) { return opt(a.id, qLabel(a)); }).join('') + '</optgroup>';
-    }).join('') + '</select></label>' + (scope === 'hard' ? '<p class="hint">En çok zorlandığın ' + HARD_MAX + ' satır. Bir satırı iki ayrı günde doğru söyleyince listeden çıkar (Nasıl çalışır → Zorlandıklarım).</p>' : '') +
+    }).join('') + lockOpts(scope) + '</select></label>' + (scope === 'hard' ? '<p class="hint">En çok zorlandığın ' + HARD_MAX + ' satır. Bir satırı iki ayrı günde doğru söyleyince listeden çıkar (Nasıl çalışır → Zorlandıklarım).</p>' : '') +
     rows + '<div class="chips">' + chips.filter(Boolean).join('') + '</div></div>';
   h += '<div class="player' + (playing ? '' : ' idle') + '" id="player">' + playerInner() + '</div>';
   h += '<div id="trackctl" class="trackbar">' + trackCtl() + '</div>';
@@ -3188,6 +3250,7 @@ function trackRun() {
     if (!alive()) return finish();
     var it = T.items[T.i], p = Promise.resolve();
     T.revealed = false; T.trOn = false; mediaMeta(it);
+    var known = !!(it.mark && it.mark.v === 'ok'); // marked ✓ before: coming back to it plays it like any card
     if (askQ && (T.i === 0 || T.items[T.i - 1].a !== it.a)) {
       p = p.then(function () { T.phase = 'q'; updPlayer(); return speak(it.a.q, 'en', tok); }).then(function () { return wait(900, tok); });
     }
@@ -3196,7 +3259,7 @@ function trackRun() {
       T.n = plan.rounds;
       return sayRounds(plan, {
         text: it.l.en, tok: tok, alive: alive, play: function () { return speak(it.l.en, 'en', tok); },
-        mute: function () { return !!(it.mark && it.mark.v === 'ok'); },
+        mute: function () { return !known && !!(it.mark && it.mark.v === 'ok'); }, // just marked ✓: the next card is about to start
         show: function (r, phase) { if (phase !== 'you') { T.rep = r; T.revealed = true; } T.phase = phase === 'listen' ? 'en' : phase; updPlayer(); }
       });
     }
@@ -3321,7 +3384,7 @@ function lineRow(a, l) {
   if (dv && S.showOrig[l.id]) h += '<div class="orig defbox">' + (l.defNew ? '<p><b>Varsayılan güncellendi.</b> Senin metnin duruyor; istersen yenisine dön.</p>' : '') +
     '<p><span>Varsayılan:</span> ' + esc(l.def.en) + '</p><p>' + esc(l.def.tr) + '</p>' +
     '<button class="chipbtn" data-act="revertLine" data-aid="' + a.id + '" data-id="' + l.id + '">Varsayılana dön</button></div>';
-  h += '<div class="lact"><span class="tier ' + esc(l.tier) + '">' + (l.tier === 'ezber' ? 'Ezber' : 'Anlam') + '</span>' +
+  h += '<div class="lact">' + (tierOf(l) ? '<span class="tier ' + tierOf(l) + '">' + (l.tier === 'ezber' ? 'Ezber' : 'Anlam') + '</span>' : '') +
     (dv ? '<button class="chipbtn" data-act="toggleDef" data-id="' + l.id + '">' + (S.showOrig[l.id] ? 'Gizle' : 'Değişti') + '</button>' : '') +
     '<span class="sp"></span><button class="chipbtn" data-act="playLine" data-id="' + l.id + '" aria-label="İngilizcesini dinle">▶ EN</button><button class="chipbtn" data-act="editLine" data-id="' + l.id + '">Düzenle</button></div></li>';
   return h;
@@ -3333,7 +3396,7 @@ function editRow(a, l) {
     (S.sample ? '<button class="chipbtn" data-act="translate" data-src="ed-en" data-dst="ed-tr">İngilizceden yeniden çevir</button>' : '') +
     '<label for="ed-intent">Durak adı (niyet)</label><input id="ed-intent" maxlength="40" value="' + esc(l.intent || '') + '">' +
     '<p class="hint">1–3 kelime: bu satır cevapta ne işe yarıyor (örneğin “Açılış”, “Örnek”, “Sonuç”). Yeni\'de durak çubuğunda ve Prova\'nın iskelet turunda görünür.</p>' +
-    '<label for="ed-tier">Tür</label><select id="ed-tier"><option value="anlam"' + (l.tier !== 'ezber' ? ' selected' : '') + '>Anlam: ana fikir yeter</option><option value="ezber"' + (l.tier === 'ezber' ? ' selected' : '') + '>Ezber: kelimesi kelimesine</option></select>' +
+    '<label for="ed-tier">Tür</label><select id="ed-tier">' + [['anlam', 'Anlam: ana fikir yeter'], ['ezber', 'Ezber: kelimesi kelimesine'], ['', 'Boş: etiket yok, ana fikir yeter']].map(function (o) { return '<option value="' + o[0] + '"' + (tierOf(l) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
     '<p class="hint">İngilizcesi değişirse bu satırın tekrar geçmişi sıfırlanır.</p>';
   if (S.confirmDel === l.id) h += '<div class="confirm">Bu satır silinsin mi? Tekrar geçmişi de silinir.<div class="row"><button class="btn" data-act="cancelDel">Vazgeç</button><button class="btn" style="color:var(--bad);border-color:var(--bad)" data-act="confirmDel">Evet, sil</button></div></div>';
   else h += '<div class="row"><button class="btn ghost" data-act="askDel">Sil</button><button class="btn" data-act="cancelEdit">Vazgeç</button><button class="btn primary" data-act="saveEdit">Kaydet</button></div>';
@@ -3355,7 +3418,7 @@ function writeLines(a, lines) {
 function val(id) { var e = document.getElementById(id); return e ? e.value : ''; }
 function saveEdit() {
   var e = S.edit, a = ansById(e.aid); if (!a) return;
-  var pm = parseMk(val('ed-en')), tr = val('ed-tr').trim(), tier = val('ed-tier') === 'ezber' ? 'ezber' : 'anlam', intent = val('ed-intent').replace(/\s+/g, ' ').trim();
+  var pm = parseMk(val('ed-en')), tr = val('ed-tr').trim(), tier = tierOf({ tier: val('ed-tier') }), intent = val('ed-intent').replace(/\s+/g, ' ').trim();
   if (pm.err) { toast(pm.err); return; }
   var en = pm.en;
   if (!en || !tr) { toast('İngilizce ve Türkçe boş olamaz.'); return; }
@@ -3364,7 +3427,7 @@ function saveEdit() {
     if (l.id !== e.lid) return l;
     changedEn = l.en !== en;
     // "edited" (the seed no longer updates this line's text) only when the text, tier or patterns change; a new stop label alone keeps the line on the seed
-    var content = changedEn || l.tr !== tr || (l.tier === 'ezber' ? 'ezber' : 'anlam') !== tier || JSON.stringify(pm.mk || []) !== JSON.stringify(keepMk(l.mk, l.en));
+    var content = changedEn || l.tr !== tr || tierOf(l) !== tier || JSON.stringify(pm.mk || []) !== JSON.stringify(keepMk(l.mk, l.en));
     var n = clone(l); n.en = en; n.tr = tr; n.tier = tier;
     if (content) { if (!l.edited && !l.added && !l.def) { n.def = { en: l.en, tr: l.tr, tier: l.tier }; if (l.mk) n.def.mk = clone(l.mk); } n.edited = today(); delete n.defNew; }
     if (pm.mk) n.mk = pm.mk; else delete n.mk;
@@ -3385,7 +3448,7 @@ function revertLine(aid, lid) {
   writeLines(a, a.lines.map(function (l) {
     if (l.id !== lid || !l.def) return l;
     var n = clone(l), d = l.def; back = l.en !== d.en;
-    n.en = d.en; n.tr = d.tr; n.tier = d.tier || n.tier; if (d.mk) n.mk = clone(d.mk); else delete n.mk;
+    n.en = d.en; n.tr = d.tr; if (d.tier !== undefined) n.tier = d.tier; if (d.mk) n.mk = clone(d.mk); else delete n.mk;
     delete n.edited; delete n.def; delete n.defNew; delete n.flag;
     return n;
   }));
@@ -3638,11 +3701,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v72'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v73'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-24 09:57'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-24 10:31'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3833,7 +3896,7 @@ function helpPanel() {
       'Her 4–5 satırda kısa <b>Kontrol</b>: o satırlar karışık sırayla gelir; Türkçeyi gör, İngilizcesini söyle. 🎤 ile söylersen sonuç görünür ve ✓ ya da ↺ önerilir; karar senin.',
       '<b>Neden bu sıra?</b> Dinle ve Anlam cümleyi tanıtır. Gölgeleme ses ve ritmi oturtur; 3. turda sesle birlikte söylemek akıcılık katar. İmge cümleyi kendi hayatından bir sahneye bağlar ve kısa bir ara verir; bu yüzden Hatırla\'da cümle kulağındaki yankıdan değil hafızadan gelir (imgeyi ipucu olarak kullan). Kontrol aynı satırları biraz sonra, karışık sırayla yeniden çağırır: aralık ve karışıklık kalıcılığı artırır. Sonraki günlerde Tekrar, aralıkları büyüterek aynı işi sürdürür.',
       'Yarıda bırakırsan (başka sekme, <b>Ara ver</b> ya da uygulamayı kapatma) yer kaybolmaz: Bugün → Yeni\'de <b>Kaldığın yerden devam</b> aynı satır ya da kontrolden sürdürür (o gün içinde).',
-      '<b>Kırmızı kenarlı satır = ezber</b> (kelimesi kelimesine; açılış, kapanış, ana cümle). Diğerleri <b>anlam</b>: ana fikir ve terimler yeter.',
+      '<b>Kırmızı kenarlı satır = ezber</b> (kelimesi kelimesine; açılış, kapanış, ana cümle). Diğerleri <b>anlam</b>: ana fikir ve terimler yeter. Türü <b>Cümleler → Düzenle</b>\'de değiştirebilirsin; <b>Boş</b> seçersen kartta etiket görünmez, kontrol Anlam gibi yapılır.',
       '<b>Mavi kelimeler = kalıp</b>: başka cümlelerde de kullanacağın genel İngilizce çerçeve. Öğrenme, tekrar, hız testi ve Dinle ekranlarında görünür; Ayarlar → Akış → <b>Kalıp vurgusu</b> ile kapatılır.',
       'Düzenlerken ya da satır eklerken kalıbı <b>[köşeli parantez]</b> içine alabilirsin (en fazla 2, en az 2 kelime). Parantez yoksa uygulama bilinen kalıplardan kendisi bulur.'
     ])) +
@@ -4020,7 +4083,7 @@ var ACT = {
   trackStop: function () { trackStop(); },
   trackPrev: function () { trackJump(-1); },
   mark: function (el) { trackMark(el.dataset.v); },
-  trackUndo: trackUndo,
+  trackUndo: trackUndo, lockPlay: lockPlay, lockShare: lockShare, // lock*: TRIAL d14
   trackNext: function () { trackJump(1); },
   trackToggle: function () { if (S.track && S.track.paused) trackResume(); else trackPause(); },
   toggleAns: function (el) { var id = el.dataset.id; S.openAns[id] = !S.openAns[id]; render(); },
@@ -4084,7 +4147,7 @@ document.addEventListener('change', function (e) {
   else if (t.id === 'pk-trfirst') { U.settings.trFirst = t.value; save('settings'); render(); }
   else if (t.id === 'pk-think') { U.settings.think = t.value; save('settings'); render(); }
   else if (t.id === 'pk-rep') { var n = +t.value; if (S.trackCfg.mode === 'A') U.settings.repA = n; else U.settings.repB = n; save('settings'); if (S.track) trackStop(true); render(); }
-  else if (t.id === 'tr-scope') { if (S.track) trackStop(true); S.trackCfg.scope = t.value; S.trackCfg.once = false; render(); }
+  else if (t.id === 'tr-scope') { lockStop(); if (S.track) trackStop(true); S.trackCfg.scope = t.value; S.trackCfg.once = false; render(); }
   else if (t.id === 'tr-shuffle') { S.trackCfg.shuffle = t.checked; U.settings.trShuffle = t.checked; save('settings'); }
   else if (t.id === 'reh-fu') { U.settings.fuOn = t.checked; save('settings'); }
   else if (t.id === 'set-dict') { U.settings.dict = t.checked; save('settings'); }

@@ -5,7 +5,7 @@
 // user changed, the box says so and shows the new default. Seed lines carry no old notes (orig/note) since seed v14.
 // Lines come from the seed at run time.
 const { test, expect } = require('@playwright/test');
-const { requirePass, unlock, dumpStore, writeStore, seedOf } = require('./helpers.cjs');
+const { requirePass, unlock, dumpStore, writeStore, seedOf, makeDue } = require('./helpers.cjs');
 
 async function boot(page) {
   requirePass(test);
@@ -92,4 +92,42 @@ test('upgrade: a line the user changed keeps its text, gets the new default, and
   await row(page, L).locator('[data-act="toggleDef"]').click();
   await expect(row(page, L).locator('.defbox')).toContainText('Varsayılan güncellendi');
   await expect(row(page, L).locator('.defbox')).toContainText(L.en);
+});
+
+test('Tür · Boş: no tag in Cümleler or on the card, checked like a meaning line; kept over a reload and a seed update; Varsayılana dön', async ({ page }) => {
+  const { answers } = await boot(page);
+  const aid = bigAnswer(answers), l = answers[aid].lines.find((x) => x.tier === 'ezber') || answers[aid].lines[1];
+  await openAnswer(page, aid);
+  await page.locator('[data-act="editLine"][data-id="' + l.id + '"]').click();
+  await expect(page.locator('#ed-tier option')).toHaveCount(3);
+  await expect(page.locator('#ed-tier')).toHaveValue(l.tier);
+  await page.locator('#ed-tier').selectOption('');
+  await page.locator('[data-act="saveEdit"]').click();
+  await expect(row(page, l).locator('.tier')).toHaveCount(0);
+  await expect(row(page, l).locator('[data-act="toggleDef"]')).toHaveText('Değişti');
+  await page.clock.fastForward(1500);
+  const saved = async () => (await dumpStore(page))['answers/' + aid].lines.find((x) => x.id === l.id);
+  expect((await saved()).tier).toBe('');
+
+  // a newer seed comes in: the user's choice stays
+  await writeStore(page, { __seed: { v: 'v0', at: '2026-01-01T00:00:00.000Z', from: null } });
+  await page.reload();
+  await expect.poll(async () => (await dumpStore(page)).__seed.v, { timeout: 30000 }).not.toBe('v0');
+  expect((await saved()).tier).toBe('');
+  const grade = await page.evaluate((l) => { const f = (tier) => { const d = window.__dict.check({ ...l, tier }, l.en.split(' ').slice(1).join(' ')); return [d.tier, d.grade, d.cov]; }; return [f(''), f('anlam')]; }, l);
+  expect(grade[0]).toEqual(grade[1]);
+
+  // on the study card: no tag, the foot keeps its height
+  await makeDue(page, answers, [l.id]);
+  await page.reload();
+  await page.locator('[data-act="startReview"]').click();
+  const foot = page.locator('article.icard .cardfoot').first();
+  await expect(foot.locator('.tier')).toHaveCount(0);
+  expect(await foot.evaluate((e) => e.getBoundingClientRect().height)).toBeGreaterThan(20);
+  await page.getByRole('button', { name: 'Cümleler', exact: true }).first().click();
+  if (!(await row(page, l).count())) await page.locator('[data-act="toggleAns"][data-id="' + aid + '"]').click();
+  await row(page, l).locator('[data-act="toggleDef"]').click();
+  await row(page, l).locator('[data-act="revertLine"]').click();
+  await page.clock.fastForward(1500);
+  expect((await saved()).tier).toBe(l.tier);
 });
