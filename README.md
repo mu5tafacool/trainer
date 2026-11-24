@@ -41,7 +41,7 @@ The **Today** tab (Bugün) lays out the day in order:
 - Every answer has a code from the source document: **S0–S12** basics, **S13–S22** preparation set, **H1–H17** second-interview set.
 - Answers carry a group tag, shown as a chip and usable as a filter on every list.
 - Settings uses switch rows: the whole row toggles, with a short line saying what it does.
-- Listen keeps its controls compact so the card stays high on the screen: scope on one row, then value pickers (Turkish first, repeats, thinking time) and on/off chips (text, shuffle, simultaneous) on one or two rows. The idle card explains the current mode. Listen options are remembered.
+- Listen keeps its controls compact so the card stays high on the screen: scope on one row, then value pickers (Turkish first, repeats, thinking time) and on/off chips (text, shuffle, simultaneous, play while locked) on one or two rows. The idle card explains the current mode. Listen options are remembered.
 - Lines are either **ezber** (word for word: openings, closings and key sentences, marked with a red edge) or **anlam** (meaning: main idea and terms are enough). In *Düzenle* a line's type can also be left empty (*Boş*): no tag on the card, checked like a meaning line.
 - **Pattern highlight:** each line has one or two reusable English frames (two words or more) shown in blue inside the sentence. It appears only on study screens (learning, review and speed test after reveal, Listen while the English is visible), never on blurred text, the Lines tab or rehearsal. Edited lines keep the frames their text still contains; lines added by hand get common frames picked automatically. Settings → Flow → *Pattern highlight* turns it off.
   - A line without its own frames is matched against every frame already on the device (longest first), then against a short list of common English frames; at most two. As new frames arrive with updates, such lines pick them up automatically.
@@ -111,11 +111,14 @@ Listen options:
   - Everything.
   - A group: all its lines, or only the learned ones.
   - A single answer.
-- **Options**: shuffle (off by default) and show text.
+- **Options**: shuffle (off by default), show text, and *Kilitte çal* (play while locked, on by default).
 - **Controls**:
   - **Previous · Pause/Resume · Next** stay above the tab bar; *Finish* ends the session.
-  - Headphone and lock-screen buttons (next, previous, pause) work while Listen is running, through the Media Session API.
-- The screen has to stay on: a wake lock is requested, and iOS stops page audio when the screen locks.
+  - Headphone and lock-screen buttons (next, previous, pause, resume) work while Listen is running, through the Media Session API; dragging the lock-screen bar stays inside the sentence.
+- **Playing while the screen is locked** (*Kilitte çal*): a locked iPhone stops the page's timers, so each card's clips and real silence for the waits are joined into one MP3 in memory, one track per card, the next two prepared ahead. The lock screen shows the sentence, its own length and place.
+  - A second, silent player runs while Listen is on, also through a pause: iOS puts a home-screen app to sleep seconds after its sound is paused (WebKit bug 243258). It holds 10 minutes of silence, so a pause can be ended from the lock screen for at least 5 minutes (longest checked on a phone: 24 s).
+  - It needs a shipped clip for every line of the scope (one MP3 format). Otherwise, and with the chip off, the timers play the cards and the screen has to stay on; a wake lock is requested either way.
+  - Joining the whole list into one recording is in the code (`LOCK_ONE`), off.
 
 ### Timing
 
@@ -213,7 +216,7 @@ Every "say it" time comes from one place, so all screens agree. It follows the s
 | Reinforce (*Pekiştir*) | P = open (when its button shows) · inside: Space/Enter = show (3/3) or back to the card · R = one more round · Esc = leave. Keys go by position, so they work on any keyboard layout. |
 | Listen | ← previous · → next · Space = pause/resume |
 | Listen, mode B | 1 = ✗ not known · 2 = ✓ known |
-| Headphones / lock screen | next · previous · pause (while Listen is running) |
+| Headphones / lock screen | next · previous · pause / resume from the same place (while Listen is running) |
 
 On AirPods, double and triple tap can be set to next/previous track in the iPhone's Bluetooth settings.
 

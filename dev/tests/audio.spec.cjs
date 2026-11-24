@@ -124,6 +124,7 @@ test('clips are read only when played, offline too, and few stay in memory', asy
 
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Dinle', exact: true }).first().click();
+  await page.locator('label.tchip', { has: page.locator('#tr-lock') }).click(); // off: clip by clip, with the timers
   await page.locator('[data-act="trackPlay"]').click();
   await expect.poll(() => page.evaluate(() => (window.__played || []).filter((s) => s.startsWith('blob:')).length)).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.__clipUrlsKept())).toBeGreaterThan(0);
@@ -147,49 +148,92 @@ test('a re-voicing pack replaces the older clips of the same lines', async ({ pa
   expect(fromNewest.length).toBe(newest.n); // every clip of the newest pack is the one kept for its key
 });
 
-// TRIAL d14: S1's shipped clips share one MP3 format, so they can be joined; the two ways play and write a report without sentences.
-test('Kilit denemesi (trial d14): S1 is joined from the shipped clips and plays', async ({ page }) => {
+// Dinle with the shipped clips: each card is one track in memory, so it goes on while the screen is locked.
+test('Dinle: cards are joined from the shipped clips; next, pause, marks, the end of a card and the lock screen', async ({ page }) => {
   requirePass(test);
   const { answers } = await seedOf();
   await unlock(page);
   await ready(page, 120000);
   const fmt = await page.evaluate(async () => {
-    const out = {}; // every shipped clip
-    for (const ref of Object.values(window.__LOCAL_AUDIO)) { const v = await window.__clipBuf(ref); let s; try { s = window.__lockTrial.mp3Clip(new Uint8Array(v.buf)).sig; } catch (e) { s = String(e.message); } out[s] = (out[s] || 0) + 1; }
+    const out = {}; // every shipped clip has one format, so any two can be joined
+    for (const ref of Object.values(window.__LOCAL_AUDIO)) { const v = await window.__clipBuf(ref); let s; try { s = window.__lock.mp3Clip(new Uint8Array(v.buf)).sig; } catch (e) { s = String(e.message); } out[s] = (out[s] || 0) + 1; }
     return out;
   });
-  console.log('clip formats: ' + JSON.stringify(fmt));
-  const s1 = Object.values(answers).find((a) => a.code === 'S1');
-  await page.evaluate(() => { const ms = navigator.mediaSession, set = ms.setPositionState.bind(ms); window.__pos = []; ms.setPositionState = (p) => { if (p) window.__pos.push(p); return set(p); }; });
+  expect(Object.keys(fmt)).toEqual(['24000 mono 48']);
+  await page.evaluate(() => { const ms = navigator.mediaSession, set = ms.setPositionState.bind(ms), on = ms.setActionHandler.bind(ms); window.__pos = []; window.__h = {}; ms.setPositionState = (p) => { if (p) window.__pos.push(p); return set(p); }; ms.setActionHandler = (n, f) => { window.__h[n] = f; return on(n, f); }; });
+  const [sid, s1] = Object.entries(answers).find(([, a]) => a.code === 'S1'), N = s1.lines.length;
   await page.getByRole('button', { name: 'Dinle', exact: true }).first().click();
-  for (const way of ['lock1', 'lock2']) for (const m of ['A', 'B']) {
-    await page.locator('#tr-scope').selectOption(way);
-    await page.locator(`[data-act="lockMode"][data-m="${m}"]`).click();
-    await page.locator('[data-act="lockPlay"]').click();
-    await expect(page.locator('#player .ctx .mono')).toHaveText('1/' + s1.lines.length);
-    await expect.poll(() => page.evaluate(() => window.__lockTrial.t.el.currentTime > 0.5 && !window.__lockTrial.t.el.paused)).toBe(true);
+  await page.locator('#tr-scope').selectOption(sid);
+  await expect(page.locator('.hero .sub')).toHaveText('Ekran kilitliyken de çalar.');
+  const count = page.locator('#player .ctx .mono'), st = (f) => page.evaluate(f);
+  const state = () => st(() => { const t = window.__lock.t; return [t.el.paused, t.z.paused]; });
+  const jumpToEnd = () => st(() => { const a = window.__lock.t.el; a.currentTime = a.duration - 0.2; });
+  const keys = () => st(() => Object.keys(localStorage).sort().join(' '));
+  const before = await keys();
+  for (const one of [false, true]) for (const m of ['A', 'B', 'C']) {
+    await page.evaluate((v) => { window.__lock.t.one = v; }, one);
+    await page.locator(`[data-act="trackMode"][data-m="${m}"]`).click();
+    await page.locator('[data-act="trackPlay"]').click();
+    await expect(count).toHaveText('1/' + N);
+    await expect.poll(() => st(() => window.__lock.t.el.currentTime > 0.3 && !window.__lock.t.el.paused)).toBe(true);
+    await expect.poll(() => st(() => navigator.mediaSession.metadata.title)).toBe(s1.lines[0].en);
     await page.evaluate(() => { window.__meta = navigator.mediaSession.metadata; window.__pos.length = 0; });
-    await page.locator('[data-act="lockNext"]').click();
-    await expect(page.locator('#player .ctx .mono')).toHaveText('2/' + s1.lines.length);
-    // the lock screen: the new sentence on the same metadata object, with its own length, from its start
-    await expect.poll(() => page.evaluate(() => navigator.mediaSession.metadata.title)).toBe(await page.evaluate(() => window.__lockTrial.t.run.items[1].l.en));
-    const lockUi = await page.evaluate(() => { const R = window.__lockTrial.t.run; return { same: navigator.mediaSession.metadata === window.__meta, pos: window.__pos[0], whole: R.dur, n: R.items.length }; });
-    expect(lockUi.same).toBe(true);
-    expect(lockUi.pos.position).toBeLessThan(0.5);
-    expect(lockUi.pos.duration).toBeGreaterThan(1); expect(lockUi.pos.duration).toBeLessThan(lockUi.whole / 2);
-    // a silent second player goes on through a pause (an iPhone home-screen app sleeps without it) and stops with the run
-    const both = () => page.evaluate(() => { const t = window.__lockTrial.t; return [t.el.paused, t.z.paused]; });
-    await expect.poll(both).toEqual([false, false]);
-    await page.locator('[data-act="lockPlay"]').click();
-    await expect.poll(both).toEqual([true, false]);
-    await page.locator('[data-act="lockPlay"]').click();
-    await expect.poll(both).toEqual([false, false]);
-    await page.locator('[data-act="lockEnd"]').click();
-    expect(await both()).toEqual([true, true]);
+    // lock screen: next, the new sentence on the same metadata object, with its own length, from its start
+    await page.evaluate(() => window.__h.nexttrack({ action: 'nexttrack' }));
+    await expect(count).toHaveText('2/' + N);
+    await expect.poll(() => st(() => navigator.mediaSession.metadata.title)).toBe(s1.lines[1].en);
+    const ui = await st(() => ({ same: navigator.mediaSession.metadata === window.__meta, pos: window.__pos[0] }));
+    expect(ui.same).toBe(true); expect(ui.pos.position).toBeLessThan(0.6); expect(ui.pos.duration).toBeGreaterThan(1);
+    if (!one) expect(Math.abs(ui.pos.duration - await st(() => window.__lock.t.el.duration))).toBeLessThan(0.3);
+    // pause keeps the place and the silent player on (an iPhone home-screen app sleeps without it); resume goes on from there
+    await expect.poll(state).toEqual([false, false]);
+    await expect.poll(() => st(() => window.__lock.t.el.currentTime > 0.3)).toBe(true);
+    await page.evaluate(() => window.__h.pause({ action: 'pause' }));
+    await expect.poll(state).toEqual([true, false]);
+    await expect(page.locator('#player')).toContainText('Duraklatıldı');
+    const at = await st(() => window.__lock.t.el.currentTime);
+    await page.evaluate(() => window.__h.play({ action: 'play' }));
+    await expect.poll(state).toEqual([false, false]);
+    expect(await st(() => window.__lock.t.el.currentTime)).toBeGreaterThanOrEqual(at - 0.05);
+    await expect(page.locator('[data-act="trackToggle"]')).toContainText('Duraklat');
+    if (!one) { await jumpToEnd(); await expect(count).toHaveText('3/' + N); await expect.poll(state).toEqual([false, false]); }
+    await page.locator('[data-act="trackPrev"]').click();
+    await expect(count).toHaveText((one ? 1 : 2) + '/' + N);
+    await page.locator('[data-act="trackStop"]').click();
+    await expect(page.locator('[data-act="trackPlay"]')).toBeVisible();
+    expect(await state()).toEqual([true, true]);
   }
-  const rep = await page.locator('#lockrep').inputValue();
-  console.log(rep);
-  expect(rep).toContain(s1.lines.length + ' cümle');
-  expect(rep).not.toContain('atlanan');
-  Object.values(answers).forEach((a) => a.lines.forEach((l) => { expect(rep).not.toContain(l.en.slice(0, 20)); expect(rep).not.toContain(l.tr.slice(0, 20)); }));
+  await page.evaluate(() => { window.__lock.t.one = false; });
+  expect(await keys()).toBe(before); // listening writes no log
+
+  // B: ✓ opens with the English, moves on; ✗ brings the card back later; another sound ends Dinle
+  await page.locator('[data-act="trackMode"][data-m="B"]').click();
+  await page.locator('[data-act="trackPlay"]').click();
+  await expect(count).toHaveText('1/' + N);
+  const ok = page.locator('[data-act="mark"][data-v="ok"]');
+  await expect(ok).toBeDisabled();
+  await expect.poll(() => st(() => window.__lock.t.el.duration > 1)).toBe(true);
+  await page.evaluate(() => { const a = window.__lock.t.el; a.currentTime = a.duration * 0.6; });
+  await expect(ok).toBeEnabled();
+  await ok.click();
+  await expect(count).toHaveText('2/' + N);
+  await expect.poll(() => st(() => window.__lock.t.el.duration > 1 && !window.__lock.t.el.paused && window.__lock.t.el.currentTime < 5)).toBe(true);
+  await page.evaluate(() => { const a = window.__lock.t.el; a.currentTime = a.duration * 0.6; });
+  const no = page.locator('[data-act="mark"][data-v="no"]');
+  await expect(no).toBeEnabled();
+  await no.click();
+  await expect(count).toHaveText('2/' + (N + 1));
+  await page.getByRole('button', { name: 'Bugün', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Dinle', exact: true }).first().click();
+  await expect(count).toHaveText(/^\d+\//); // still playing after a look at another tab
+  await page.locator('[data-act="trackStop"]').click();
+
+  // a clip that went missing: the timers play the rest
+  await page.locator('[data-act="trackPlay"]').click();
+  await expect(count).toHaveText('1/' + N);
+  await page.evaluate(() => { window.__clipBuf = () => Promise.reject(new Error('clip missing')); });
+  for (let i = 0; i < 4; i++) await page.locator('[data-act="trackNext"]').click();
+  await expect(count).toHaveText('5/' + N);
+  await expect.poll(() => st(() => window.__lock.t.el.paused && window.__lock.t.z.paused)).toBe(true);
+  await page.locator('[data-act="trackStop"]').click();
 });
