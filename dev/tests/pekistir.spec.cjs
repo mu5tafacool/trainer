@@ -34,7 +34,7 @@ const byTr = async () => { const { answers } = await seedOf(), m = {}; Object.va
 
 // runs the three steps and ends on the "shown" view
 async function runPk(page) {
-  await expect(card(page)).toContainText('↻ Pekiştir');
+  await expect(card(page)).toContainText('Pekiştir');
   await expect(card(page).locator('.sayline')).toHaveText('Dinle ve oku · 1/3'); // the step is in the status line (sayLine), once
   await expect(card(page).locator('.ctx')).not.toContainText('/3');
   await expect(card(page).locator('.en:not(.masked)')).toHaveCount(1); // 1/3: with the text

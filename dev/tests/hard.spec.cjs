@@ -141,7 +141,7 @@ test('Pekiştir keys: P opens it, Esc leaves, Space shows and returns, R runs an
   await page.locator('[data-act="recShow"]').click();
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('p');
-  await expect(card(page)).toContainText('↻ Pekiştir');
+  await expect(card(page)).toContainText('Pekiştir');
   await page.keyboard.press('Escape');
   await page.clock.fastForward(200);
   await expect(page.locator('[data-act="introNext"]')).toBeVisible();

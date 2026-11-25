@@ -103,7 +103,7 @@ test('Hatırla without 🎤 when "Söyle ve kontrol et" is off', async ({ page }
   await expect(page.locator('[data-act="recShow"]')).toBeVisible();
 });
 
-test('skip steps skips Hatırla too; the check after the batch and Ara ver → continue still work', async ({ page }) => {
+test('Adımları atla (Dinle, Anlam) skips Hatırla too; the check after the batch and Ara ver → continue still work', async ({ page }) => {
   await start(page);
   for (let k = 0; k < 6; k++) {
     if (await page.getByText('TR → EN · sesli söyle').first().isVisible() && await page.locator('[data-act="quizReveal"]').isVisible()) break;
@@ -118,6 +118,162 @@ test('skip steps skips Hatırla too; the check after the batch and Ara ver → c
   await expect(page.locator('[data-act="quizReveal"]')).toBeVisible();
 });
 
+/* ---- Atla on Gölgele and İmge goes to Hatırla (every state the button can be tapped in) ---- */
+const skip = (page) => page.locator('[data-act="introSkip"]');
+const onStep = (page) => page.locator('.steps .on');
+// Hatırla is open, quiet and counting; the image hint shows only if the image step was seen
+async function inRecall(page, image) {
+  await expect(onStep(page)).toHaveText('Hatırla');
+  await expect(card(page).locator('.en')).toHaveCount(0);
+  await expect(card(page).locator('#recleft')).toHaveText(/^\d+ sn$/);
+  await expect(skip(page)).toHaveCount(0); // no second Atla
+  await expect(card(page).getByText('Önce imgeni düşün')).toHaveCount(image ? 1 : 0);
+  expect(await page.evaluate(() => window.__speechEnd()), 'nothing is being spoken').toBe(false);
+}
+async function round(page, r) { // ends shadow rounds 1…r-1 and leaves round r with the voice playing
+  await page.locator('[data-act="shadow"]').click();
+  for (let k = 1; k < r; k++) { await end(page); await page.clock.fastForward(20000); }
+  await expect(card(page).locator('.sayline')).toContainText(r + '/3');
+  for (let k = 0; k < 5; k++) await page.clock.fastForward(100);
+}
+async function toImage(page) { await round(page, 3); await end(page); await page.clock.fastForward(600); await expect(card(page)).toContainText('kendi hayatından bir sahneye'); }
+
+for (const r of [1, 2, 3]) test('Atla in shadow round ' + r + ' (voice playing): Hatırla, the voice and the rounds stop', async ({ page }) => {
+  await start(page);
+  await round(page, r);
+  const n = await spoken(page);
+  await skip(page).click();
+  await inRecall(page, false);
+  expect(await spoken(page)).toBe(n);
+  await page.clock.fastForward(1500);
+  await expect(onStep(page)).toHaveText('Hatırla'); // the old rounds don't come back
+});
+
+test('Atla in the shadow gap ("Tekrar et"): the pending round never starts, Hatırla opens by its own time', async ({ page }) => {
+  await start(page);
+  await round(page, 1); await end(page);
+  await expect(card(page).locator('.sayline')).toHaveText('Tekrar et · 1/3');
+  await skip(page).click();
+  await inRecall(page, false);
+  const n = await spoken(page);
+  await page.clock.fastForward(60000); // the gap and the recall time are both over
+  await expect(card(page).locator('.en')).toHaveCount(1);
+  await expect(onStep(page)).toHaveText('Hatırla');
+  await expect.poll(() => spoken(page)).toBe(n + 1); // the right sentence, once
+});
+
+test('Atla on İmge: Hatırla with the image hint; the image countdown does not start it again', async ({ page }) => {
+  await start(page);
+  await toImage(page);
+  await page.clock.fastForward(1000);
+  await skip(page).click();
+  await inRecall(page, true);
+  const left = async () => parseInt(await card(page).locator('#recleft').innerText(), 10);
+  const a = await left();
+  for (let k = 0; k < 2; k++) await page.clock.fastForward(1000);
+  await expect.poll(left).toBeLessThan(a); // still the same countdown
+});
+
+test('after Atla: Göster, Pekiştir, the next line from Dinle; the hint is not left over from the line before', async ({ page }) => {
+  await start(page);
+  await toImage(page);
+  await skip(page).click();
+  await page.locator('[data-act="recShow"]').click();
+  await expect(card(page).locator('.en')).toHaveCount(1);
+  await page.locator('[data-act="pkStart"]').click();
+  await expect(card(page)).toContainText('Pekiştir');
+  await expect(skip(page)).toHaveCount(0);
+  await page.locator('[data-act="pkDone"]').click();
+  await page.locator('[data-act="introNext"]').click();
+  await expect(page.locator('.sesshead .mono')).toContainText('Yeni · 2/');
+  await expect(onStep(page)).toHaveText('Dinle');
+  await end(page);
+  await round(page, 1);
+  await skip(page).click();
+  await inRecall(page, false); // line 2 skipped before its image
+});
+
+test('after Atla the keys work (space: show, then next) and the 🎤 box checks the line', async ({ page }) => {
+  await start(page);
+  await round(page, 2);
+  await skip(page).click();
+  await page.locator('[data-act="dictOpen"]').click();
+  await page.fill('#dict', 'something said here');
+  await page.locator('[data-act="recCheck"]').click();
+  await expect(page.locator('.dres')).toBeVisible();
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press('Space');
+  await expect(page.locator('.sesshead .mono')).toContainText('Yeni · 2/');
+});
+
+test('Adımları atla, then Gölgele 3×, then Atla: Hatırla', async ({ page }) => {
+  await start(page);
+  await expect(skip(page)).toHaveText('Adımları atla');
+  await skip(page).click();
+  await expect(page.locator('[data-act="introNext"]')).toBeVisible();
+  await expect(page.locator('[data-act="recShow"]')).toHaveCount(0);
+  await page.locator('[data-act="shadow"]').click();
+  for (let k = 0; k < 3; k++) await page.clock.fastForward(100);
+  await expect(skip(page)).toHaveText('Atla');
+  await skip(page).click();
+  await inRecall(page, false);
+});
+
+test('Adımları atla while the first voice still plays: it stops, the line ends there', async ({ page }) => {
+  await start(page);
+  await skip(page).click();
+  await page.locator('[data-act="introNext"]').click(); // line 2: the voice has just started
+  for (let k = 0; k < 3; k++) await page.clock.fastForward(100);
+  await skip(page).click();
+  await expect(page.locator('[data-act="introNext"]')).toBeVisible();
+  expect(await page.evaluate(() => window.__speechEnd())).toBe(false);
+  await page.clock.fastForward(3000);
+  await expect(page.locator('[data-act="introNext"]')).toBeVisible();
+});
+
+test('a late second tap on Atla does nothing in Hatırla or at the line end', async ({ page }) => {
+  await start(page);
+  const late = () => page.evaluate(() => { const b = document.createElement('button'); b.dataset.act = 'introSkip'; document.body.appendChild(b); b.click(); b.remove(); });
+  await round(page, 1);
+  await skip(page).click();
+  await late(); await inRecall(page, false);
+  await page.locator('[data-act="recShow"]').click();
+  await late(); await expect(onStep(page)).toHaveText('Hatırla'); await expect(card(page).locator('.en')).toHaveCount(1);
+  await page.locator('[data-act="introNext"]').click(); await end(page);
+  await skip(page).click(); await late();
+  await expect(page.locator('[data-act="introNext"]')).toBeVisible();
+});
+
+test('the last line of the batch: after Atla and Göster comes Kontrol, and it asks the skipped lines', async ({ page }) => {
+  await start(page);
+  let n = 0;
+  for (; n < 6; n++) {
+    await round(page, 1);
+    await skip(page).click();
+    await page.locator('[data-act="recShow"]').click();
+    const next = page.locator('[data-act="introNext"]'), last = (await next.innerText()).includes('Kontrole geç');
+    await next.click();
+    if (last) break;
+    await end(page);
+  }
+  await expect(page.locator('[data-act="quizReveal"]')).toBeVisible();
+  await expect(page.locator('.sesshead .mono')).toHaveText('Kontrol · ' + (n + 1) + ' kaldı');
+});
+
+test('Atla saves nothing; Ara ver in Hatırla comes back to the same line from Dinle', async ({ page }) => {
+  await start(page);
+  await round(page, 1);
+  await page.clock.fastForward(3000); // the place kept for Ara ver is written a moment after the line starts
+  const before = await dumpStore(page);
+  await skip(page).click();
+  await page.clock.fastForward(3000);
+  expect(await dumpStore(page)).toEqual(before);
+  await page.locator('[data-act="endSess"]').click();
+  await page.locator('[data-act="resumeIntro"]').click();
+  await expect(page.locator('.sesshead .mono')).toContainText('Yeni · 1/');
+  await expect(onStep(page)).toHaveText('Dinle');
+});
+
 async function toCheck(page) {
   for (let k = 0; k < 6 && !(await page.locator('[data-act="quizReveal"]').isVisible()); k++) {
     await page.locator('[data-act="introSkip"]').first().click();
@@ -127,7 +283,7 @@ async function toCheck(page) {
   await expect(page.locator('[data-act="quizReveal"]')).toBeVisible();
 }
 
-test('Kontrol 🎤: the result suggests ✓ for a right answer and ↺ for a wrong one', async ({ page }) => {
+test('Kontrol 🎤: the result suggests Söyledim for a right answer and Tekrar sor for a wrong one', async ({ page }) => {
   await start(page);
   await toCheck(page);
   const { answers } = await seedOf();

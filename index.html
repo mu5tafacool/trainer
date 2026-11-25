@@ -97,10 +97,17 @@ nav.tabs {
 }
 nav.tabs .in { max-width: 680px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
 nav.tabs::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 120px; background: var(--card); }
-nav.tabs button { appearance: none; background: none; border: 0; color: var(--muted); font: 500 12.5px var(--body); height: var(--nav-h); cursor: pointer; position: relative; }
-nav.tabs button[aria-current="page"] { color: var(--ink); font-weight: 600; }
+nav.tabs button { appearance: none; background: none; border: 0; color: var(--muted); font: 500 11.5px/1.2 var(--body); height: var(--nav-h); cursor: pointer; position: relative; display: grid; place-content: center; justify-items: center; gap: 3px; padding: 0; }
+nav.tabs .ico { width: 22px; height: 22px; }
+nav.tabs button[aria-current="page"] { color: var(--accent); font-weight: 600; }
 nav.tabs button[aria-current="page"]::before { content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px; background: var(--accent); border-radius: 0 0 3px 3px; }
 nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+
+/* Icons: drawings and words come from ICONS / LABEL (lab, ico, tx) */
+.ico { flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -.2em; }
+.il { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; vertical-align: bottom; }
+.il .ico { width: 16px; height: 16px; }
+.ctx .il { gap: 4px; } .ctx .il .ico { width: 14px; height: 14px; }
 
 /* Buttons */
 .btn {
@@ -115,8 +122,17 @@ nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset
 .btn:focus-visible, .link:focus-visible, .chipbtn:focus-visible, .arow:focus-visible, .anshead:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .row > .btn { flex: 1 1 0; }
-.link { appearance: none; border: 0; background: none; color: var(--accent); font: 500 14px var(--body); cursor: pointer; padding: 8px 0; }
+.link { appearance: none; border: 0; background: none; color: var(--accent); font: 500 14px var(--body); cursor: pointer; padding: 8px 0; display: inline-flex; align-items: center; gap: 5px; }
+.link .ico { width: 18px; height: 18px; }
 .chipbtn { appearance: none; border: 1px solid var(--rule); background: transparent; color: var(--muted); font: 500 12px var(--body); padding: 3px 9px; border-radius: 999px; cursor: pointer; }
+.chipbtn .ico { width: 15px; height: 15px; margin-right: 5px; vertical-align: -.25em; }
+.chipbtn.big { width: 40px; height: 40px; margin: -4px; padding: 0; display: inline-grid; place-items: center; color: var(--accent); border: 4px solid transparent; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--rule); } /* 32 px to see, 40 px to tap */
+.chipbtn.big .ico { width: 18px; height: 18px; margin: 0; }
+.chipbtn.big + .chipbtn.big { margin-left: 2px; }
+.btn.neg .ico { color: var(--bad); }
+.btn.s { padding: 11px 4px; font-size: 14px; gap: 5px; white-space: nowrap; }
+.btn.tb { display: grid; place-content: center; justify-items: center; gap: 2px; min-height: 48px; padding: 3px 2px; font: 600 12px/1.2 var(--body); }
+.btn.tb .ico { width: 22px; height: 22px; }
 
 /* Panels (Today) */
 .stack { display: grid; gap: 12px; }
@@ -288,10 +304,11 @@ li.line .tr { font-size: 14.5px; }
 .pick select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tchip { position: relative; display: inline-flex; }
 .tchip input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
-.tchip span { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 14px 0 11px; border: 1px solid var(--rule); border-radius: 999px; font: 500 14px var(--body); color: var(--muted); background: var(--card); }
-.tchip span::before { content: ""; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--muted); box-sizing: border-box; flex: none; }
+.tchip > span { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 12px 0 10px; white-space: nowrap; border: 1px solid var(--rule); border-radius: 999px; font: 500 14px var(--body); color: var(--muted); background: var(--card); }
 .tchip input:checked + span { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
-.tchip input:checked + span::before { border: 0; background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.2 8.3l2.4 2.4 5-5.2' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px no-repeat; }
+.tchip .ico { width: 18px; height: 18px; } .tchip i { font-style: normal; white-space: pre; }
+.chips.opt { gap: 6px 5px; } .chips.opt .tchip { flex: 1 1 auto; } .chips.opt .tchip > span { width: 100%; padding: 0 7px; gap: 4px; font-size: 13px; }
+@media (min-width: 341px) and (max-width: 389px) { .chips.opt .tchip i { position: absolute; width: 1px; opacity: 0; overflow: hidden; } }
 .tchip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* spoken check (dictation) */
 .dict { display: grid; gap: 6px; margin: 4px 0 12px; }
@@ -321,8 +338,7 @@ li.line .tr { font-size: 14.5px; }
 .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .rephead { display: flex; justify-content: space-between; align-items: baseline; }
 .transport { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 8px; }
-.transport .btn { padding: 11px 8px; gap: 6px; }
-.endtrack { display: block; margin: 2px auto 0; }
+.endtrack { display: flex; width: fit-content; margin: 2px auto 0; }
 /* Dinle controls stay visible above the tab bar on short screens */
 .trackbar { position: sticky; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 8px); z-index: 5; background: var(--paper); padding: 8px 0 2px; }
 .trackbar::before { content: ""; position: absolute; left: 0; right: 0; top: -16px; height: 16px; background: linear-gradient(to bottom, transparent, var(--paper)); pointer-events: none; }
@@ -330,12 +346,12 @@ li.line .tr { font-size: 14.5px; }
 .markrow { display: grid; grid-template-columns: 32px minmax(0, 1fr) 32px; gap: 12px; align-items: start; }
 .markrow .ctx { padding-top: 0; }
 .mark { appearance: none; position: relative; width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid var(--rule); background: transparent; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
-.mark svg { opacity: .45; width: 17px; height: 17px; }
+.mark .ico { opacity: .45; stroke-width: 2.6; }
 .mark::after { content: ""; position: absolute; inset: -7px; }
 .mark:disabled { opacity: .35; cursor: default; }
 .mark.ok.on { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
 .mark.no.on { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
-.mark.on svg { opacity: 1; }
+.mark.on .ico { opacity: 1; }
 .mark:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .undo { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted); background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 2px 4px 2px 12px; margin-bottom: 8px; }
 .undo .link { padding: 8px; }
@@ -347,7 +363,6 @@ li.line .tr { font-size: 14.5px; }
 .stage[aria-pressed="true"] .mono { color: var(--accent); }
 .stage:disabled { opacity: .5; cursor: default; }
 .stage:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-@media (max-width: 340px) { .transport .btn span { display: none; } }
 .speaking { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); border-radius: 4px; }
 .siri-hint { font-size: 13px; color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; margin: 0 0 12px; }
 kbd { font-family: var(--mono); font-size: 12px; border: 1px solid var(--accent); border-radius: 4px; padding: 0 5px; }
@@ -441,11 +456,11 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   <main id="view"><div class="state"><b>Yükleniyor</b><div class="skel"></div><div class="skel s2"></div><div class="skel s3"></div></div></main>
 </div>
 <nav class="tabs" aria-label="Bölümler"><div class="in">
-  <button data-act="tab" data-tab="today" aria-current="page">Bugün</button>
-  <button data-act="tab" data-tab="reh">Prova</button>
-  <button data-act="tab" data-tab="track">Dinle</button>
-  <button data-act="tab" data-tab="lines">Cümleler</button>
-  <button data-act="tab" data-tab="settings">Ayarlar</button>
+  <button data-act="tab" data-tab="today" data-lab="tabToday" aria-current="page">Bugün</button>
+  <button data-act="tab" data-tab="reh" data-lab="tabReh">Prova</button>
+  <button data-act="tab" data-tab="track" data-lab="tabTrack">Dinle</button>
+  <button data-act="tab" data-tab="lines" data-lab="tabLines">Cümleler</button>
+  <button data-act="tab" data-tab="settings" data-lab="tabSet">Ayarlar</button>
 </div></nav>
 <div class="toast" id="toast" hidden></div>
 <div id="live" class="vh" aria-live="polite" lang="en-US"></div>
@@ -956,6 +971,100 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
 /* ---------- helpers ---------- */
 var PLAN_URL = 'https://claude.ai/artifact/BdXSvseWvMArTfrMHbixQo';
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+/* icons:start */
+/* ---------- icons and button words: the one place for both ----------
+   ICONS  name → drawing on a 24×24 grid, in the text colour (2 px round line; filled parts say so). Our own drawings.
+   LABEL  meaning → [icon, word, 'end' if the icon sits after the word]. One icon has one meaning. Arrows that go forward
+          (fwd, skip) sit after the word, every other icon before it.
+   lab(key, word)  what goes inside a button; word replaces the default (a count, a duration).
+   ico(name, px)   the icon alone: list rows and icon-only buttons (those also get aria-label and title).
+   tx(text)        help texts: {key} shows the button as it looks on screen, {:icon} only its icon.
+   data-lab="key"  static markup (the tab bar) is filled once by labFill().
+   A new drawing goes into ICONS, a new or renamed button into LABEL; screens and help texts follow. No other <svg>, emoji or
+   arrow character is used as an icon (dev/tests/icons.spec.cjs). */
+var ICONS = {
+  play: '<path d="M7.5 5.2v13.6L18.5 12z" fill="currentColor" stroke="none"/>',
+  pause: '<path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z" fill="currentColor" stroke="none"/>',
+  prev: '<path d="M6 5h2.2v14H6zM19 5.6v12.8L9.4 12z" fill="currentColor" stroke="none"/>',
+  next: '<path d="M15.8 5H18v14h-2.2zM5 5.6v12.8l9.6-6.4z" fill="currentColor" stroke="none"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none"/>',
+  speaker: '<path d="M4 9.5v5h3.4l4.6 4v-13l-4.6 4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18.2 6.3a8 8 0 0 1 0 11.4"/>',
+  shuffle: '<path d="M3 7h3.2c2.2 0 3.3 1.2 4.4 3l2.6 4c1.1 1.8 2.2 3 4.4 3H21"/><path d="M3 17h3.2c1.5 0 2.5-.6 3.3-1.5"/><path d="M14.4 8.5c.8-.9 1.8-1.5 3.2-1.5H21"/><path d="M18 4l3 3-3 3M18 14l3 3-3 3"/>',
+  cc: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 11h3M13 11h4M7 15h6M16 15h1"/>',
+  lockplay: '<rect x="4.5" y="10" width="15" height="11" rx="2.5"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/><path d="M10.4 12.8v5.4l4.4-2.7z" fill="currentColor" stroke="none"/>',
+  sync: '<path d="M4 7v2M8 4.5v7M12 6v4M16 3.5v9M20 7v2"/><path d="M4 17v2M8 14.5v7M12 16v4M16 14v8M20 17v2"/>',
+  eye: '<path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6"/>',
+  again: '<path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20.5 3.2v4.6h-4.6"/>',
+  loop: '<path d="M17 3l3 3-3 3"/><path d="M4 11V9.5A3.5 3.5 0 0 1 7.5 6H20"/><path d="M7 21l-3-3 3-3"/><path d="M20 13v1.5a3.5 3.5 0 0 1-3.5 3.5H4"/>',
+  ok: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  no: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  pencil: '<path d="M4 20l1-4.4L15.8 4.8a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.4 19z"/><path d="M13.6 7l3.4 3.4"/>',
+  trash: '<path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13M10 11v5M14 11v5"/>',
+  copy: '<rect x="9" y="9" width="11.5" height="11.5" rx="2"/><path d="M5.5 15H5a1.8 1.8 0 0 1-1.8-1.8V5A1.8 1.8 0 0 1 5 3.2h8.2A1.8 1.8 0 0 1 15 5v.5"/>',
+  share: '<path d="M12 15V3.5M8 7.3l4-4 4 4M7 11H5v9.5h14V11h-2"/>',
+  import: '<path d="M12 3.5V15M8 11.2l4 4 4-4M4 16v4.5h16V16"/>',
+  undo: '<path d="M8 5L4 9l4 4"/><path d="M4 9h10a5.5 5.5 0 0 1 0 11H9"/>',
+  cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  phones: '<path d="M4 16v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4.4" height="6.5" rx="1.8"/><rect x="16.6" y="14" width="4.4" height="6.5" rx="1.8"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3"/>',
+  bubble: '<path d="M4 5h16v11h-8.5L7 20v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/>',
+  gear: '<circle cx="12" cy="12" r="2.6"/><circle cx="12" cy="12" r="6.4"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8" stroke-width="3"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  fwd: '<path d="M9 5l7 7-7 7"/>',
+  skip: '<path d="M5.5 6l6 6-6 6M12.5 6l6 6-6 6"/>',
+  check: '<path d="M4 6.5h16M4 12h8M4 17.5h6"/><path d="M13.5 16.2l2.6 2.6 4.6-5.2"/>',
+  bulb: '<path d="M8.8 15.2a5.8 5.8 0 1 1 6.4 0c-.7.5-1 1.1-1 1.9H9.8c0-.8-.3-1.4-1-1.9z"/><path d="M10 20.5h4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  lang: '<path d="M3.5 6.5h9M8 4v2.5M5.2 13.2C8 12 10 9.6 10.6 6.5M5.8 8.8c.8 2 2.6 3.6 5 4.5"/><path d="M12.8 20l3.8-9.4L20.4 20M14 17.2h5.2"/>',
+  follow: '<path d="M5 4v7.5a3.5 3.5 0 0 0 3.5 3.5H19"/><path d="M14.5 10.5L19 15l-4.5 4.5"/>',
+  addbox: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>'
+};
+var LABEL = {
+  // tab bar
+  tabToday: ['cal', 'Bugün'], tabReh: ['bubble', 'Prova'], tabTrack: ['phones', 'Dinle'], tabLines: ['list', 'Cümleler'], tabSet: ['gear', 'Ayarlar'],
+  // start
+  startRev: ['play', 'Tekrarlara başla'], startNew: ['play', 'Yeni cevaba başla'], startMore: ['play', 'Yeni satırlara başla'],
+  startEarly: ['play', 'Sıradakine erken başla'], resume: ['play', 'Kaldığın yerden devam'], begin: ['play', 'Başla'],
+  beginSkel: ['play', 'Başla · önce iskelet'], beginFull: ['play', 'Tam cevaba başla'], mock: ['play', 'Mülakatı başlat'],
+  round: ['play', 'Sonraki tur'], test: ['play', 'Testi başlat'], kalip: ['play', 'Kalıp oturumu başlat'], kalipNew: ['play', 'Yeni oturum'],
+  random: ['shuffle', 'Rastgele soru'],
+  // Dinle
+  trPlay: ['play', 'Başlat'], trGo: ['play', 'Devam'], trPause: ['pause', 'Duraklat'], trPrev: ['prev', 'Önceki'], trNext: ['next', 'Sonraki'],
+  trStop: ['stop', 'Bitir'], undo: ['undo', 'Geri al'], trText: ['cc', 'Metin'], trShuffle: ['shuffle', 'Karışık'], trSimul: ['sync', 'Eşzamanlı'],
+  trLock: ['lockplay', 'Kilitte<i> çal</i>'], follow: ['follow', 'Takip soruları'],
+  // hear it, say it, see it
+  hearTr: ['speaker', 'TR<span class="vh"> dinle</span>'], hearEn: ['speaker', 'EN<span class="vh"> dinle</span>'],
+  hearQ: ['speaker', 'Soruyu dinle'], hearA: ['speaker', 'Cevabı dinle'], hearAll: ['speaker', 'Tüm cevabı dinle'],
+  tryEn: ['speaker', 'İngilizce dene'], tryTr: ['speaker', 'Türkçe dene'], fill: ['speaker', 'Eksikleri şimdi seslendir'],
+  say: ['mic', 'Söyle ve kontrol et'], check: ['check', 'Kontrol et'], show: ['eye', 'Göster'], stops: ['eye', 'Durakları göster'],
+  hint: ['bulb', 'Takıldım: ipucu göster'], hintHide: ['bulb', 'İpucunu gizle'],
+  // learn
+  shadow: ['loop', 'Gölgele 3×'], pk: ['again', 'Pekiştir'], pkMore: ['again', 'Bir tur daha'], askAgain: ['again', 'Tekrar sor'],
+  // move on (arrow after the word)
+  skipAll: ['skip', 'Adımları atla', 'end'], skip: ['skip', 'Atla', 'end'], skipDay: ['skip', 'Bugün geç', 'end'], skipSkel: ['skip', 'İskeletsiz başla', 'end'],
+  nextLine: ['fwd', 'Sonraki satır', 'end'], toQuiz: ['fwd', 'Kontrole geç', 'end'], plan: ['fwd', 'Plan ve görevler', 'end'],
+  // go elsewhere
+  pause: ['back', 'Ara ver'], end: ['back', 'Bitir'], toCard: ['back', 'Karta dön'], toReh: ['back', 'Prova\'ya dön'], home: ['cal', 'Ana sayfa'],
+  reh: ['bubble', 'Prova et'], toTrack: ['phones', 'Dinle sekmesine geç'],
+  // did it / did not
+  said: ['ok', 'Söyledim'], fluent: ['ok', 'Akıcıydı'], built: ['ok', 'Kurdum'], right: ['ok', 'Doğru'], done: ['ok', 'Bitti'],
+  stuck: ['no', 'Takıldım'], notBuilt: ['no', 'Kuramadım'], wrong: ['no', 'Yanlış'],
+  // leave, stop
+  cancel: ['no', 'Vazgeç'], quit: ['no', 'Bırak'], off: ['no', 'Kapat'], chainEnd: ['stop', 'Zinciri bitir'],
+  // edit, save, move data
+  save: ['ok', 'Kaydet'], del: ['trash', 'Sil'], add: ['plus', 'Sona ekle'], toTr: ['lang', 'Türkçeye çevir'], reTr: ['lang', 'İngilizceden yeniden çevir'],
+  revert: ['undo', 'Varsayılana dön'], resetUndo: ['undo', 'Sıfırlamayı geri al'], notesEn: ['share', 'Sadece İngilizce'], notesBoth: ['share', 'Türkçe + İngilizce'],
+  exp: ['share', 'İlerlemeyi dışa aktar'], imp: ['import', 'İçe aktar (bu cihazdakinin yerine geçer)'], model: ['import', 'Modeli indir ve aç'],
+  retry: ['again', 'Tekrar dene'], copy: ['copy', 'Kopyala'], missing: ['copy', 'Eksik'], upload: ['plus', 'Ses dosyalarını seç ve yükle']
+};
+function ico(name, px) { px = px || 20; return '<svg class="ico" data-ico="' + name + '" viewBox="0 0 24 24" width="' + px + '" height="' + px + '" aria-hidden="true" focusable="false">' + ICONS[name] + '</svg>'; }
+function lab(key, word) { var l = LABEL[key], t = '<span>' + (word || l[1]) + '</span>', i = ico(l[0]); return l[2] === 'end' ? t + i : i + t; }
+function tx(html) { return html.replace(/\{(:?)(\w+)\}/g, function (m, only, k) { return only ? (ICONS[k] ? ico(k, 16) : m) : LABEL[k] ? '<span class="il">' + lab(k) + '</span>' : m; }); }
+function labFill(root) { root.querySelectorAll('[data-lab]').forEach(function (b) { b.innerHTML = lab(b.getAttribute('data-lab')); }); }
+window.__ico = ico; // the install drawer (its own script) draws with the same icons
+labFill(document);
+/* icons:end */
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 /* on/off option row: label (+ short line), switch on the right; the whole row is the tap target */
 function swRow(id, label, on, sub) {
@@ -969,7 +1078,7 @@ function segRow(label, act, key, opts, cur) {
 function pick(id, opts, cur, label) {
   return '<label class="pick"><select id="' + id + '" aria-label="' + label + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur) === String(o[0]) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>';
 }
-function tchip(id, label, on) { return '<label class="tchip"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '><span>' + label + '</span></label>'; }
+function tchip(id, key, on) { return '<label class="tchip"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '><span>' + lab(key) + '</span></label>'; }
 /* ---- spoken check: what you said (keyboard dictation, or typed) against the English text ----
    case, punctuation, contractions (I'm = I am), number words (fifteen hundred = 1,500) and one-letter typos in long words are not counted */
 var NUMW = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
@@ -1053,10 +1162,10 @@ function dictCover(lines, hyp) {
   return { score: r.n ? Math.round(100 * r.hit / r.n) : 0, lines: r.tot.map(function (t, k) { return t ? Math.round(100 * r.uhit[k] / t) : 100; }) };
 }
 function dictOn() { return U.settings.dict !== false; }
-function dictBox(s, okAct, okLabel) {
-  if (!s.dictOpen) return '<button class="btn ghost wide dictbtn" data-act="dictOpen">🎤 Söyle ve kontrol et</button>';
+function dictBox(s, okAct) {
+  if (!s.dictOpen) return '<button class="btn ghost wide dictbtn" data-act="dictOpen">' + lab('say') + '</button>';
   return '<div class="dict"><textarea id="dict" rows="' + (okAct ? 3 : 6) + '" placeholder="Klavyede 🎤 ile söyle (ya da yaz)" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">' + esc(s.dictText || '') + '</textarea>' +
-    '<p class="hint">Önce klavyede 🌐 ile English\'e geç, sonra 🎤.</p>' + (okAct ? '<button class="btn primary wide" data-act="' + okAct + '">' + okLabel + '</button>' : '') + '</div>';
+    '<p class="hint">Önce klavyede 🌐 ile English\'e geç, sonra 🎤.</p>' + (okAct ? '<button class="btn primary wide" data-act="' + okAct + '">' + lab('check') + '</button>' : '') + '</div>';
 }
 function dictRes(d, said) {
   if (d && d.v === 3) return dictRes3(d, said);
@@ -1067,9 +1176,10 @@ function dictRes(d, said) {
 }
 function dictGrade(d) { return !d ? -1 : d.v === 3 ? d.grade : d.score >= 90 ? 2 : d.score >= 70 ? 1 : 0; }
 /* the two self-mark buttons, the same on Kontrol (Yeni), Hız testi and Kalıp: "no" left, "ok" right (primary).
-   sugg: 0 frames "no", 2 frames "ok" (the 🎤 result's suggestion; the choice stays yours), -1 none. Keys 1 / 2. */
+   x.key: the word and icon (LABEL). sugg: 0 frames "no", 2 frames "ok" (the 🎤 result's suggestion; the choice stays yours),
+   -1 none. Keys 1 / 2. */
 function markRow(no, ok, sugg) {
-  function b(x, cls, on) { return '<button class="btn' + cls + (on ? ' sugg' : '') + '" data-act="' + x.act + '"' + (x.data || '') + '>' + x.txt + '</button>'; }
+  function b(x, cls, on) { return '<button class="btn' + cls + (LABEL[x.key][0] === 'no' ? ' neg' : '') + (on ? ' sugg' : '') + '" data-act="' + x.act + '"' + (x.data || '') + '>' + lab(x.key) + '</button>'; }
   return '<div class="row">' + b(no, '', sugg === 0) + b(ok, ' primary', sugg === 2) + '</div>';
 }
 function dictFocus() { var t = document.getElementById('dict'); if (t) { try { t.focus(); var n = t.value.length; t.setSelectionRange(n, n); } catch (e) {} } }
@@ -1956,7 +2066,7 @@ function logAdd(k, n) { var t = today(); var d = U.log.days[t] || (U.log.days[t]
 function ansById(id) { for (var i = 0; i < S.answers.length; i++) if (S.answers[i].id === id) return S.answers[i]; return null; }
 function lineById(id) { for (var i = 0; i < S.answers.length; i++) { var a = S.answers[i]; for (var k = 0; k < a.lines.length; k++) if (a.lines[k].id === id) return { a: a, l: a.lines[k] }; } return null; }
 /* ---- Zorlandıklarım: a difficulty record per line (U.progress.hard[lineId] = { s, at, in, ok, n }) ----
-   Each struggle adds points: Tekrar 3, Zor 2, Dinle ✗ 2, Kontrol "Tekrar sor" 2, Pekiştir on Kontrol/Tekrar 1, on Hatırla 0.5.
+   Each struggle adds points: Tekrar 3, Zor 2, Dinle Bilemedim 2, Kontrol "Tekrar sor" 2, Pekiştir on Kontrol/Tekrar 1, on Hatırla 0.5.
    Points fade (half every 7 days; nothing older than 14 days counts). A line joins the list at 3 points and stays until it
    is recalled well (İyi/Kolay, Dinle ✓, Hız testi in time) on two different days in a row; a new struggle starts that over.
    The list is used as a scope: highest points first, at most 15 lines, then mixed. */
@@ -2272,7 +2382,7 @@ function renderToday() {
   h += '<section class="panel"><div class="ph"><h2>Tekrar</h2><span class="mono">' + due.length + ' kart</span></div>' +
     (due.length ? '<p class="hint">' + np + ' TR → EN, ' + (due.length - np) + ' EN ses → TR</p>' : '<p class="hint">' + (learned ? 'Bugün tekrar yok.' : 'Yeni cevap öğrendikçe tekrarlar burada birikir.') + '</p>') +
     (skippedTodayN() ? '<p class="hint">' + skippedTodayN() + ' kart bugün geçildi; yarın yine gelir.</p>' : '') +
-    '<button class="btn primary wide" data-act="startReview"' + (due.length ? '' : ' disabled') + '>Tekrarlara başla</button></section>';
+    '<button class="btn primary wide" data-act="startReview"' + (due.length ? '' : ' disabled') + '>' + lab('startRev') + '</button></section>';
   h += '<section class="panel"><div class="ph"><h2>Yeni</h2><span class="mono">' + nq.length + ' satır</span></div>';
   h += stagePicker();
   var rs = resumeGet();
@@ -2280,28 +2390,28 @@ function renderToday() {
     var ra = []; rs.batches.slice(rs.b).forEach(function (bt) { bt.forEach(function (x) { if (ra.indexOf(x.a) < 0) ra.push(x.a); }); });
     h += '<p class="hint">Yarım kaldı: ' + (rs.phase === 'quiz' ? 'kontrol' : 'satır ' + resumePos(rs)) + ' / ' + rs.total + '</p>' +
       ra.map(function (a) { return '<p class="q">' + codeHtml(a) + esc(a.q) + tagHtml(a) + '</p>'; }).join('') +
-      '<button class="btn wide' + (due.length ? '' : ' primary') + '" data-act="resumeIntro">Kaldığın yerden devam</button>';
+      '<button class="btn wide' + (due.length ? '' : ' primary') + '" data-act="resumeIntro">' + lab('resume') + '</button>';
   } else if (nq.length) {
     var added = groups.every(started);
     h += (added ? '<p class="hint">Başladığın cevapların kalan satırları:</p>' : '') +
       groups.map(function (a) { return '<p class="q">' + codeHtml(a) + esc(a.q) + tagHtml(a) + '</p>'; }).join('') +
       '<p class="hint">Satır başına ~2 dk: dinle, anlamı oku, 3× gölgele, 5 sn imge. Her 4–5 satırda kısa kontrol.</p>' +
-      '<button class="btn wide' + (due.length ? '' : ' primary') + '" data-act="startIntro">' + (added ? 'Yeni satırlara başla' : 'Yeni cevaba başla') + '</button>';
+      '<button class="btn wide' + (due.length ? '' : ' primary') + '" data-act="startIntro">' + lab(added ? 'startMore' : 'startNew') + '</button>';
   } else {
     var nextG = queueGroups()[0];
     h += '<p class="hint">' + (pendingAny ? 'Bugünün yeni cevabı tamam. Yarın sıradaki gelir.' : 'Tüm cevaplar öğrenildi; artık sadece tekrar ve prova.') + '</p>' +
       (nextG ? '<p class="hint">Sıradaki:</p>' + nextG.list.map(function (a) { return '<p class="q">' + codeHtml(a) + esc(a.q) + tagHtml(a) + '</p>'; }).join('') : '') +
-      (pendingAny ? '<button class="btn ghost wide" data-act="startIntroForce">Sıradakine erken başla</button>' : '');
+      (pendingAny ? '<button class="btn ghost wide" data-act="startIntroForce">' + lab('startEarly') + '</button>' : '');
   }
   h += '</section>';
   if (sug) {
     var r = U.progress.reh[sug.id];
     h += '<section class="panel"><div class="ph"><h2>Prova</h2><span class="mono">' + (r ? ago(r.last) : 'ilk kez') + '</span></div><p class="q">' + esc(sug.q) + '</p>' +
-      '<p class="hint">Soruyu duy, cevabı baştan sona sesli söyle.</p><button class="btn wide" data-act="openReh" data-id="' + sug.id + '">Prova et</button></section>';
+      '<p class="hint">Soruyu duy, cevabı baştan sona sesli söyle.</p><button class="btn wide" data-act="openReh" data-id="' + sug.id + '">' + lab('reh') + '</button></section>';
   }
   if (learned) {
     h += '<section class="panel"><div class="ph"><h2>Yolda dinle</h2><span class="mono">Track B</span></div><p class="hint">TR · düşünme süresi: İngilizcesini sen söyle · sonra EN ×' + repN('B') + ', her birinden sonra tekrar et. Ekran açık kalmalı.</p>' +
-      '<button class="btn wide" data-act="goTrackB">Dinle sekmesine geç</button></section>';
+      '<button class="btn wide" data-act="goTrackB">' + lab('toTrack') + '</button></section>';
   }
   h += '</div>';
   h += '<p class="foot">Öğrenilen satır <span class="mono">' + learned + '/' + total + '</span> · Bugün <span class="mono">' + (d.rev || 0) + '</span> tekrar, <span class="mono">' + (d.new || 0) + '</span> yeni</p>';
@@ -2330,7 +2440,7 @@ function siriHint() {
   if (!siriOn()) return '';
   return '<p class="siri-hint">Siri: ' + (DESKTOP ? 'İngilizce cümle seçili; <kbd>⌥ Esc</kbd> ile dinle.' : 'kumandadaki el simgesine dokun, sonra İngilizce cümleye dokun.') + '</p>';
 }
-function sessHead(label, endTxt) { return '<div class="sesshead"><button class="link" data-act="endSess">← ' + (endTxt || 'Bitir') + '</button><span class="mono">' + label + '</span></div>'; }
+function sessHead(label, key) { return '<div class="sesshead"><button class="link" data-act="endSess">' + lab(key || 'end') + '</button><span class="mono">' + label + '</span></div>'; }
 /* a line's type: ezber (word for word), anlam (main idea) or '' (none chosen: no tag on the card, graded like anlam) */
 function tierOf(l) { return l.tier === 'ezber' || l.tier === '' ? l.tier : 'anlam'; }
 function tierTxt(l) { return l.tier === 'ezber' ? 'Ezber · kelimesi kelimesine' : 'Anlam · ana fikir ve terimler yeter'; }
@@ -2419,13 +2529,13 @@ function renderReview() {
   h += cardFoot(it.l, '<span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown && s.ms ? fmtSec(s.ms) : '') + '</span>') + '</article>';
   if (s.shown || !isP) h += siriHint();
   if (!s.shown) {
-    if (isP && dictOn()) h += dictBox(s, 'dictCheck', 'Kontrol et');
-    h += '<div class="row"><button class="btn ghost" data-act="replayCard">▶ ' + (isP ? 'TR' : 'EN') + ' dinle</button><button class="btn ' + (s.dictOpen && isP ? 'ghost' : 'primary') + '" data-act="reveal">Göster</button></div>';
-    h += '<button class="link" data-act="revSkip">Bugün geç →</button>';
+    if (isP && dictOn()) h += dictBox(s, 'dictCheck');
+    h += '<div class="row"><button class="btn ghost" data-act="replayCard">' + lab(isP ? 'hearTr' : 'hearEn') + '</button><button class="btn ' + (s.dictOpen && isP ? 'ghost' : 'primary') + '" data-act="reveal">' + lab('show') + '</button></div>';
+    h += '<button class="link" data-act="revSkip">' + lab('skipDay') + '</button>';
   } else {
     if (s.dict) h += dictRes(s.dict, s.dictText);
     var sg = dictGrade(s.dict);
-    h += '<div class="row" style="margin-bottom:10px"><button class="btn ghost" data-act="replayEn">▶ EN dinle</button>' + (isP && s.dict && (sg === 0 || sg === 1) ? '<button class="btn" data-act="pkStart">↻ Pekiştir</button>' : '') + '</div>';
+    h += '<div class="row" style="margin-bottom:10px"><button class="btn ghost" data-act="replayEn">' + lab('hearEn') + '</button>' + (isP && s.dict && (sg === 0 || sg === 1) ? '<button class="btn" data-act="pkStart">' + lab('pk') + '</button>' : '') + '</div>';
     h += '<div class="grades">' + ['Tekrar', 'Zor', 'İyi', 'Kolay'].map(function (n, g) { return '<button class="btn grade g' + g + (g === sg ? ' sugg' : '') + '" data-act="grade" data-g="' + g + '"' + (g === sg ? ' aria-describedby="sugg-note"' : '') + '>' + n + '<small>' + ivlLabel(prev[g]) + '</small></button>'; }).join('') + '</div>';
     if (sg >= 0) h += '<p class="hint" id="sugg-note" style="margin-top:6px">Çerçeveli puan söylediğine göre öneri; karar senin.</p>';
   }
@@ -2484,11 +2594,19 @@ function introEnter() {
   var tok = audioTok, it = curIntro();
   wait(60, tok).then(function () { return speak(it.l.en, 'en', tok); }).then(function () { if (S.sess === s && tok === audioTok && s.step === 0) { s.step = 1; render(); } });
 }
+/* Adımları atla (Dinle, Anlam: a line you know) passes over every step, to the line's end (step 5). Atla (Gölgele, İmge)
+   passes over that step only: Hatırla comes, since recalling teaches most. Nothing is written; Kontrol asks the line anyway.
+   On any other step it does nothing (a second tap that arrives late). */
+function introSkip() {
+  var s = S.sess; if (!s || s.type !== 'intro' || s.phase !== 'learn' || s.pk) return;
+  if (s.step === 2 || s.step === 3) recallEnter();
+  else if (s.step < 2) { stopAudio(); s.step = 5; render(); }
+}
 function runShadow() {
-  var s = S.sess, it = curIntro(); stopAudio(); var tok = audioTok; s.step = 2;
+  var s = S.sess, it = curIntro(); stopAudio(); var tok = audioTok; s.step = 2; s.imgSeen = false;
   function alive() { return S.sess === s && tok === audioTok; }
   function imagery() {
-    s.step = 3; s.img = 5; render();
+    s.step = 3; s.img = 5; s.imgSeen = true; render();
     function tickImg() {
       if (!alive()) return;
       if (s.img <= 0) { recallEnter(); return; }
@@ -2549,47 +2667,47 @@ function renderIntro() {
   if (s.phase === 'finish') {
     var ids = []; s.batches.forEach(function (b) { b.forEach(function (x) { if (ids.indexOf(x.a.id) < 0) ids.push(x.a.id); }); });
     return '<section class="hero"><h1>Yeni cevap tamam</h1><p class="sub">' + s.total + ' satır öğrenildi. Yarın tekrarda karşına çıkacaklar.</p></section><div class="stack">' +
-      ids.map(function (id) { var a = ansById(id); return a ? '<section class="panel"><p class="q">' + codeHtml(a) + esc(a.q) + '</p><div class="row"><button class="btn" data-act="listenAnswer" data-id="' + a.id + '">▶ Tüm cevabı dinle</button><button class="btn" data-act="openReh" data-id="' + a.id + '">Prova et</button></div></section>' : ''; }).join('') +
-      '<button class="btn primary wide" data-act="endSess">Ana sayfa</button></div>';
+      ids.map(function (id) { var a = ansById(id); return a ? '<section class="panel"><p class="q">' + codeHtml(a) + esc(a.q) + '</p><div class="row"><button class="btn" data-act="listenAnswer" data-id="' + a.id + '">' + lab('hearAll') + '</button><button class="btn" data-act="openReh" data-id="' + a.id + '">' + lab('reh') + '</button></div></section>' : ''; }).join('') +
+      '<button class="btn primary wide" data-act="endSess">' + lab('home') + '</button></div>';
   }
   if (s.phase === 'quiz') {
     var q = s.quiz, it = q.q[0];
-    if (s.pk) return pkView(sessHead('Kontrol · ' + q.q.length + ' kaldı', 'Ara ver'), it);
-    var h = sessHead('Kontrol · ' + q.q.length + ' kaldı', 'Ara ver');
+    if (s.pk) return pkView(sessHead('Kontrol · ' + q.q.length + ' kaldı', 'pause'), it);
+    var h = sessHead('Kontrol · ' + q.q.length + ' kaldı', 'pause');
     h += '<article class="icard"><div class="ctx"><b>Kontrol</b><span>TR → EN · sesli söyle</span></div><p class="tr big">' + esc(it.l.tr) + '</p>' +
       (q.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') + cardFoot(it.l) + '</article>' + (q.shown ? siriHint() : '');
-    // 🎤: the result suggests one of the two buttons (İyi → ✓, Tekrar → ↺; Zor → none); the choice stays yours
+    // 🎤: the result suggests one of the two buttons (İyi → Söyledim, Tekrar → Tekrar sor; Zor → none); the choice stays yours
     var qg = q.shown && s.dict ? dictGrade(s.dict) : -1;
-    if (q.shown) h += (s.dict ? dictRes(s.dict, s.dictText) : '') + (qg === 0 || qg === 1 ? '<button class="btn wide" data-act="pkStart" style="margin-bottom:8px">↻ Pekiştir</button>' : '') +
-      markRow({ act: 'quizAgain', txt: '↺ Tekrar sor' }, { act: 'quizOk', txt: '✓ Söyledim' }, qg) +
-      (qg === 1 ? '<p class="hint">Arada: kalıbı tam söyleyemediysen ↺ Tekrar sor.</p>' : qg >= 0 ? '<p class="hint">Çerçeveli düğme söylediğine göre öneri; karar senin.</p>' : '');
-    else h += (dictOn() ? dictBox(s, 'quizCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn ghost" data-act="replayQuizTr">▶ TR dinle</button><button class="btn primary" data-act="quizReveal">Göster</button></div>';
+    if (q.shown) h += (s.dict ? dictRes(s.dict, s.dictText) : '') + (qg === 0 || qg === 1 ? '<button class="btn wide" data-act="pkStart" style="margin-bottom:8px">' + lab('pk') + '</button>' : '') +
+      markRow({ act: 'quizAgain', key: 'askAgain' }, { act: 'quizOk', key: 'said' }, qg) +
+      (qg === 1 ? '<p class="hint">Arada: kalıbı tam söyleyemediysen ' + tx('{askAgain}') + '.</p>' : qg >= 0 ? '<p class="hint">Çerçeveli düğme söylediğine göre öneri; karar senin.</p>' : '');
+    else h += (dictOn() ? dictBox(s, 'quizCheck') : '') + '<div class="row"><button class="btn ghost" data-act="replayQuizTr">' + lab('hearTr') + '</button><button class="btn primary" data-act="quizReveal">' + lab('show') + '</button></div>';
     return h;
   }
   var it2 = curIntro(), last = s.i === s.batches[s.b].length - 1;
-  if (s.pk) return pkView(sessHead('Yeni · ' + introPos() + '/' + s.total, 'Ara ver'), it2);
+  if (s.pk) return pkView(sessHead('Yeni · ' + introPos() + '/' + s.total, 'pause'), it2);
   var stepNames = ['Dinle', 'Anlam', 'Gölgele 3×', 'İmge', 'Hatırla'];
   var active = Math.min(s.step, 5);
-  var h2 = sessHead('Yeni · ' + introPos() + '/' + s.total, 'Ara ver');
+  var h2 = sessHead('Yeni · ' + introPos() + '/' + s.total, 'pause');
   h2 += '<div class="steps">' + stepNames.map(function (n, k) { return '<span class="' + (k < active ? 'did' : k === active ? 'on' : '') + '">' + n + '</span>'; }).join('') + '</div>' + durakBar(it2.a, it2.l);
   var plan = sayPlan('golgele'), masked = s.step === 2 && sayHidden(plan, s.shadow), recall = s.step === 4, hideEn = recall && !s.rec.shown;
   h2 += '<article class="icard"><div class="ctx"><span>' + esc(qLabel(it2.a)) + '</span>' + (recall ? '<span>TR → EN · sesli söyle</span>' : '') + '</div>' +
     (hideEn ? '' : '<p class="en' + (masked ? ' masked' : '') + '">' + (masked ? esc(it2.l.en) : hlEn(it2.l)) + '</p>');
   if (s.step >= 1) h2 += '<p class="tr' + (recall ? ' big' : '') + '">' + esc(it2.l.tr) + '</p>';
   if (s.step === 2) h2 += sayLine(s.shPhase || 'listen', { step: s.shadow, total: plan.total, text: !masked });
-  if (hideEn) h2 += '<p class="hint">Önce imgeni düşün; cümle oradan gelir.</p>';
+  if (hideEn && s.imgSeen) h2 += '<p class="hint">Önce imgeni düşün; cümle oradan gelir.</p>';
   if (hideEn) h2 += sayLine('recall', { tail: s.dictOpen ? 'sonra Kontrol et' : '' });
   if (s.step === 3) h2 += '<p class="hint">Bu cümleyi kendi hayatından bir sahneye bağla.</p><p class="count">' + s.img + '</p>';
   h2 += cardFoot(it2.l, hideEn && !s.dictOpen ? cardTimer('recleft', recallLeft()) : '') + '</article>' + siriHint();
-  if (s.step <= 1) h2 += '<div class="row"><button class="btn ghost" data-act="replayIntro">▶ Dinle</button><button class="btn primary" data-act="shadow"' + (s.step === 0 ? ' disabled' : '') + '>Gölgele 3×</button></div><button class="link" data-act="introSkip">Adımları atla →</button>';
-  else if (s.step === 2 || s.step === 3) h2 += '<div class="row"><button class="btn ghost" data-act="introSkip">Atla →</button></div>';
-  else if (recall && !s.rec.shown) h2 += (dictOn() ? dictBox(s, 'recCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="recShow">Göster</button></div>';
-  else if (recall) h2 += (s.dict ? dictRes(s.dict, s.dictText) : '') + '<div class="row"><button class="btn ghost" data-act="pkStart">↻ Pekiştir</button><button class="btn primary" data-act="introNext">' + (last ? 'Kontrole geç' : 'Sonraki satır') + '</button></div>';
-  else h2 += '<div class="row"><button class="btn ghost" data-act="shadow">↺ Tekrar gölgele</button><button class="btn primary" data-act="introNext">' + (last ? 'Kontrole geç' : 'Sonraki satır') + '</button></div>';
+  if (s.step <= 1) h2 += '<div class="row"><button class="btn ghost" data-act="replayIntro">' + lab('hearEn') + '</button><button class="btn primary" data-act="shadow"' + (s.step === 0 ? ' disabled' : '') + '>' + lab('shadow') + '</button></div><button class="link" data-act="introSkip">' + lab('skipAll') + '</button>';
+  else if (s.step === 2 || s.step === 3) h2 += '<div class="row"><button class="btn ghost" data-act="introSkip">' + lab('skip') + '</button></div>';
+  else if (recall && !s.rec.shown) h2 += (dictOn() ? dictBox(s, 'recCheck') : '') + '<div class="row"><button class="btn primary" data-act="recShow">' + lab('show') + '</button></div>';
+  else if (recall) h2 += (s.dict ? dictRes(s.dict, s.dictText) : '') + '<div class="row"><button class="btn ghost" data-act="pkStart">' + lab('pk') + '</button><button class="btn primary" data-act="introNext">' + lab(last ? 'toQuiz' : 'nextLine') + '</button></div>';
+  else h2 += '<div class="row"><button class="btn ghost" data-act="shadow">' + lab('shadow') + '</button><button class="btn primary" data-act="introNext">' + lab(last ? 'toQuiz' : 'nextLine') + '</button></div>';
   return h2;
 }
 
-/* ---- ↻ Pekiştir: a short fix-up for one line, the same on Hatırla, Kontrol and Tekrar.
+/* ---- Pekiştir: a short fix-up for one line, the same on Hatırla, Kontrol and Tekrar.
    1/3 hear it with the text (missing pattern words marked) and say it back; 2/3 say it with the voice, no text;
    3/3 say it once yourself from memory (recallMs; 🎤 shows the percentage only). Grades and suggestions stay from the
    first try; the line is noted for Zorlandıklarım (hardBad). Plays the voice clip even in Siri mode. */
@@ -2643,20 +2761,20 @@ function cardFoot(l, right) { var t = tierOf(l); return '<div class="cardfoot">'
 function cardTimer(id, text) { return '<span id="' + id + '" class="timer">' + text + '</span>'; }
 function pkView(head, it) {
   var p = S.sess.pk, l = it.l, shown = p.phase === 'shown', plan = sayPlan('pekistir'), alone = p.step > plan.rounds; // alone: the step from memory
-  var h = head + '<article class="icard"><div class="ctx"><b>↻ Pekiştir</b><span>' + esc(qLabel(it.a)) + '</span></div>';
+  var h = head + '<article class="icard"><div class="ctx"><b>' + tx('{pk}') + '</b><span>' + esc(qLabel(it.a)) + '</span></div>';
   if (shown || (!alone && !sayHidden(plan, p.step))) h += '<p class="en">' + pkEn(l, p.miss) + '</p>';
   else if (!alone) h += '<p class="en masked">' + esc(l.en) + '</p>';
   h += '<p class="tr' + (alone && !shown ? ' big' : '') + '">' + esc(l.tr) + '</p>';
   /* the step counter sits in the status line (sayLine); the seconds left sit in the card foot */
   if (!shown) h += sayLine(p.phase, { step: p.step, total: plan.total, text: !sayHidden(plan, p.step), tail: p.phase === 'recall' && p.dictOpen ? 'sonra Kontrol et' : '' });
   h += cardFoot(l, p.phase === 'recall' && !p.dictOpen ? cardTimer('pkleft', pkLeft()) : '') + '</article>';
-  if (p.phase === 'recall') h += (dictOn() ? dictBox(p, 'pkCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn primary" data-act="pkShow">Göster</button></div>';
+  if (p.phase === 'recall') h += (dictOn() ? dictBox(p, 'pkCheck') : '') + '<div class="row"><button class="btn primary" data-act="pkShow">' + lab('show') + '</button></div>';
   else if (shown) {
     var P = p.dict && dictPairs(p.dict.miss, p.dict.extra);
     if (p.dict) h += '<div class="dres"><div><b class="sc ' + scoreCls(p.dict.pct) + '">%' + p.dict.pct + '</b> · ' + (l.tier === 'ezber' ? 'kelime' : 'terim') + ' isabeti</div>' +
       dictPairRow(P.pairs, p.dict.mkMiss) + (P.miss.length ? '<div class="miss">Eksik: <b>' + esc(P.miss.slice(0, 8).join(', ')) + '</b></div>' : '') + '<div class="said">Sen: ' + esc(p.dictText) + '</div></div>';
-    h += '<div class="row"><button class="btn ghost" data-act="pkStart">↻ Bir tur daha</button><button class="btn primary" data-act="pkDone">Karta dön</button></div>';
-  } else h += '<div class="row"><button class="btn ghost" data-act="pkDone">Bırak</button></div>';
+    h += '<div class="row"><button class="btn ghost" data-act="pkStart">' + lab('pkMore') + '</button><button class="btn primary" data-act="pkDone">' + lab('toCard') + '</button></div>';
+  } else h += '<div class="row"><button class="btn ghost" data-act="pkDone">' + lab('quit') + '</button></div>';
   return h + '<p class="hint">Puan ilk denemene göre kalır.</p>';
 }
 
@@ -2664,7 +2782,7 @@ function pkView(head, it) {
 function renderDone() {
   var s = S.sess;
   return '<section class="hero"><h1>Tekrarlar bitti</h1><p class="sub"><span class="mono">' + s.n + '</span> kart, <span class="mono">' + s.again + '</span> tekrar, ' + (s.skipped ? '<span class="mono">' + s.skipped + '</span> geçildi, ' : '') + 'süre <span class="mono">' + mmss(s.ms) + '</span>.</p></section>' +
-    '<button class="btn primary wide" data-act="endSess">Ana sayfa</button>';
+    '<button class="btn primary wide" data-act="endSess">' + lab('home') + '</button>';
 }
 
 /* ----- Prova ----- */
@@ -2678,11 +2796,11 @@ function renderReh() {
     var pool = mockPool(), first = mockFirst(pool), nq = Math.min(5, pool.length);
     return h + '<p class="sub" style="margin-bottom:12px">Gerçek mülakat gibi: soru sesli gelir, cevabı baştan sona söylersin; sonraki soru çoğu zaman bir önceki cevabının takibidir. ' + nq + ' soru.</p>' +
       (first ? '<p class="q" style="margin-bottom:12px">İlk soru: ' + codeHtml(first) + esc(first.q) + '</p>' : '') +
-      '<button class="btn primary wide" data-act="mockStart"' + (first ? '' : ' disabled') + '>Mülakatı başlat</button>';
+      '<button class="btn primary wide" data-act="mockStart"' + (first ? '' : ' disabled') + '>' + lab('mock') + '</button>';
   }
   h += '<p class="sub" style="margin-bottom:12px">Soruyu duy, cevabı baştan sona sesli söyle. Hedef: duraksamadan, 60–90 sn.</p>' +
-    '<div class="chips" style="margin-bottom:12px">' + tchip('reh-fu', 'Takip soruları', U.settings.fuOn !== false) + '</div>' +
-    '<button class="btn primary wide" data-act="rehRandom">Rastgele soru</button><ul class="alist">';
+    '<div class="chips" style="margin-bottom:12px">' + tchip('reh-fu', 'follow', U.settings.fuOn !== false) + '</div>' +
+    '<button class="btn primary wide" data-act="rehRandom">' + lab('random') + '</button><ul class="alist">';
   grpAnswers().forEach(function (a) {
     var r = U.progress.reh[a.id], m = mastered(a), on = started(a);
     var learnedN = a.lines.filter(function (l) { return lineStarted(a, l); }).length;
@@ -2762,10 +2880,10 @@ function renderRehSum() {
   var h = '<section class="hero"><h1>' + (c.kind === 'mock' ? 'Mülakat bitti' : 'Takip zinciri bitti') + '</h1></section><ul class="chainlist">';
   c.steps.forEach(function (st, k) {
     var a = ansById(st.id) || { q: '' }; tot += st.times.reduce(function (x, y) { return x + y; }, 0);
-    h += '<li><span class="q">' + (k + 1) + '. ' + codeHtml(a) + esc(a.q) + '</span><span class="meta">' + st.times.map(mmss).join(' → ') + ' · ' + (st.ok ? '✓ akıcı' : '↺ takıldı') +
+    h += '<li><span class="q">' + (k + 1) + '. ' + codeHtml(a) + esc(a.q) + '</span><span class="meta">' + st.times.map(mmss).join(' → ') + ' · ' + (st.ok ? ico('ok', 14) + ' akıcı' : ico('no', 14) + ' takıldı') +
       (st.hint ? ' · ipucuyla' : '') + (st.cov != null ? ' · söylenen %' + st.cov : '') + '</span></li>';
   });
-  return h + '</ul><p class="sub" style="margin-bottom:14px">Toplam konuşma: <span class="mono">' + mmss(tot) + '</span></p><button class="btn primary wide" data-act="rehHome">Prova\'ya dön</button>';
+  return h + '</ul><p class="sub" style="margin-bottom:14px">Toplam konuşma: <span class="mono">' + mmss(tot) + '</span></p><button class="btn primary wide" data-act="rehHome">' + lab('toReh') + '</button>';
 }
 /* Takıldım / Akıcıydı suggestion after a round (the choice stays yours): over the round's target time or under half of the
    answer said (🎤) → Takıldım; 85%+ said and within the target → Akıcıydı; otherwise none. Pauses themselves are not measured. */
@@ -2783,10 +2901,10 @@ function renderRehSess() {
   if (s.phase === 'ready') {
     var c = s.chain, inChain = c && (c.steps.length || c.kind === 'mock');
     return h + '<article class="icard"><div class="ctx"><b>' + (c && c.kind === 'fu' && c.steps.length ? 'Takip sorusu' : 'Soru') + (a.code ? ' · ' + esc(a.code) : '') + '</b>' + tagHtml(a) + rnd + '</div><p class="bigq">' + esc(a.q) + '</p><p class="tr">' + esc(a.qtr) + '</p></article>' +
-      '<div class="row"><button class="btn ghost" data-act="rehPlayQ">▶ Soruyu dinle</button>' +
-      (skelOn(s) ? '<button class="btn primary" data-act="skelStart">Başla · önce iskelet</button></div><div class="row" style="margin-top:8px"><button class="link" data-act="rehStart">İskeletsiz başla</button></div>'
-        : '<button class="btn primary" data-act="rehStart">Başla</button></div>') +
-      (inChain ? '<div class="row" style="margin-top:8px"><button class="link" data-act="chainEnd">' + (c.steps.length ? 'Zinciri bitir' : 'Vazgeç') + '</button></div>' : '');
+      '<div class="row"><button class="btn s ghost" data-act="rehPlayQ">' + lab('hearQ') + '</button>' +
+      (skelOn(s) ? '<button class="btn s primary" data-act="skelStart">' + lab('beginSkel') + '</button></div><div class="row" style="margin-top:8px"><button class="link" data-act="rehStart">' + lab('skipSkel') + '</button></div>'
+        : '<button class="btn s primary" data-act="rehStart">' + lab('begin') + '</button></div>') +
+      (inChain ? '<div class="row" style="margin-top:8px"><button class="link" data-act="chainEnd">' + lab(c.steps.length ? 'chainEnd' : 'cancel') + '</button></div>' : '');
   }
   if (s.phase === 'skel') {
     var sk = s.skel;
@@ -2794,29 +2912,29 @@ function renderRehSess() {
       (sk.shown ? '<ol class="stops">' + a.lines.map(function (l, k) { return '<li>' + esc(intentOf(l, k)) + '</li>'; }).join('') + '</ol>'
         : '<span class="say">Cevabın duraklarını sırayla, kısaca söyle</span><p class="hint">Her satır için birkaç kelime yeter; tam cümle yok. Sonra durakları görürsün.</p>' +
           '<p class="mono hint" id="skelleft">' + skelLeft() + '</p><div class="tbar"><i id="skelbar"></i></div>') + '</article>' +
-      (sk.shown ? '<p class="hint" style="margin-bottom:8px">Atladığın ya da yerini karıştırdığın durak varsa tam cevapta ona dikkat et.</p><button class="btn primary wide" data-act="rehStart">Tam cevaba başla</button>'
-        : '<button class="btn primary wide" data-act="skelShow">Durakları göster</button>');
+      (sk.shown ? '<p class="hint" style="margin-bottom:8px">Atladığın ya da yerini karıştırdığın durak varsa tam cevapta ona dikkat et.</p><button class="btn primary wide" data-act="rehStart">' + lab('beginFull') + '</button>'
+        : '<button class="btn primary wide" data-act="skelShow">' + lab('stops') + '</button>');
   }
   if (s.phase === 'talk') {
     var hasHint = hintList(a).length > 0;
     return h + '<article class="icard"><div class="ctx"><b>Soru' + (a.code ? ' · ' + esc(a.code) : '') + '</b>' + tagHtml(a) + rnd + '</div><p class="bigq">' + esc(a.q) + '</p><span class="say">Cevabı baştan sona sesli söyle</span><p id="timer" class="timer big">0:00' + (s.target ? ' / ' + mmss(s.target) : '') + '</p>' +
       (s.target ? '<div class="tbar" id="tbarw"><i id="tbar"></i></div>' : '') +
-      (hasHint ? (s.hint ? infoHtml(a, ['kw'], 'flat') : '') + '<button class="link" data-act="rehHint" style="align-self:flex-start">' + (s.hint ? 'İpucunu gizle' : 'Takıldım: ipucu göster') + '</button>' : '') + '</article>' +
-      (dictOn() ? dictBox(s) : '') + '<button class="btn primary wide" data-act="rehStop">Bitti</button>';
+      (hasHint ? (s.hint ? infoHtml(a, ['kw'], 'flat') : '') + '<button class="link" data-act="rehHint" style="align-self:flex-start">' + lab(s.hint ? 'hintHide' : 'hint') + '</button>' : '') + '</article>' +
+      (dictOn() ? dictBox(s) : '') + '<button class="btn primary wide" data-act="rehStop">' + lab('done') + '</button>';
   }
   var times = s.times.concat([s.ms]), over = s.target ? s.ms - s.target : 0, rs = rehSugg(s);
-  // ← Bitir on an unsaved result asks first (the round is saved only with Takıldım / Akıcıydı)
-  if (s.leaveAsk) h += '<div class="confirm leave">Bu prova henüz kaydedilmedi. Kaydetmek için aşağıda ↺ Takıldım ya da ✓ Akıcıydı\'ya bas.<div class="row"><button class="btn" data-act="rehLeaveNo">Vazgeç</button><button class="btn" data-act="rehLeave">Kaydetmeden çık</button></div></div>';
+  // Bitir on an unsaved result asks first (the round is saved only with Takıldım / Akıcıydı)
+  if (s.leaveAsk) h += '<div class="confirm leave"><p>Bu prova henüz kaydedilmedi. Kaydetmek için aşağıda ' + tx('{stuck} ya da {fluent}') + ' düğmesine bas.</p><div class="row"><button class="btn" data-act="rehLeaveNo">' + lab('cancel') + '</button><button class="btn" data-act="rehLeave">Kaydetmeden çık</button></div></div>';
   h += '<article class="icard"><div class="ctx"><b>Süre</b><span class="mono">' + mmss(s.ms) + '</span>' + (s.round > 1 ? '<span>· tur ' + s.round + '/3 · hedef ' + mmss(s.target) + (over > 0 ? ' (+' + Math.round(over / 1000) + ' sn)' : ' ✓') + '</span>' : '') + (s.hint ? '<span>· ipucuyla</span>' : '') + (s.cov ? '<span>· söylenen <b class="sc ' + scoreCls(s.cov.score) + '">%' + s.cov.score + '</b></span>' : '') + '</div>' +
     (times.length > 1 ? '<p class="rounds">' + times.map(mmss).join(' → ') + '</p>' : '') +
     '<p class="q" style="font-weight:600">' + codeHtml(a) + esc(a.q) + '</p><ol class="anslines">' +
     a.lines.map(function (l, k) { var cv = s.cov ? s.cov.lines[k] : null; return '<li class="' + esc(l.tier) + '">' + (intentOn() && l.intent ? '<span class="ilab">' + esc(l.intent) + '</span>' : '') + esc(l.en) + (cv != null ? '<span class="cov ' + scoreCls(cv) + '">%' + cv + '</span>' : '') + '</li>'; }).join('') + '</ol><p class="hint">Kırmızı çizgili satırlar ezber; kalanında ana fikir yeter.</p>' +
     (s.cov && s.dictText ? '<details class="said"><summary>Söylediğin metin</summary><p>' + esc(s.dictText) + '</p></details>' : '') + infoHtml(a, ['key', 'notes'], 'flat') + '</article>';
-  if (s.round < 3) h += '<button class="btn ghost wide" data-act="rehRound" style="margin-bottom:10px">▶ ' + (s.round + 1) + '. tur · hedef ' + mmss(roundTarget(a, s.round === 1 ? s.ms : s.times[0], s.round + 1)) + '</button>';
+  if (s.round < 3) h += '<button class="btn ghost wide" data-act="rehRound" style="margin-bottom:10px">' + lab('round', (s.round + 1) + '. tur · hedef ' + mmss(roundTarget(a, s.round === 1 ? s.ms : s.times[0], s.round + 1))) + '</button>';
   var nx = peekNext(s);
   if (nx) h += '<p class="hint" style="margin-bottom:8px">Sonra ' + (s.chain.kind === 'mock' ? 'soru' : 'takip sorusu') + ': ' + esc(nx.q) + '</p>';
-  h += markRow({ act: 'rehSave', data: ' data-ok="0"', txt: '↺ Takıldım' }, { act: 'rehSave', data: ' data-ok="1"', txt: '✓ Akıcıydı' }, rs.g) + (rs.g >= 0 ? '<p class="hint">Çerçeveli düğme öneri (' + rs.why + '); karar senin.</p>' : '') +
-    '<div class="row" style="margin-top:8px"><button class="btn ghost" data-act="listenAnswer" data-id="' + a.id + '">▶ Cevabı dinle</button></div>';
+  h += markRow({ act: 'rehSave', data: ' data-ok="0"', key: 'stuck' }, { act: 'rehSave', data: ' data-ok="1"', key: 'fluent' }, rs.g) + (rs.g >= 0 ? '<p class="hint">Çerçeveli düğme öneri (' + rs.why + '); karar senin.</p>' : '') +
+    '<div class="row" style="margin-top:8px"><button class="btn ghost" data-act="listenAnswer" data-id="' + a.id + '">' + lab('hearA') + '</button></div>';
   return h;
 }
 function rehSave(ok) {
@@ -2845,7 +2963,7 @@ function renderTestConfig() {
   var hn = hardCount();
   if (hn || S.testHard) h += '<div class="seg"><button data-act="testHard" data-v="0" aria-pressed="' + !S.testHard + '">Öğrendiklerim</button><button data-act="testHard" data-v="1" aria-pressed="' + !!S.testHard + '">Zorlandıklarım (' + hn + ')</button></div>';
   h += '<div class="seg">' + [10, 20, 0].map(function (k) { return '<button data-act="testN" data-n="' + k + '" aria-pressed="' + (S.testN === k) + '">' + (k ? k + ' kart' : 'Tümü') + '</button>'; }).join('') + '</div>';
-  h += '<button class="btn primary wide" data-act="startTest"' + (pool ? '' : ' disabled') + '>' + (pool ? 'Testi başlat (' + n + ' kart)' : (S.testHard ? 'Zorlandıklarım listesi boş' : curGrp() === 'all' ? 'Önce bir cevap öğren' : 'Bu grupta henüz öğrenilen satır yok')) + '</button>';
+  h += '<button class="btn primary wide" data-act="startTest"' + (pool ? '' : ' disabled') + '>' + (pool ? lab('test', 'Testi başlat (' + n + ' kart)') : (S.testHard ? 'Zorlandıklarım listesi boş' : curGrp() === 'all' ? 'Önce bir cevap öğren' : 'Bu grupta henüz öğrenilen satır yok')) + '</button>';
   var list = (U.tests.list || []).slice(-6).reverse();
   if (list.length) {
     h += '<h2 style="margin:20px 0 8px">Son testler</h2><ul class="reslist">' + list.map(function (r) {
@@ -2885,14 +3003,14 @@ function renderTest() {
     var h = '<section class="hero"><h1>Test sonucu</h1><p class="sub">Yanlış olanlar bugünün tekrarına eklendi.</p></section>';
     h += '<div class="result"><div><b>%' + Math.round(100 * r.ok / r.n) + '</b><span>doğru</span></div><div><b>%' + Math.round(100 * r.fast / r.n) + '</b><span>doğru ve süresinde</span></div><div><b>' + fmtSec(r.med) + '</b><span>medyan süre</span></div></div>';
     if (slow.length) h += '<h2 style="margin:16px 0 6px">Takılanlar</h2><ul class="reslist">' + slow.map(function (x) { var f = lineById(x.id); return f ? '<li><span>' + esc(f.l.en) + '</span><span class="mono">' + (x.ok ? fmtSec(x.ms) : 'yanlış') + '</span></li>' : ''; }).join('') + '</ul>';
-    return h + '<button class="btn primary wide" style="margin-top:16px" data-act="endSess">Bitir</button>';
+    return h + '<button class="btn primary wide" style="margin-top:16px" data-act="endSess">' + lab('end') + '</button>';
   }
   var it = s.q[s.i];
   var h2 = sessHead('Hız testi · ' + (s.i + 1) + '/' + s.q.length);
   h2 += '<article class="icard"><div class="ctx"><b>TR → EN</b><span>' + esc(qLabel(it.a)) + '</span></div><p class="tr big">' + esc(it.l.tr) + '</p>' + (s.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') +
     cardFoot(it.l, '<span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown ? fmtSec(s.ms) : '') + '</span>') + '</article>' + (s.shown ? siriHint() : '');
-  h2 += s.shown ? markRow({ act: 'testMark', data: ' data-ok="0"', txt: '✗ Yanlış' }, { act: 'testMark', data: ' data-ok="1"', txt: '✓ Doğru' }, -1)
-    : '<button class="btn primary wide" data-act="testReveal">Göster</button>';
+  h2 += s.shown ? markRow({ act: 'testMark', data: ' data-ok="0"', key: 'wrong' }, { act: 'testMark', data: ' data-ok="1"', key: 'right' }, -1)
+    : '<button class="btn primary wide" data-act="testReveal">' + lab('show') + '</button>';
   return h2 + '<p class="kbd">Klavye: boşluk = göster · 1 = yanlış · 2 = doğru</p>';
 }
 
@@ -2902,13 +3020,13 @@ function renderTest() {
    Only patterns whose source line you have learned (and in the chosen group). A session has up to KP_N cards: first the ones
    you could not build last time, then the ones never seen, then the oldest. Each pattern's situations rotate.
    Card: pattern + its original line + the Turkish situation (read aloud when Türkçeyi sesli oku is on) → you say a new
-   sentence (🎤 optional) → Göster: an example sentence plays; the 🎤 result frames ✓ Kurdum or ↺ Kuramadım (markRow).
+   sentence (🎤 optional) → Göster: an example sentence plays; the 🎤 result frames Kurdum or Kuramadım (markRow).
    Kept in progress.kp only: not the review schedule, not Zorlandıklarım (building a new sentence is another skill). ----- */
 var KP_N = 6;
 function kpProg() { if (!U.progress.kp) U.progress.kp = {}; return U.progress.kp; }
 function kpSrc(k) { return lineById(k.src); }
 function kpPool() { return (S.kalip || []).filter(function (k) { var f = kpSrc(k); return f && lineStarted(f.a, f.l) && inGrp(f.a) && (k.durum || []).length; }); }
-function kpRank(k) { var p = kpProg()[k.id]; return !p ? 1 : p.ok ? 2 : 0; } // 0 = ↺ last time, 1 = new, 2 = built
+function kpRank(k) { var p = kpProg()[k.id]; return !p ? 1 : p.ok ? 2 : 0; } // 0 = not built last time, 1 = new, 2 = built
 function kpOrder(list) {
   var P = kpProg(), idx = {}; list.forEach(function (k, i) { idx[k.id] = i; });
   return list.slice().sort(function (x, y) {
@@ -2974,14 +3092,14 @@ function kpRes(c, said) {
     (c.miss.length ? '<div class="miss">Eksik: <b>' + esc(c.miss.join(' · ')) + '</b></div>' : '') +
     '<div class="said">Sen: ' + esc(said) + '</div></div>';
 }
-function kpLast(k) { var p = kpProg()[k.id]; return !p ? 'yeni' : (p.ok ? '✓ ' : '↺ ') + ago(p.last); }
+function kpLast(k) { var p = kpProg()[k.id]; return !p ? 'yeni' : ico(p.ok ? 'ok' : 'no', 14) + ' ' + esc(ago(p.last)); }
 function renderKpConfig() {
   var pool = kpPool(), all = S.kalip || [];
   var h = '<p class="sub" style="margin-bottom:12px">Öğrendiğin bir kalıpla <b>yeni</b> bir cümle kur: kalıp ve Türkçe bir durum gelir, durumu o kalıpla İngilizce söylersin. Bir oturumda en çok ' + KP_N + ' kalıp.</p>';
   if (!all.length) return h + '<p class="hint">Kalıplar cümle güncellemesiyle gelir; sayfayı yenile.</p>';
   if (!pool.length) return h + '<p class="hint">Kalıplar, geldikleri satırı öğrenince açılır (Bugün → Yeni). Bu grupta henüz açık kalıp yok.</p>';
-  h += '<button class="btn primary wide" data-act="kpStart">Kalıp oturumu başlat · ' + Math.min(KP_N, pool.length) + ' kalıp</button><ul class="alist">';
-  kpOrder(pool).forEach(function (k) { h += '<li><div class="arow static"><span class="q">' + kpPat(k) + '</span><span class="meta">' + esc(kpLast(k)) + '</span></div></li>'; });
+  h += '<button class="btn primary wide" data-act="kpStart">' + lab('kalip', 'Kalıp oturumu başlat · ' + Math.min(KP_N, pool.length) + ' kalıp') + '</button><ul class="alist">';
+  kpOrder(pool).forEach(function (k) { h += '<li><div class="arow static"><span class="q">' + kpPat(k) + '</span><span class="meta">' + kpLast(k) + '</span></div></li>'; });
   return h + '</ul><p class="hint">' + pool.length + '/' + all.length + ' kalıp açık; kalanlar satırlarını öğrendikçe açılır.</p>';
 }
 function renderKalip() {
@@ -2989,16 +3107,16 @@ function renderKalip() {
   if (s.phase === 'result') {
     var ok = s.res.filter(function (r) { return r.ok; }).length;
     var h = '<section class="hero"><h1>Kalıp oturumu bitti</h1><p class="sub">' + ok + '/' + s.res.length + ' kalıpla cümle kurdun. Kuramadıkların bir sonraki oturumda önce gelir.</p></section><ul class="chainlist">';
-    s.res.forEach(function (r) { var k = (S.kalip || []).filter(function (x) { return x.id === r.id; })[0]; if (k) h += '<li><span class="q">' + kpPat(k) + '</span><span class="meta">' + (r.ok ? '✓ kurdum' : '↺ kuramadım') + (r.kc === true ? ' · 🎤 kalıp geçti' : r.kc === false ? ' · 🎤 kalıp eksik' : '') + '</span></li>'; });
-    return h + '</ul><div class="row" style="margin-top:14px"><button class="btn" data-act="rehHome">Prova\'ya dön</button><button class="btn primary" data-act="kpStart">Yeni oturum</button></div>';
+    s.res.forEach(function (r) { var k = (S.kalip || []).filter(function (x) { return x.id === r.id; })[0]; if (k) h += '<li><span class="q">' + kpPat(k) + '</span><span class="meta">' + (r.ok ? ico('ok', 14) + ' kurdum' : ico('no', 14) + ' kuramadım') + (r.kc === true ? ' · ' + ico('mic', 14) + ' kalıp geçti' : r.kc === false ? ' · ' + ico('mic', 14) + ' kalıp eksik' : '') + '</span></li>'; });
+    return h + '</ul><div class="row" style="margin-top:14px"><button class="btn" data-act="rehHome">' + lab('toReh') + '</button><button class="btn primary" data-act="kpStart">' + lab('kalipNew') + '</button></div>';
   }
   var it = kpItem(), k = it.k, d = k.durum[it.d], f = kpSrc(k);
   var h2 = sessHead('Kalıp · ' + (s.i + 1) + '/' + s.q.length);
   h2 += '<article class="icard"><div class="ctx"><b>Kalıp</b><span>yeni cümle kur · sesli söyle</span></div><p class="kpat">' + kpPat(k) + '</p>' +
     (f ? '<p class="hint kporig">Orijinali: ' + esc(f.l.en) + '</p>' : '') + '<p class="tr big">' + esc(d.tr) + '</p>' +
     (s.shown ? '<p class="en">' + kpEx(k, d.ex) + '</p><p class="hint">Örnek cümle: seninki farklı olabilir; kalıbı kullanman yeter.</p>' : '') + '</article>';
-  if (s.shown) h2 += siriHint() + (s.kc ? kpRes(s.kc, s.dictText) : '') + markRow({ act: 'kpMark', data: ' data-ok="0"', txt: '↺ Kuramadım' }, { act: 'kpMark', data: ' data-ok="1"', txt: '✓ Kurdum' }, s.kc ? (s.kc.ok ? 2 : 0) : -1);
-  else h2 += (dictOn() ? dictBox(s, 'kpCheck', 'Kontrol et') : '') + '<div class="row"><button class="btn ghost" data-act="kpTr">▶ TR dinle</button><button class="btn primary" data-act="kpShow">Göster</button></div>';
+  if (s.shown) h2 += siriHint() + (s.kc ? kpRes(s.kc, s.dictText) : '') + markRow({ act: 'kpMark', data: ' data-ok="0"', key: 'notBuilt' }, { act: 'kpMark', data: ' data-ok="1"', key: 'built' }, s.kc ? (s.kc.ok ? 2 : 0) : -1);
+  else h2 += (dictOn() ? dictBox(s, 'kpCheck') : '') + '<div class="row"><button class="btn ghost" data-act="kpTr">' + lab('hearTr') + '</button><button class="btn primary" data-act="kpShow">' + lab('show') + '</button></div>';
   return h2 + '<p class="kbd">Klavye: boşluk = göster · 1 = kuramadım · 2 = kurdum</p>';
 }
 window.__kpMatch = kpMatch;
@@ -3031,7 +3149,7 @@ function trFirstFor(it) {
 }
 function modeTxt(m) {
   if (m === 'A') return ({ auto: 'Öğrenilmemiş ve unutulmuş satırlarda önce TR 1× · ', always: 'Önce TR 1× · ', off: '' }[U.settings.trFirst || 'auto'] || '') + 'EN ×' + repN('A') + '; her birinden sonra aynen tekrar et. İlk ' + (SAY_PLAN.dinleA.hideFrom - 1) + ' turda metin görünür, sonra gizlenir.' + (U.settings.simul ? ' Son turda sesle birlikte söyle.' : '');
-  if (m === 'B') return 'TR · düşünme süresi (cümle uzunluğuna ve hıza göre, en az 3 sn): İngilizcesini sen söyle · sonra EN ×' + repN('B') + ', her birinden sonra tekrar et. İngilizceyi duyunca kartın köşesinden işaretle: ✓ bildim, ✗ bilemedim.';
+  if (m === 'B') return 'TR · düşünme süresi (cümle uzunluğuna ve hıza göre, en az 3 sn): İngilizcesini sen söyle · sonra EN ×' + repN('B') + ', her birinden sonra tekrar et. İngilizceyi duyunca kartın köşesinden işaretle: ' + tx('{:ok} bildim, {:no} bilemedim.');
   return 'Cevabın tamamı sırayla. Akışı kulağa yerleştir.';
 }
 /* ---- Dinle goes on while the screen is locked ----
@@ -3270,7 +3388,7 @@ function renderTrack() {
   var reps = REP_OPTS[c.mode] ? REP_OPTS[c.mode].map(function (n) { return [n, n + '×']; }) : [];
   var rows = c.mode === 'A' ? segRow('Önce TR', 'trFirstSet', 't', [['auto', 'Otomatik'], ['always', 'Her zaman'], ['off', 'Kapalı']], tf) + segRow('Tekrar', 'repSet', 'n', reps, repN('A'))
     : c.mode === 'B' ? segRow('Düşünme', 'thinkSet', 't', [['short', 'Kısa'], ['normal', 'Normal'], ['long', 'Uzun']], tk) + segRow('EN tekrarı', 'repSet', 'n', reps, repN('B')) : '';
-  var chips = [tchip('tr-text', 'Metin', c.text), c.mode !== 'C' ? tchip('tr-shuffle', 'Karışık', c.shuffle) : '', c.mode === 'A' ? tchip('tr-simul', 'Eşzamanlı', U.settings.simul) : '', tchip('tr-lock', 'Kilitte çal', U.settings.lockPlay !== false)];
+  var chips = [tchip('tr-text', 'trText', c.text), c.mode !== 'C' ? tchip('tr-shuffle', 'trShuffle', c.shuffle) : '', c.mode === 'A' ? tchip('tr-simul', 'trSimul', U.settings.simul) : '', tchip('tr-lock', 'trLock', U.settings.lockPlay !== false)];
   h += '<div class="ctl"><label class="kap"><span>Kapsam</span><select id="tr-scope">' +
     (c.mode !== 'C' && anyLearned ? opt('due', 'Bugün çalışılacaklar (' + nDue + ')') : '') +
     (anyLearned ? opt('learned', 'Öğrendiğim satırlar') : '') + (hardCount() ? opt('hard', 'Zorlandıklarım (' + hardCount() + ')') : '') + opt('all', 'Tüm cevaplar') +
@@ -3280,26 +3398,20 @@ function renderTrack() {
       return '<optgroup label="' + esc(lab) + '">' + (gl.length > 1 ? (anyL ? opt('gl:' + g.id, lab + ' · öğrendiklerim') : '') + opt('g:' + g.id, lab + ' · tüm satırlar') : '') +
         list.map(function (a) { return opt(a.id, qLabel(a)); }).join('') + '</optgroup>';
     }).join('') + '</select></label>' + (scope === 'hard' ? '<p class="hint">En çok zorlandığın ' + HARD_MAX + ' satır. Bir satırı iki ayrı günde doğru söyleyince listeden çıkar (Nasıl çalışır → Zorlandıklarım).</p>' : '') +
-    rows + '<div class="chips">' + chips.filter(Boolean).join('') + '</div></div>';
+    rows + '<div class="chips opt">' + chips.filter(Boolean).join('') + '</div></div>';
   h += '<div class="player' + (playing ? '' : ' idle') + '" id="player">' + playerInner() + '</div>';
   h += '<div id="trackctl" class="trackbar">' + trackCtl() + '</div>';
   return h;
 }
-var ICON = {
-  prev: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6 5h2.2v14H6zM19 5.6v12.8L9.4 12z"/></svg>',
-  next: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M15.8 5H18v14h-2.2zM5 5.6v12.8l9.6-6.4z"/></svg>',
-  pause: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>',
-  play: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M7.5 5.2v13.6L18.5 12z"/></svg>'
-};
 function trackCtl() {
   var T = S.track;
-  if (!T) return '<button class="btn primary wide" data-act="trackPlay">' + ICON.play + ' Başlat</button>';
+  if (!T) return '<button class="btn primary wide" data-act="trackPlay">' + lab('trPlay') + '</button>';
   var u = T.undo && T.undo.until > Date.now() ? T.undo : null;
-  return (u ? '<div class="undo"><span>' + esc(undoTxt(u)) + '</span><button class="link" data-act="trackUndo">Geri al</button></div>' : '') +
-    '<div class="transport"><button class="btn" data-act="trackPrev" aria-label="Önceki kart">' + ICON.prev + '<span>Önceki</span></button>' +
-    '<button class="btn primary" data-act="trackToggle">' + (T.paused ? ICON.play + '<span>Devam</span>' : ICON.pause + '<span>Duraklat</span>') + '</button>' +
-    '<button class="btn" data-act="trackNext" aria-label="Sonraki kart"><span>Sonraki</span>' + ICON.next + '</button></div>' +
-    '<button class="link endtrack" data-act="trackStop">Bitir</button>' + (DESKTOP ? '<p class="kbd">Klavye: ← önceki · → sonraki · boşluk = duraklat/devam' + (S.trackCfg.mode === 'B' ? ' · 1 = ✗ · 2 = ✓' : '') + '</p>' : '');
+  return (u ? '<div class="undo"><span>' + ico(u.v, 16) + ' ' + esc(undoTxt(u)) + '</span><button class="link" data-act="trackUndo">' + lab('undo') + '</button></div>' : '') +
+    '<div class="transport"><button class="btn tb" data-act="trackPrev" aria-label="Önceki kart">' + lab('trPrev') + '</button>' +
+    '<button class="btn tb primary" data-act="trackToggle">' + lab(T.paused ? 'trGo' : 'trPause') + '</button>' +
+    '<button class="btn tb" data-act="trackNext" aria-label="Sonraki kart">' + lab('trNext') + '</button></div>' +
+    '<button class="link endtrack" data-act="trackStop">' + lab('trStop') + '</button>' + (DESKTOP ? '<p class="kbd">Klavye: ← önceki · → sonraki · boşluk = duraklat/devam' + (S.trackCfg.mode === 'B' ? ' · 1 = bilemedim · 2 = bildim' : '') + '</p>' : '');
 }
 function updCtl() {
   var e = document.getElementById('trackctl'), p = document.getElementById('player');
@@ -3332,16 +3444,12 @@ function keepPlayerVisible() {
   var d = p.getBoundingClientRect().bottom - bar.getBoundingClientRect().top + 12;
   if (d > 12) { try { window.scrollBy(0, d); } catch (e) {} }
 }
-/* ✓ Bildim / ✗ Bilemedim (B mode): grades the TR → EN recall in the same schedule as Tekrar.
+/* Bildim / Bilemedim (B mode): grades the TR → EN recall in the same schedule as Tekrar.
    Unanswered cards change nothing. Tapping a marked box again undoes it; so does Geri al for 5 s. */
-var MARK_SVG = {
-  ok: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
-  no: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>'
-};
 function markBox(T, it, v) {
   var m = it.mark, on = !!(m && m.v === v), live = T.revealed || !!m;
   var lab = v === 'ok' ? 'Bildim' : 'Bilemedim';
-  return '<button class="mark ' + v + (on ? ' on' : '') + '" data-act="mark" data-v="' + v + '" aria-pressed="' + on + '" aria-label="' + lab + '" title="' + lab + '"' + (live ? '' : ' disabled') + '>' + MARK_SVG[v] + '</button>';
+  return '<button class="mark ' + v + (on ? ' on' : '') + '" data-act="mark" data-v="' + v + '" aria-pressed="' + on + '" aria-label="' + lab + '" title="' + lab + '"' + (live ? '' : ' disabled') + '>' + ico(v, 17) + '</button>';
 }
 function srsSnap(aid, lid) { var s0 = st(aid, lid); return s0 ? { p: s0.p ? clone(s0.p) : null, l: s0.l ? clone(s0.l) : null } : { p: null, l: null }; }
 function srsRestore(aid, lid, snap) {
@@ -3392,7 +3500,7 @@ function trackUndo() {
   if (k >= 0 && k !== T.i) { T.i = k; trackRun(); }
   updPlayer(); updCtl(); toast('Geri alındı.');
 }
-function undoTxt(u) { return u.v === 'ok' ? '✓ Bildim · sonraki tekrar ' + (u.ivl ? u.ivl + ' gün sonra' : 'yarın') : (u.ivl === null ? '✗ Bu oturumda tekrar gelecek' : '✗ Bugün tekrar gelecek'); }
+function undoTxt(u) { return u.v === 'ok' ? 'Bildim · sonraki tekrar ' + (u.ivl ? u.ivl + ' gün sonra' : 'yarın') : (u.ivl === null ? 'Bu oturumda tekrar gelecek' : 'Bugün tekrar gelecek'); }
 function trackPlay() {
   var items = trackItems(S.trackCfg);
   if (!items.length) { toast('Bu kapsamda satır yok.'); return; }
@@ -3531,7 +3639,7 @@ function renderLines() {
     '<span class="lleg"><span class="ok">oturdu</span><span class="lr">öğrenildi, tekrarda</span><span>henüz yok</span></span></div>';
   h += '<section class="panel" style="margin-bottom:16px"><div class="ph"><h2>Notlar\'a aktar</h2><span class="mono">isteğe bağlı</span></div>' +
     '<p class="hint">İnternetsiz dinlemek için: metni Notlar\'a yapıştır, notu açıp iki parmakla ekranın tepesinden aşağı kaydır; Speak Screen Siri sesiyle okur.' + (g !== 'all' ? ' Yalnızca seçili grup: ' + esc(grpLabel(g)) + '.' : '') + '</p>' +
-    '<div class="row"><button class="btn" data-act="exportNotes" data-tr="0">Sadece İngilizce</button><button class="btn" data-act="exportNotes" data-tr="1">Türkçe + İngilizce</button></div><div id="notesbox"></div></section>';
+    '<div class="row"><button class="btn" data-act="exportNotes" data-tr="0">' + lab('notesEn') + '</button><button class="btn" data-act="exportNotes" data-tr="1">' + lab('notesBoth') + '</button></div><div id="notesbox"></div></section>';
   list.forEach(function (a) {
     var open = !!S.openAns[a.id];
     var fl = a.lines.some(function (l) { return l.flag; });
@@ -3560,30 +3668,30 @@ function lineRow(a, l) {
   var dv = l.edited && l.def;
   if (dv && S.showOrig[l.id]) h += '<div class="orig defbox">' + (l.defNew ? '<p><b>Varsayılan güncellendi.</b> Senin metnin duruyor; istersen yenisine dön.</p>' : '') +
     '<p><span>Varsayılan:</span> ' + esc(l.def.en) + '</p><p>' + esc(l.def.tr) + '</p>' +
-    '<button class="chipbtn" data-act="revertLine" data-aid="' + a.id + '" data-id="' + l.id + '">Varsayılana dön</button></div>';
+    '<button class="chipbtn" data-act="revertLine" data-aid="' + a.id + '" data-id="' + l.id + '">' + lab('revert') + '</button></div>';
   h += '<div class="lact">' + (tierOf(l) ? '<span class="tier ' + tierOf(l) + '">' + (l.tier === 'ezber' ? 'Ezber' : 'Anlam') + '</span>' : '') +
     (dv ? '<button class="chipbtn" data-act="toggleDef" data-id="' + l.id + '">' + (S.showOrig[l.id] ? 'Gizle' : 'Değişti') + '</button>' : '') +
-    '<span class="sp"></span><button class="chipbtn" data-act="playLine" data-id="' + l.id + '" aria-label="İngilizcesini dinle">▶ EN</button><button class="chipbtn" data-act="editLine" data-id="' + l.id + '">Düzenle</button></div></li>';
+    '<span class="sp"></span><button class="chipbtn big" data-act="playLine" data-id="' + l.id + '" aria-label="İngilizcesini dinle" title="İngilizcesini dinle">' + ico('speaker', 18) + '</button><button class="chipbtn big" data-act="editLine" data-id="' + l.id + '" aria-label="Düzenle" title="Düzenle">' + ico('pencil', 18) + '</button></div></li>';
   return h;
 }
 function editRow(a, l) {
   var h = '<li class="line"><div class="form"><label for="ed-en">İngilizce</label><textarea id="ed-en" rows="3">' + esc(withBrackets(l)) + '</textarea>' +
     '<p class="hint">Kalıbı [köşeli parantez] içine al: en fazla 2, her biri en az 2 kelime. Parantez yoksa uygulama kendisi bulur.</p>' +
     '<label for="ed-tr">Türkçe</label><textarea id="ed-tr" rows="3">' + esc(l.tr) + '</textarea>' +
-    (S.sample ? '<button class="chipbtn" data-act="translate" data-src="ed-en" data-dst="ed-tr">İngilizceden yeniden çevir</button>' : '') +
+    (S.sample ? '<button class="chipbtn" data-act="translate" data-src="ed-en" data-dst="ed-tr">' + lab('reTr') + '</button>' : '') +
     '<label for="ed-intent">Durak adı (niyet)</label><input id="ed-intent" maxlength="40" value="' + esc(l.intent || '') + '">' +
     '<p class="hint">1–3 kelime: bu satır cevapta ne işe yarıyor (örneğin “Açılış”, “Örnek”, “Sonuç”). Yeni\'de durak çubuğunda ve Prova\'nın iskelet turunda görünür.</p>' +
     '<label for="ed-tier">Tür</label><select id="ed-tier">' + [['anlam', 'Anlam: ana fikir yeter'], ['ezber', 'Ezber: kelimesi kelimesine'], ['', 'Boş: etiket yok, ana fikir yeter']].map(function (o) { return '<option value="' + o[0] + '"' + (tierOf(l) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
     '<p class="hint">İngilizcesi değişirse bu satırın tekrar geçmişi sıfırlanır.</p>';
-  if (S.confirmDel === l.id) h += '<div class="confirm">Bu satır silinsin mi? Tekrar geçmişi de silinir.<div class="row"><button class="btn" data-act="cancelDel">Vazgeç</button><button class="btn" style="color:var(--bad);border-color:var(--bad)" data-act="confirmDel">Evet, sil</button></div></div>';
-  else h += '<div class="row"><button class="btn ghost" data-act="askDel">Sil</button><button class="btn" data-act="cancelEdit">Vazgeç</button><button class="btn primary" data-act="saveEdit">Kaydet</button></div>';
+  if (S.confirmDel === l.id) h += '<div class="confirm">Bu satır silinsin mi? Tekrar geçmişi de silinir.<div class="row"><button class="btn" data-act="cancelDel">' + lab('cancel') + '</button><button class="btn" style="color:var(--bad);border-color:var(--bad)" data-act="confirmDel">Evet, sil</button></div></div>';
+  else h += '<div class="row"><button class="btn s ghost neg" data-act="askDel">' + lab('del') + '</button><button class="btn s" data-act="cancelEdit">' + lab('cancel') + '</button><button class="btn s primary" data-act="saveEdit">' + lab('save') + '</button></div>';
   return h + '</div></li>';
 }
 function addForm(a) {
   return '<div class="addbox form"><label for="add-en-' + a.id + '">Yeni satır (İngilizce)</label><textarea id="add-en-' + a.id + '" rows="2" placeholder="Cümleyi yaz; kalıp için [köşeli parantez]"></textarea>' +
     '<label for="add-tr-' + a.id + '">Türkçe</label><textarea id="add-tr-' + a.id + '" rows="2" placeholder="' + (S.sample ? 'Boş bırakırsan otomatik çevrilir' : 'Türkçesini yaz') + '"></textarea>' +
-    '<div class="row">' + (S.sample ? '<button class="btn ghost" data-act="translate" data-src="add-en-' + a.id + '" data-dst="add-tr-' + a.id + '">Türkçeye çevir</button>' : '') +
-    '<button class="btn primary" data-act="addLine" data-id="' + a.id + '">Sona ekle</button></div></div>';
+    '<div class="row">' + (S.sample ? '<button class="btn ghost" data-act="translate" data-src="add-en-' + a.id + '" data-dst="add-tr-' + a.id + '">' + lab('toTr') + '</button>' : '') +
+    '<button class="btn primary" data-act="addLine" data-id="' + a.id + '">' + lab('add') + '</button></div></div>';
 }
 function writeLines(a, lines) {
   a.lines = lines;
@@ -3642,7 +3750,7 @@ function translate(btn) {
   var src = val(btn.dataset.src).replace(/[\[\]]/g, '').trim(), dst = document.getElementById(btn.dataset.dst);
   if (!src) { toast('Önce İngilizce cümleyi yaz.'); return Promise.resolve(false); }
   if (!S.sample) return Promise.resolve(false);
-  btn.disabled = true; var old = btn.textContent; btn.textContent = 'Çevriliyor…';
+  btn.disabled = true; var old = btn.innerHTML; btn.textContent = 'Çevriliyor…';
   var prompt = 'Translate this English job-interview sentence into natural, everyday Turkish. Keep software terms (Playwright, pull request, CI, Stripe, Pest, Jest and similar) in English. Reply with the Turkish sentence only, no quotes.\n\n' + src;
   return S.sample(prompt, { modelTier: 'quick' }).then(function (r) {
     if (dst && r && r.text) dst.value = r.text.trim().replace(/^["“]|["”]$/g, '');
@@ -3693,13 +3801,13 @@ function filesPanel() {
   var c = audCounts();
   var h = '<section class="panel set"><div class="ph"><h2>Siri sesi</h2><span class="mono">EN ' + c.en + '/' + c.enT + ' · TR ' + c.tr + '/' + c.trT + '</span></div>' +
     '<p class="hint">Siri sesleri web sayfalarına kapalı. Mac\'te Siri Voice 2 ile üretilen dosyaları buraya yüklersen trainer onları çalar; dosyası olmayan satırda cihaz sesi devreye girer.</p>';
-  if (S.assets) h += '<input type="file" id="aud-files" class="vh" multiple accept=".mp4,video/mp4,audio/mp4"' + (S.upl && S.upl.run ? ' disabled' : '') + '><label class="btn wide" for="aud-files">Ses dosyalarını seç ve yükle</label><p class="hint" id="uplstat">' + esc(uplText()) + '</p>';
+  if (S.assets) h += '<input type="file" id="aud-files" class="vh" multiple accept=".mp4,video/mp4,audio/mp4"' + (S.upl && S.upl.run ? ' disabled' : '') + '><label class="btn wide" for="aud-files">' + lab('upload') + '</label><p class="hint" id="uplstat">' + esc(uplText()) + '</p>';
   else h += '<p class="hint">Dosya yükleme sadece sayfa sahibine açık.</p>';
   h += swList([swRow('set-files', 'Ses dosyalarını kullan', U.settings.useFiles !== false, 'Kapalıyken her satırda cihaz sesi')]);
   if (c.en + c.tr > 0 && (c.en < c.enT || c.tr < c.trT)) {
     h += '<p class="hint">Yeni eklenen ya da düzenlenen satırların dosyası yok. Komutu kopyala, Mac\'te Terminal\'e yapıştır, çıkan dosyaları yükle.</p><div class="row">' +
-      (c.en < c.enT ? '<button class="btn ghost" data-act="copyMissing" data-lang="en">Eksik EN (' + (c.enT - c.en) + ')</button>' : '') +
-      (c.tr < c.trT ? '<button class="btn ghost" data-act="copyMissing" data-lang="tr">Eksik TR (' + (c.trT - c.tr) + ')</button>' : '') + '</div><div id="cmdbox"></div>';
+      (c.en < c.enT ? '<button class="btn ghost" data-act="copyMissing" data-lang="en">' + lab('missing', 'Eksik EN (' + (c.enT - c.en) + ')') + '</button>' : '') +
+      (c.tr < c.trT ? '<button class="btn ghost" data-act="copyMissing" data-lang="tr">' + lab('missing', 'Eksik TR (' + (c.trT - c.tr) + ')') + '</button>' : '') + '</div><div id="cmdbox"></div>';
   }
   return h + '</section>';
 }
@@ -3863,26 +3971,26 @@ function ttsPanel() {
   var i = T.info(), miss = missingEn().length;
   var h = '<section class="panel set"><div class="ph"><h2>Otomatik seslendirme</h2><span class="mono">deneysel</span></div>' +
     '<p class="hint">Yeni ya da düzenlenen İngilizce satırları bu cihazda Fenrir sesiyle üretir; sonra internetsiz çalışır.</p>';
-  if (i.state === 'off') h += '<p class="hint">İlk açılışta ses modeli indirilir (~115 MB, Wi-Fi önerilir).</p><button class="btn" data-act="ttsEnable">Modeli indir ve aç</button>';
+  if (i.state === 'off') h += '<p class="hint">İlk açılışta ses modeli indirilir (~115 MB, Wi-Fi önerilir).</p><button class="btn" data-act="ttsEnable">' + lab('model') + '</button>';
   else if (i.state === 'loading') h += '<p class="hint">Model yükleniyor… <span class="mono">%' + i.pct + '</span></p>';
-  else if (i.state === 'error') h += '<p class="hint" style="color:var(--bad)">Model yüklenemedi: ' + esc(i.err) + '</p><button class="btn" data-act="ttsEnable">Tekrar dene</button>';
+  else if (i.state === 'error') h += '<p class="hint" style="color:var(--bad)">Model yüklenemedi: ' + esc(i.err) + '</p><button class="btn" data-act="ttsEnable">' + lab('retry') + '</button>';
   else h += '<p class="hint">Açık. Sesi eksik satır: <span class="mono">' + miss + '</span>' + (i.busy ? ' · sırada: <span class="mono">' + i.pending + '</span>' : '') + '</p>' +
-    (miss && !i.busy ? '<button class="btn" data-act="ttsFill">Eksikleri şimdi seslendir</button>' : '') + modelOff('tts', 'Üretilmiş sesler kalır.');
+    (miss && !i.busy ? '<button class="btn" data-act="ttsFill">' + lab('fill') + '</button>' : '') + modelOff('tts', 'Üretilmiş sesler kalır.');
   return h + '</section>';
 }
 // "Kapat" keeps the downloaded files (turning it on again is instant); "Modeli sil" also frees the space. Progress is not touched.
 function modelOff(kind, note) {
   return '<p class="hint">Kapat: model bu cihazda kalır, tekrar açmak indirme gerektirmez. Modeli sil: indirilen dosyalar da silinir. ' + note + ' İlerlemen etkilenmez.</p>' +
-    '<div class="row"><button class="btn" data-act="' + kind + 'Off">Kapat</button> <button class="btn" data-act="' + kind + 'Drop">Modeli sil</button></div>';
+    '<div class="row"><button class="btn" data-act="' + kind + 'Off">' + lab('off') + '</button> <button class="btn" data-act="' + kind + 'Drop">Modeli sil</button></div>';
 }
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v78'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v79'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-24 20:59'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-25 21:43'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -3950,7 +4058,7 @@ function speedBox() {
   if (off) h += '<p class="hint">Önce Anlam kontrolünü aç.</p>';
   else if (sp && sp.busy) h += '<p class="hint">Ölçülüyor… <span class="mono">' + esc(sp.step) + '</span> · ekranı açık tut.</p>';
   else if (sp && sp.err) h += '<p class="hint" style="color:var(--bad)">' + esc(sp.err) + '</p>';
-  else if (sp && sp.report) h += '<textarea id="nlirep" class="mono" rows="4" readonly>' + esc(sp.report) + '</textarea><button class="btn" data-act="nliCopy">Kopyala</button>';
+  else if (sp && sp.report) h += '<textarea id="nlirep" class="mono" rows="4" readonly>' + esc(sp.report) + '</textarea><button class="btn" data-act="nliCopy">' + lab('copy') + '</button>';
   else h += '<p class="hint">Uydurma 10 cümle çiftiyle modelin bu cihazdaki hızını ölçer; çıkan kısa metni kopyalayıp Claude\'a yapıştır.</p>';
   return h + '<button class="link" data-act="speedHide">Hızı ölç\'ü gizle</button></div>';
 }
@@ -3958,10 +4066,10 @@ function nliPanel() {
   var M = window.__nli; if (!M) return '';
   var i = M.info();
   var h = '<section class="panel set"><div class="ph"><h2>Anlam kontrolü</h2><span class="mono">deneysel</span></div>' +
-    '<p class="hint">Anlam kartlarında 🎤 ile söylediğinin hedef cümleyle aynı şeyi söyleyip söylemediğini bu cihazdaki küçük bir modelle kontrol eder; sırası ya da kelimeleri farklı doğru cevapları kabul eder, çelişen cevabı yakalar. Sonra internetsiz çalışır.</p>';
-  if (i.state === 'off') h += '<p class="hint">İlk açılışta model indirilir (~55 MB, Wi-Fi önerilir). Kapalıyken kelime ve kural kontrolü yapılır.</p><button class="btn" data-act="nliEnable">Modeli indir ve aç</button>';
+    '<p class="hint">Anlam kartlarında ' + ico('mic', 16) + ' ile söylediğinin hedef cümleyle aynı şeyi söyleyip söylemediğini bu cihazdaki küçük bir modelle kontrol eder; sırası ya da kelimeleri farklı doğru cevapları kabul eder, çelişen cevabı yakalar. Sonra internetsiz çalışır.</p>';
+  if (i.state === 'off') h += '<p class="hint">İlk açılışta model indirilir (~55 MB, Wi-Fi önerilir). Kapalıyken kelime ve kural kontrolü yapılır.</p><button class="btn" data-act="nliEnable">' + lab('model') + '</button>';
   else if (i.state === 'loading') h += '<p class="hint">Model yükleniyor… <span class="mono">%' + i.pct + '</span></p>';
-  else if (i.state === 'error') h += '<p class="hint" style="color:var(--bad)">Model yüklenemedi: ' + esc(i.err) + '</p><button class="btn" data-act="nliEnable">Tekrar dene</button>';
+  else if (i.state === 'error') h += '<p class="hint" style="color:var(--bad)">Model yüklenemedi: ' + esc(i.err) + '</p><button class="btn" data-act="nliEnable">' + lab('retry') + '</button>';
   else h += '<p class="hint">Açık' + (i.state === 'idle' ? '; ilk kontrolde yüklenir.' : '.') + '</p>' + modelOff('nli', 'Kapalıyken kelime ve kural kontrolü yapılır.');
   return h + (speedOn() ? speedBox() : '') + '</section>';
 }
@@ -3972,7 +4080,7 @@ function renderSettings() {
   h += '<section class="panel set"><h2>Konuşma hızı</h2><p class="hint">0,60–1,50 arası. Hazır ses dosyalarına (Fenrir, Siri), bu cihazda üretilen seslere ve cihaz sesine birlikte uygulanır; ses perdesi değişmez, "şimdi sen söyle" süreleri ve kart sayacının sınırı da hıza göre uzar ya da kısalır (Nasıl çalışır → Süreler). Siri modunda hız iPhone ayarından gelir.</p>' +
     '<div class="rangehead"><label for="rate-en">İngilizce</label><span class="mono" id="rate-en-o">' + U.settings.rateEn.toFixed(2) + '×</span></div><input type="range" id="rate-en" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateEn + '">' +
     '<div class="rangehead"><label for="rate-tr">Türkçe</label><span class="mono" id="rate-tr-o">' + U.settings.rateTr.toFixed(2) + '×</span></div><input type="range" id="rate-tr" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateTr + '">' +
-    '<div class="row"><button class="btn" data-act="testEn">▶ İngilizce dene</button><button class="btn" data-act="testTr">▶ Türkçe dene</button></div></section>';
+    '<div class="row"><button class="btn" data-act="testEn">' + lab('tryEn') + '</button><button class="btn" data-act="testTr">' + lab('tryTr') + '</button></div></section>';
   h += ttsPanel();
   h += nliPanel();
   if (!LOCAL) h += filesPanel();
@@ -3992,15 +4100,15 @@ function renderSettings() {
       swRow('set-listen', 'Dinleme kartları', U.settings.listen, 'Tekrarda EN ses → TR kartları da gelir'),
       swRow('set-hl', 'Kalıp vurgusu', kpOn(), 'Çalışma ekranlarında İngilizce kalıplar mavi'),
       swRow('set-intent', 'Niyet ve iskelet', intentOn(), 'Yeni\'de cevabın durakları; Prova\'da önce 20 sn iskelet turu'),
-      swRow('set-dict', 'Söyle ve kontrol et', dictOn(), 'Tekrar ve Prova\'da 🎤: klavye diktesiyle söylediğini orijinalle karşılaştırır')
+      swRow('set-dict', 'Söyle ve kontrol et', dictOn(), 'Tekrar ve Prova\'da ' + ico('mic', 16) + ': klavye diktesiyle söylediğini orijinalle karşılaştırır')
     ]) + '</section>';
   var saveTxt = LOCAL ? 'İlerlemen bu cihazda saklanıyor ve internet olmadan çalışıyor. Diğer cihaza taşımak için burada dışa aktar, orada içe aktar.'
     : (S.uid ? 'İlerlemen kendi hesabına kaydediliyor; başka cihazda açınca kaldığın yerden devam eder.' : 'İlerleme bu oturumda tutuluyor ama kaydedilmiyor.');
   h += '<section class="panel set"><h2>Kayıt</h2><p class="hint">' + saveTxt + '</p>' +
-    '<button class="btn" data-act="exportProg">İlerlemeyi dışa aktar</button><div id="progbox"></div>' +
+    '<button class="btn" data-act="exportProg">' + lab('exp') + '</button><div id="progbox"></div>' +
     '<div class="form"><label for="imp-code">İçe aktar</label><textarea id="imp-code" rows="2" placeholder="MT1: ile başlayan kodu yapıştır"></textarea>' +
-    '<button class="btn" data-act="importProg">İçe aktar (bu cihazdakinin yerine geçer)</button></div>' + resetBox() +
-    '<a class="link" href="' + PLAN_URL + '" target="_blank" rel="noopener">Plan ve görevler →</a></section>';
+    '<button class="btn" data-act="importProg">' + lab('imp') + '</button></div>' + resetBox() +
+    '<a class="link" href="' + PLAN_URL + '" target="_blank" rel="noopener">' + lab('plan') + '</a></section>';
   h += helpPanel();
   return h + versionLine() + '</div>';
 }
@@ -4008,16 +4116,16 @@ function keyHelp() {
   function k(x) { return '<kbd>' + x + '</kbd>'; }
   function row(keys, what) { return '<li><span class="kk">' + keys + '</span><span class="kw">' + what + '</span></li>'; }
   function blk(t, rows) { return '<div class="kblock"><p class="kt">' + t + '</p><ul class="klist">' + rows.join('') + '</ul></div>'; }
-  return '<p class="hint">Mac\'te (ya da klavyeli iPad\'de) klavyeyle; telefonda ekrandaki butonlara dokun. Tuşlar yalnızca o ekran açıkken çalışır.</p>' +
+  return tx('<p class="hint">Mac\'te (ya da klavyeli iPad\'de) klavyeyle; telefonda ekrandaki butonlara dokun. Tuşlar yalnızca o ekran açıkken çalışır.</p>' +
     blk('Tekrar kartı', [row(k('Boşluk') + ' ya da ' + k('Enter'), 'İngilizceyi göster'), row(k('1') + k('2') + k('3') + k('4'), 'Puan ver: 1 Tekrar · 2 Zor · 3 İyi · 4 Kolay'), row(k('G'), 'Bugün geç: kart yarın gelir, takvimi değişmez')]) +
     blk('Yeni cevap · kontrol', [row(k('Boşluk'), 'İngilizceyi göster'), row(k('1'), 'Bilemedim, tekrar sor'), row(k('2'), 'Söyledim, devam')]) +
     blk('Hız testi', [row(k('Boşluk'), 'Göster (süre durur)'), row(k('1'), 'Yanlış'), row(k('2'), 'Doğru')]) +
     blk('Prova · Kalıp', [row(k('Boşluk') + ' ya da ' + k('Enter'), 'Örnek cümleyi göster'), row(k('1'), 'Kuramadım'), row(k('2'), 'Kurdum')]) +
     blk('Prova · iskelet turu', [row(k('Boşluk') + ' ya da ' + k('Enter'), 'Durakları göster · sonra tam cevaba başla')]) +
-    blk('↻ Pekiştir', [row(k('P'), 'Pekiştir\'i aç (düğme görünürken: Hatırla, Kontrol, Tekrar)'), row(k('Boşluk') + ' ya da ' + k('Enter'), '3/3\'te Göster · sonda Karta dön'), row(k('R'), 'Bir tur daha'), row(k('Esc'), 'Bırak')]) +
-    blk('Dinle (çalarken)', [row(k('←'), 'Önceki kart'), row(k('→'), 'Sonraki kart'), row(k('Boşluk'), 'Duraklat / devam et'), row(k('1'), 'B modunda: ✗ bilemedim'), row(k('2'), 'B modunda: ✓ bildim')]) +
+    blk('{pk}', [row(k('P'), 'Pekiştir\'i aç (düğme görünürken: Hatırla, Kontrol, Tekrar)'), row(k('Boşluk') + ' ya da ' + k('Enter'), '3/3\'te Göster · sonda Karta dön'), row(k('R'), 'Bir tur daha'), row(k('Esc'), 'Bırak')]) +
+    blk('Dinle (çalarken)', [row(k('←'), 'Önceki kart'), row(k('→'), 'Sonraki kart'), row(k('Boşluk'), 'Duraklat / devam et'), row(k('1'), 'B modunda: {:no} bilemedim'), row(k('2'), 'B modunda: {:ok} bildim')]) +
     blk('Kulaklık ve kilit ekranı (Dinle çalarken)', [row(k('⏭'), 'Sonraki kart'), row(k('⏮'), 'Önceki kart'), row(k('⏯'), 'Duraklat / kaldığı yerden devam')]) +
-    blk('AirPods', [row('Pro, 3, 4', 'Sapa 2 kez bas: sonraki kart · 3 kez bas: önceki kart'), row('1, 2', 'Çift dokunuşa “Sonraki parça” ata: iPhone Ayarlar → Bluetooth → AirPods (i) → Çift Dokunuş')]);
+    blk('AirPods', [row('Pro, 3, 4', 'Sapa 2 kez bas: sonraki kart · 3 kez bas: önceki kart'), row('1, 2', 'Çift dokunuşa “Sonraki parça” ata: iPhone Ayarlar → Bluetooth → AirPods (i) → Çift Dokunuş')]));
 }
 /* progress reset: review schedule, learned lines, rehearsals, tests and daily counts.
    Answers, edits, settings, sound and the passphrase stay. A backup is kept so the reset can be undone. */
@@ -4027,9 +4135,9 @@ function resetBox() {
   if (S.resetAsk) {
     h += '<p class="hint">Silinir: tekrar takvimi, öğrenilen satırlar, prova ve test geçmişi, günlük sayaçlar. Kalır: cevaplar, düzenlemelerin, ayarlar, sesler, parola. Önce otomatik yedek alınır; buradan geri alabilirsin.</p>' +
       '<label class="hint" for="reset-ok">Onaylamak için <b>SIFIRLA</b> yaz</label><input id="reset-ok" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false">' +
-      '<div class="row"><button class="btn" data-act="resetCancel">Vazgeç</button><button class="btn danger" data-act="resetDo" id="reset-do" disabled>Sıfırla</button></div>';
+      '<div class="row"><button class="btn" data-act="resetCancel">' + lab('cancel') + '</button><button class="btn danger" data-act="resetDo" id="reset-do" disabled>Sıfırla</button></div>';
   } else h += '<p class="hint">Baştan başlamak için. Cevapların ve sesler silinmez.</p><button class="btn" data-act="resetAsk">İlerlemeyi sıfırla…</button>';
-  if (b) h += '<p class="hint">Son sıfırlama: ' + fmtD(b.at.slice(0, 10)) + ' ' + b.at.slice(11, 16) + '</p><button class="btn ghost" data-act="resetUndo">Sıfırlamayı geri al</button>';
+  if (b) h += '<p class="hint">Son sıfırlama: ' + fmtD(b.at.slice(0, 10)) + ' ' + b.at.slice(11, 16) + '</p><button class="btn ghost" data-act="resetUndo">' + lab('resetUndo') + '</button>';
   return h + '</div>';
 }
 function resetOkTyped() { var e = document.getElementById('reset-ok'); return !!e && /^s[ıi]f[ıi]rla$/i.test(e.value.trim().toLocaleLowerCase('tr')); }
@@ -4058,10 +4166,10 @@ function helpPanel() {
   function ul(a) { return '<ul class="help">' + a.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'; }
   var gl = grpList(), gNames = gl.map(function (g) { return grpLabel(g.id); });
   var gCodes = gl.map(function (g) { return esc(codeRange(S.answers.filter(function (a) { return grpOf(a) === g.id; }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); })) + ' ' + grpLabel(g.id)); });
-  return '<section class="panel set" id="help"><h2>Nasıl çalışır</h2>' +
+  return tx('<section class="panel set" id="help"><h2>Nasıl çalışır</h2>' +
     d('Günlük akış', ul([
       '<b>Bugün</b> sırayla: Tekrar → Yeni → Prova → Yolda dinle. Her şeyi sesli söyle.',
-      '<b>Söyle ve kontrol et</b> (🎤): Tekrar\'daki TR → EN kartında ve Prova\'da klavyeyi English\'e alıp 🎤 ile söyle; uygulama söylediğini orijinalle kelime kelime karşılaştırır, yüzde ve eksik kelimeleri gösterir, Tekrar\'da puan önerir. Büyük-küçük harf, noktalama, I\'m = I am ve 1,500 = fifteen hundred fark sayılmaz.',
+      '<b>{say}</b>: Tekrar\'daki TR → EN kartında ve Prova\'da klavyeyi English\'e alıp klavyenin 🎤 tuşuyla söyle; uygulama söylediğini orijinalle kelime kelime karşılaştırır, yüzde ve eksik kelimeleri gösterir, Tekrar\'da puan önerir. Büyük-küçük harf, noktalama, I\'m = I am ve 1,500 = fifteen hundred fark sayılmaz.',
       '<b>Prova</b>: <b>3 tur (4/3/2)</b> ile aynı cevabı kısalan sürede tekrar anlat (2. tur 1. turun %85\'i, 3. tur %70\'i). <b>Takip soruları</b> açıkken puanladıktan sonra o cevabın takip sorusu gelir (en fazla 2). <b>Mülakat</b> 5 soruluk zincir: S1 ile başlar, sonraki sorular çoğunlukla takip sorusudur; 2. mülakat grubunda son soru H8.',
       '<b>Ekran açık kalır</b>: çalışırken (Yeni, Tekrar, Prova, Hız testi) ve Dinle çalarken ekran kararmaz. 5 dk dokunmazsan normal kararır (Dinle çalarken hariç). iOS 18.4 ve sonrası.',
       '<b>Yeni</b>: günde bir grup yeni cevap. Nereden başlayacağını Yeni bölümündeki <b>' + gNames.map(esc).join(' · ') + '</b> butonlarıyla seç; o grup bitince diğerleri gelir. Daha hızlı ilerlemek için <b>Sıradakine erken başla</b>.',
@@ -4069,10 +4177,11 @@ function helpPanel() {
     ]), true) +
     d('Yeni cevap nasıl öğrenilir', ul([
       'Her satır: <b>Dinle → Anlam → 3× gölgele → 5 sn imge → Hatırla</b>. Gölgelemenin ilk turu metinle, sonrakiler metinsiz; 3. turda <b>sesle birlikte söyle</b> (boşluk yok).',
-      '<b>Hatırla</b>: Türkçeye bakıp İngilizcesini kendin söyle; süre bitince (ya da <b>Göster</b> ile) doğrusu açılır ve çalar. Oturmadıysa <b>↻ Pekiştir</b>. 🎤 ile kontrol edebilirsin; yüzde gösterilir, puan verilmez.',
-      'Her 4–5 satırda kısa <b>Kontrol</b>: o satırlar karışık sırayla gelir; Türkçeyi gör, İngilizcesini söyle. 🎤 ile söylersen sonuç görünür ve ✓ ya da ↺ önerilir; karar senin.',
+      '<b>Hatırla</b>: Türkçeye bakıp İngilizcesini kendin söyle; süre bitince (ya da <b>Göster</b> ile) doğrusu açılır ve çalar. Oturmadıysa <b>{pk}</b>. {:mic} ile kontrol edebilirsin; yüzde gösterilir, puan verilmez.',
+      'Her 4–5 satırda kısa <b>Kontrol</b>: o satırlar karışık sırayla gelir; Türkçeyi gör, İngilizcesini söyle. {:mic} ile söylersen sonuç görünür ve {said} ya da {askAgain} önerilir; karar senin.',
       '<b>Neden bu sıra?</b> Dinle ve Anlam cümleyi tanıtır. Gölgeleme ses ve ritmi oturtur; 3. turda sesle birlikte söylemek akıcılık katar. İmge cümleyi kendi hayatından bir sahneye bağlar ve kısa bir ara verir; bu yüzden Hatırla\'da cümle kulağındaki yankıdan değil hafızadan gelir (imgeyi ipucu olarak kullan). Kontrol aynı satırları biraz sonra, karışık sırayla yeniden çağırır: aralık ve karışıklık kalıcılığı artırır. Sonraki günlerde Tekrar, aralıkları büyüterek aynı işi sürdürür.',
-      'Yarıda bırakırsan (başka sekme, <b>Ara ver</b> ya da uygulamayı kapatma) yer kaybolmaz: Bugün → Yeni\'de <b>Kaldığın yerden devam</b> aynı satır ya da kontrolden sürdürür (o gün içinde).',
+      '<b>{skipAll}</b> (Dinle ve Anlam\'da): bildiğin satırın bütün adımlarını geçer. <b>{skip}</b> (Gölgele ve İmge\'de): yalnız o adımı geçer, <b>Hatırla</b> gelir. İkisinde de satır Kontrol\'de sorulur.',
+      'Yarıda bırakırsan (başka sekme, <b>{pause}</b> ya da uygulamayı kapatma) yer kaybolmaz: Bugün → Yeni\'de <b>Kaldığın yerden devam</b> aynı satır ya da kontrolden sürdürür (o gün içinde).',
       '<b>Kırmızı kenarlı satır = ezber</b> (kelimesi kelimesine; açılış, kapanış, ana cümle). Diğerleri <b>anlam</b>: ana fikir ve terimler yeter. Türü <b>Cümleler → Düzenle</b>\'de değiştirebilirsin; <b>Boş</b> seçersen kartta etiket görünmez, kontrol Anlam gibi yapılır.',
       '<b>Mavi kelimeler = kalıp</b>: başka cümlelerde de kullanacağın genel İngilizce çerçeve. Öğrenme, tekrar, hız testi ve Dinle ekranlarında görünür; Ayarlar → Akış → <b>Kalıp vurgusu</b> ile kapatılır.',
       'Düzenlerken ya da satır eklerken kalıbı <b>[köşeli parantez]</b> içine alabilirsin (en fazla 2, en az 2 kelime). Parantez yoksa uygulama bilinen kalıplardan kendisi bulur.'
@@ -4089,9 +4198,9 @@ function helpPanel() {
       'Puan: <b>Tekrar</b> (bugün yine gelir) · <b>Zor</b> · <b>İyi</b> · <b>Kolay</b>. Butonların altında bir sonraki tekrarın kaç gün sonra olduğu yazar.',
       'Bildikçe aralık uzar (örneğin 1 → 3 → 8 → 20 gün); bilemeyince kısa aralığa döner. Bugünün kartları bitince yeni kart yarın gelir.',
       '<b>Sıra</b>: önce aralığı kısa olan kartlar (dün, önceki gün öğrendiklerin ya da Tekrar dediklerin), sonra eskiler. Taze kart bir gün gecikince çok unutulur, oturmuş kart az. Hepsini bitiremeyeceğin gün tazeleri yapıp Bitir de; kalanlar yarın gelir. Aynı aralıktaki kartlar karışık gelir, cevaplar sırayla.',
-      '<b>Bugün geç →</b> (Göster\'den önce, ya da G): kart bugünkü listeden çıkar, puanı ve takvimi değişmez, yarın yine gelir. Aynı kartı 3 gün üst üste geçersen kartın üstünde not çıkar; puan verince sayım sıfırlanır.',
-      'Dinle B\'deki ✓/✗ ve Hız testindeki yanlışlar da aynı takvime işlenir.',
-      '<b>↻ Pekiştir</b> (Hatırla\'da her zaman; Kontrol ve Tekrar\'da 🎤 sonucu Zor ya da Tekrar ise): ~20 sn. 1/3 metinle dinle ve aynen tekrar et (eksik kalıp kelimeleri turuncu), 2/3 metinsiz sesle birlikte söyle, 3/3 bir kez kendin söyle (🎤 sadece yüzde). Puan ilk denemene göre kalır. Siri modunda da hazır sesi çalar.'
+      '<b>{skipDay}</b> (Göster\'den önce, ya da G): kart bugünkü listeden çıkar, puanı ve takvimi değişmez, yarın yine gelir. Aynı kartı 3 gün üst üste geçersen kartın üstünde not çıkar; puan verince sayım sıfırlanır.',
+      'Dinle B\'deki {:ok} ve {:no}, ayrıca Hız testindeki yanlışlar da aynı takvime işlenir.',
+      '<b>{pk}</b> (Hatırla\'da her zaman; Kontrol ve Tekrar\'da {:mic} sonucu Zor ya da Tekrar ise): ~20 sn. 1/3 metinle dinle ve aynen tekrar et (eksik kalıp kelimeleri turuncu), 2/3 metinsiz sesle birlikte söyle, 3/3 bir kez kendin söyle ({:mic} sadece yüzde). Puan ilk denemene göre kalır. Siri modunda da hazır sesi çalar.'
     ])) +
     d('Söyle ve kontrol et nasıl karşılaştırır', ul([
       'Sonuç bir <b>öneridir</b>; puanı sen seçersin. Aşağıdaki cümleler yalnız örnektir.',
@@ -4107,18 +4216,18 @@ function helpPanel() {
     ])) +
     d('Zorlandıklarım', ul([
       'Zorlandığın satırlar burada toplanır. Sen bir şey işaretlemezsin; uygulama kendisi ekler ve çıkarır.',
-      '<b>Ne zaman eklenir?</b> Tekrar\'da <b>Tekrar</b> dediğin satır hemen eklenir. <b>Zor</b>, Dinle\'de <b>✗</b> ya da Kontrol\'de <b>Tekrar sor</b> tek başına yetmez: aynı satırda yaklaşık bir hafta içinde ikinci kez olursa eklenir.',
-      '<b>Ne zaman çıkar?</b> Satırı <b>iki ayrı günde</b> doğru söyleyince: Tekrar\'da İyi/Kolay, Dinle\'de ✓ ya da Hız testinde zamanında doğru. Tek bir ✓ yetmez; aynı gün iki kez doğru söylemek de bir sayılır. Arada yine zorlanırsan sayım baştan başlar.',
-      '<b>Örnek</b>: Pazartesi Tekrar dedin → listeye girdi. Salı İyi dedin → 1/2. Perşembe Dinle\'de ✓ → listeden çıktı.',
+      '<b>Ne zaman eklenir?</b> Tekrar\'da <b>Tekrar</b> dediğin satır hemen eklenir. <b>Zor</b>, Dinle\'de {:no} ya da Kontrol\'de <b>Tekrar sor</b> tek başına yetmez: aynı satırda yaklaşık bir hafta içinde ikinci kez olursa eklenir.',
+      '<b>Ne zaman çıkar?</b> Satırı <b>iki ayrı günde</b> doğru söyleyince: Tekrar\'da İyi/Kolay, Dinle\'de {:ok} ya da Hız testinde zamanında doğru. Tek bir {:ok} yetmez; aynı gün iki kez doğru söylemek de bir sayılır. Arada yine zorlanırsan sayım baştan başlar.',
+      '<b>Örnek</b>: Pazartesi Tekrar dedin → listeye girdi. Salı İyi dedin → 1/2. Perşembe Dinle\'de {:ok} → listeden çıktı.',
       '<b>Nerede?</b> Dinle → Kapsam → Zorlandıklarım ve Prova → Hız testi → Zorlandıklarım. En zoru önce gelir, en çok 15 satır.',
       '<b>Neden?</b> Zor bir satır, ayrı günlerde art arda doğru hatırlanınca kalıcı olur; bir kez doğru söylemek yetmez. Liste kısa tutulur ki her gün bitirebilesin.',
-      '<span class="hint">Ayrıntı: her zorlanma puan ekler (Tekrar 3, Zor 2, ✗ 2, Tekrar sor 2, Pekiştir 1, Hatırla\'da Pekiştir 0,5). 3 puanda listeye girer; puanlar bir haftada yarıya iner, iki haftadan eskisi sayılmaz.</span>'
+      '<span class="hint">Ayrıntı: her zorlanma puan ekler (Tekrar 3, Zor 2, {:no} 2, Tekrar sor 2, Pekiştir 1, Hatırla\'da Pekiştir 0,5). 3 puanda listeye girer; puanlar bir haftada yarıya iner, iki haftadan eskisi sayılmaz.</span>'
     ])) +
     d('Dinle', ul([
       '<b>A · Gölgeleme</b>: İngilizce N kez; her birinden sonra aynen tekrar et. İlk 2 turdan sonra metin gizlenir.',
       '<b>Önce Türkçe</b> (A): <b>Otomatik</b> = öğrenilmemiş ya da unutulmuş satırda cümle başında Türkçe 1× (anlam çapası), öğrendiğin satırda sadece İngilizce. <b>Her zaman</b> / <b>Kapalı</b> da seçilebilir. Türkçe turlar arasında çalmaz.',
       '<b>Son tur eşzamanlı</b> (A): son turda boşluk yok; sesle aynı anda söyle. Ritim ve vurgu için.',
-      '<b>B · Sesli recall</b>: Türkçe → düşünme süresi içinde İngilizcesini sen söyle → İngilizce N kez. Süre cümle uzunluğuna ve konuşma hızına göre, en az 3 sn (Süreler); Kısa / Normal / Uzun ile ayarlanır, kartta geri sayım görünür. İngilizceyi duyunca kartın köşesinden işaretle: <b>✓ bildim</b> (sonraki karta geçer, tekrar ileri atılır), <b>✗ bilemedim</b> (kart bu oturumda yeniden gelir). Hiç basmazsan bir şey değişmez.',
+      '<b>B · Sesli recall</b>: Türkçe → düşünme süresi içinde İngilizcesini sen söyle → İngilizce N kez. Süre cümle uzunluğuna ve konuşma hızına göre, en az 3 sn (Süreler); Kısa / Normal / Uzun ile ayarlanır, kartta geri sayım görünür. İngilizceyi duyunca kartın köşesinden işaretle: <b>{:ok} bildim</b> (sonraki karta geçer, tekrar ileri atılır), <b>{:no} bilemedim</b> (kart bu oturumda yeniden gelir). Hiç basmazsan bir şey değişmez.',
       'Yanlış işaret: dolu kutuya yeniden bas, 5 sn görünen <b>Geri al</b>\'a bas ya da Önceki ile dönüp kaldır.',
       '<b>Akış</b>: cevabın tamamı sırayla, soruyla birlikte.',
       '<b>Kapsam</b>: Bugün çalışılacaklar (vadesi gelenler; A ve B), öğrendiklerin, tümü, bir grup ya da tek cevap.',
@@ -4127,9 +4236,9 @@ function helpPanel() {
     ])) +
     d('Prova ve Hız testi', ul([
       '<b>Cevap provası</b>: soruyu duy → Başla → cevabı baştan sona söyle → Bitti. Takılırsan <b>ipucu göster</b> anahtar kelimeleri açar. Sonunda tüm satırlar (her birinin üstünde durak adı), ana cümle ve notlar görünür. Hedef: duraksamadan 60–90 sn.',
-      '<b>Kayıt</b>: prova yalnızca <b>↺ Takıldım</b> ya da <b>✓ Akıcıydı</b> ile kaydedilir (tarih, süreler, söylenen yüzde). Uygulama birini çerçeveyle önerir: hedef süreyi aştıysan ya da 🎤 ile cevabın yarısından azı söylendiyse Takıldım, %85 ve üstü süresinde söylendiyse Akıcıydı; karar senin. Kaydetmeden <b>← Bitir</b>\'e basarsan önce sorar.',
+      '<b>Kayıt</b>: prova yalnızca <b>{stuck}</b> ya da <b>{fluent}</b> ile kaydedilir (tarih, süreler, söylenen yüzde). Uygulama birini çerçeveyle önerir: hedef süreyi aştıysan ya da {:mic} ile cevabın yarısından azı söylendiyse Takıldım, %85 ve üstü süresinde söylendiyse Akıcıydı; karar senin. Kaydetmeden <b>{end}</b> düğmesine basarsan önce sorar.',
       '<b>İskelet turu</b> (Cevap provası, 1. tur): <b>Başla · önce iskelet</b> ile 20 sn içinde cevabın duraklarını sırayla, birkaç kelimeyle söyle; sonra durak listesi açılır, <b>Tam cevaba başla</b> ile asıl turu başlat. Süre tam cevapta başlar. İstemezsen <b>İskeletsiz başla</b>. Mülakat modunda yok.',
-      '<b>Kalıp</b>: öğrendiğin satırların kalıplarıyla <b>yeni</b> cümle kur. Kartta kalıp, geldiği orijinal cümle ve Türkçe bir durum var; durumu o kalıpla İngilizce söyle. <b>Göster</b> bir örnek cümle açar ve çalar. 🎤 ile söylersen uygulama kalıbın sabit parçalarının (mavi) sırayla geçip geçmediğine bakar ve ✓ Kurdum ya da ↺ Kuramadım önerir; karar senin. Kuramadıkların bir sonraki oturumda önce gelir, her kalıbın durumları sırayla değişir. Tekrar takvimine ve Zorlandıklarım\'a dokunmaz.',
+      '<b>Kalıp</b>: öğrendiğin satırların kalıplarıyla <b>yeni</b> cümle kur. Kartta kalıp, geldiği orijinal cümle ve Türkçe bir durum var; durumu o kalıpla İngilizce söyle. <b>Göster</b> bir örnek cümle açar ve çalar. {:mic} ile söylersen uygulama kalıbın sabit parçalarının (mavi) sırayla geçip geçmediğine bakar ve {built} ya da {notBuilt} önerir; karar senin. Kuramadıkların bir sonraki oturumda önce gelir, her kalıbın durumları sırayla değişir. Tekrar takvimine ve Zorlandıklarım\'a dokunmaz.',
       '<b>Hız testi</b>: Türkçeyi gör, İngilizcesini söyle, biter bitmez Göster. Hedef: doğru ve süresinde: kısa cümlede ~3–4 sn, uzun cümlede daha fazla. Yanlışlar bugünkü tekrara eklenir.',
       'Üstteki grup butonları listeyi ve testi o gruba daraltır.'
     ])) +
@@ -4157,7 +4266,7 @@ function helpPanel() {
       'Güncellemeler kendiliğinden gelir; yeni cevaplar eklenir, ilerleme ve düzenlemeler korunur. Sadece yeni ses dosyaları iner.',
       'Parola her cihazda bir kez sorulur. Cümleler ve sesler şifreli saklanır.',
       '<b>İlerlemeyi sıfırla</b>: tekrar takvimi, öğrenilen satırlar, prova ve test geçmişi silinir; cevaplar, düzenlemeler, ayarlar ve sesler kalır. Önce otomatik yedek alınır, <b>Sıfırlamayı geri al</b> ile dönebilirsin.'
-    ])) + '</section>';
+    ])) + '</section>');
 }
 
 /* ---------- events ---------- */
@@ -4175,7 +4284,7 @@ var ACT = {
   grade: function (el) { grade(+el.dataset.g); },
   replayIntro: function () { var s = S.sess, it = curIntro(); play(it.l.en, 'en').then(function () { if (S.sess === s && s.step === 0) { s.step = 1; render(); } }); },
   shadow: runShadow,
-  introSkip: function () { var s = S.sess; stopAudio(); s.step = 5; render(); },
+  introSkip: introSkip,
   recShow: function () { recallShow(); },
   pkStart: pkStart,
   pkShow: pkShow,
@@ -4301,7 +4410,7 @@ var ACT = {
     if (!code.trim()) { toast('Önce kodu yapıştır.'); return; }
     if (el.dataset.armed !== '1') { el.dataset.armed = '1'; el.textContent = 'Emin misin? Tekrar dokun'; return; }
     try { importCode(code); toast('İlerleme içe aktarıldı.'); render(); }
-    catch (e) { el.dataset.armed = ''; el.textContent = 'İçe aktar (bu cihazdakinin yerine geçer)'; toast('Kod okunamadı; MT1: ile başlayan kodun tamamını yapıştır.'); }
+    catch (e) { el.dataset.armed = ''; el.innerHTML = lab('imp'); toast('Kod okunamadı; MT1: ile başlayan kodun tamamını yapıştır.'); }
   }
 };
 var unlocked = false;
@@ -4475,11 +4584,10 @@ init();
   function snooze() { try { localStorage.setItem('mt-inst-until', String(Date.now() + INST.days * 86400000)); } catch (e) {} }
   var ua = navigator.userAgent || '', ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   var safari = /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|EdgiOS|OPR|Firefox|FxiOS/.test(ua);
-  var SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
-  var PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>';
+  function icon(n) { return window.__ico ? window.__ico(n, 18) : ''; }
   var deferred = null, el = null;
   function steps() {
-    if (ios && safari) return '<ol><li>Tarayıcının altındaki <b>Paylaş</b> ' + SHARE + ' butonuna dokunun (kare içinden yukarı ok).</li><li>Açılan menüde aşağı kaydırıp <b>Ana Ekrana Ekle</b> ' + PLUS + ' seçeneğine dokunun.</li></ol>';
+    if (ios && safari) return '<ol><li>Tarayıcının altındaki <b>Paylaş</b> ' + icon('share') + ' butonuna dokunun (kare içinden yukarı ok).</li><li>Açılan menüde aşağı kaydırıp <b>Ana Ekrana Ekle</b> ' + icon('addbox') + ' seçeneğine dokunun.</li></ol>';
     if (safari) return '<ol><li>Safari menü çubuğunda <b>Dosya</b>\'yı açın.</li><li><b>Dock\'a Ekle</b>\'yi seçin.</li></ol>';
     return '';
   }

@@ -52,7 +52,8 @@ test('Dinle B: ✓ and ✗ marks change the schedule and can be undone', async (
 
   await reveal();
   await ok.click();
-  await expect(page.locator('.undo')).toContainText('✓ Bildim');
+  await expect(page.locator('.undo')).toContainText('Bildim');
+  await expect(page.locator('.undo [data-ico="ok"]')).toHaveCount(1);
   expect((await srs())[lines[0].id]).not.toEqual(before[lines[0].id]);
   await expect(pos(page)).toHaveText(/^2\/4/); // ✓ moves on
   await page.locator('[data-act="trackUndo"]').click();
@@ -61,7 +62,7 @@ test('Dinle B: ✓ and ✗ marks change the schedule and can be undone', async (
 
   await reveal();
   await no.click();
-  await expect(page.locator('.undo')).toContainText('✗');
+  await expect(page.locator('.undo [data-ico="no"]')).toHaveCount(1);
   await expect(pos(page)).toHaveText(/^1\/5/); // the card comes back later in this session
   await no.click(); // tapping the marked box again undoes it
   await expect(pos(page)).toHaveText(/^1\/4/);
