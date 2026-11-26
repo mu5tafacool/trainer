@@ -463,7 +463,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   <button data-act="tab" data-tab="settings" data-lab="tabSet">Ayarlar</button>
 </div></nav>
 <div class="toast" id="toast" hidden></div>
-<div id="live" class="vh" aria-live="polite" lang="en-US"></div>
+<div id="live" class="vh" aria-live="polite" lang="en-US" data-t-lang="tgt"></div>
 
 <div id="gate" class="gate" hidden>
   <form id="gate-form" class="gate-card" autocomplete="off">
@@ -485,7 +485,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
    tm(key, vars) gives the text: {name} is filled from vars; {n, plural, one {# kart} other {# kart}} picks the form for the
    number (Intl.PluralRules). A {name} that vars does not give stays as it is, so help texts keep {pk} and {:mic} for tx().
    PROFILE: ui = the device's own choice (localStorage mt1:__ui) → the browser's languages → 'tr'; src → tgt = the sentence
-   set (tr → en, from the seed in v0.81). Dates and numbers come from Intl in the interface language (date, dec1).
+   set (tr → en). Code reads a line as l[TGT] / l[SRC] and a language's abilities from LANGS, never by its name. Dates and numbers come from Intl in the interface language (date, dec1).
    Static markup: data-t="key" fills the text, data-t-attr="attr:key" an attribute (filled once, below).
    A new text goes into MSG.tr; dev/tests/i18n.spec.cjs fails on interface text anywhere else, on a key no screen uses, and
    on a key used but missing. A second interface language is one more MSG.<code> with the same keys. */
@@ -860,7 +860,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "voicePanel.otomatik": "Otomatik",
     "voicePanel.sayfaKendisiOkurHazir": "Sayfa kendisi okur: hazır ses dosyalarından (İngilizce Fenrir, Türkçe Siri). Dosyası olmayan satır, örneğin sonradan eklenen, cihaz sesiyle okunur.",
     "voicePanel.sesPaketiHenuzYuklenmedi": "· ses paketi henüz yüklenmedi",
-    "voicePanel.kaliteliIngilizceSesTurkce": "Kaliteli İngilizce ses: <span class=\"mono\">{en}/{enT}</span> · Türkçe: <span class=\"mono\">{tr}/{trT}</span>{v}",
+    "voicePanel.kaliteliIngilizceSesTurkce": "Kaliteli İngilizce ses: <span class=\"mono\">{tgtN}/{tgtT}</span> · Türkçe: <span class=\"mono\">{srcN}/{srcT}</span>{v}",
     "voicePanel.sayfaKendisiOkurOnce": "Sayfa kendisi okur: önce Siri dosyası, yoksa cihaz sesi.",
     "voicePanel.sayfaSessizKalirIngilizce": "Sayfa sessiz kalır; İngilizce cümleyi Apple'ın Spoken Content özelliği Siri sesiyle okur. Türkçe ekranda okunur. Dinle sekmesi otomatik sesle çalışmaya devam eder.",
     "voicePanel.siriIcinBirKerelik": "Siri için bir kerelik kurulum",
@@ -1223,6 +1223,11 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     return 'tr';
   }
   var PROFILE = { ui: pickUi(), src: 'tr', tgt: 'en' };
+  /* what the code needs to know about a language; the code asks this table, never "is it English?" */
+  var LANGS = {
+    en: { bcp: 'en-US', voice: /^en[-_]US/i },
+    tr: { bcp: 'tr-TR', voice: /^tr/i }
+  };
   var M = MSG[PROFILE.ui], BASE = MSG.tr, PR = null;
   function plural(n) { try { PR = PR || new Intl.PluralRules(PROFILE.ui); return PR.select(n); } catch (e) { return n === 1 ? 'one' : 'other'; } }
   function tm(key, vars) {
@@ -1248,15 +1253,16 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     root.querySelectorAll('[data-t-attr]').forEach(function (e) { e.getAttribute('data-t-attr').split(';').forEach(function (p) { var kv = p.split(':'); e.setAttribute(kv[0], tm(kv[1])); }); });
   }
   document.documentElement.lang = PROFILE.ui;
+  document.querySelectorAll('[data-t-lang]').forEach(function (e) { e.lang = LANGS[PROFILE[e.getAttribute('data-t-lang')]].bcp; });
   fill(document);
-  window.__i18n = { t: tm, profile: PROFILE, msg: MSG, packs: Object.keys(MSG), date: date, dec1: dec1, fill: fill };
+  window.__i18n = { t: tm, profile: PROFILE, langs: LANGS, msg: MSG, packs: Object.keys(MSG), date: date, dec1: dec1, fill: fill };
 })();
 /* i18n:end */
 </script>
 <script>
 (function () {
   'use strict';
-  var tm = window.__i18n.t;
+  var tm = window.__i18n.t, TGT = window.__i18n.profile.tgt, SRC = window.__i18n.profile.src;
   if (window.claude) return;
   window.__LOCAL_TRAINER__ = true;
   var P = 'mt1:';
@@ -1347,7 +1353,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   function withMk(L, n) {
     if (!n.mk) return L;
     var x = cl(L), at = 0, r = [];
-    n.mk.forEach(function (c) { var k = String(x.en || '').indexOf(c, at); if (k >= 0) { r.push(c); at = k + c.length; } });
+    n.mk.forEach(function (c) { var k = String(x[TGT] || '').indexOf(c, at); if (k >= 0) { r.push(c); at = k + c.length; } });
     if (r.length) x.mk = r; else delete x.mk;
     return x;
   }
@@ -1356,8 +1362,8 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     var x = withMk(L, n); if (x === L) x = cl(L);
     if (!L.intentOwn) { if (n.intent) x.intent = n.intent; else delete x.intent; }
     /* the line's default (the seed's text), shown by "Değişti" in Cümleler; defNew = the default changed since the user's edit */
-    var d = { en: n.en, tr: n.tr, tier: n.tier }; if (n.mk) d.mk = cl(n.mk);
-    if (L.def && (L.def.en !== n.en || L.def.tr !== n.tr)) x.defNew = 1;
+    var d = { [TGT]: n[TGT], [SRC]: n[SRC], tier: n.tier }; if (n.mk) d.mk = cl(n.mk);
+    if (L.def && (L.def[TGT] !== n[TGT] || L.def[SRC] !== n[SRC])) x.defNew = 1;
     x.def = d; delete x.orig; delete x.note;
     return x;
   }
@@ -1541,7 +1547,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     });
     return T.loadP;
   }
-  function sayEn(t) {
+  function sayTgt(t) {
     return String(t).replace(/\b([A-Z])([A-Z])360\b/g, '$1 $2 three-sixty').replace(/SDET/g, 'S D E T').replace(/go\/no-go/g, 'go, no-go').replace(/BasePage/g, 'base page')
       .replace(/\bAED\b/g, 'A E D').replace(/\bCI\b/g, 'C I').replace(/\bA\/B\b/g, 'A B').replace(/(\d)\s*×\s*(\d)/g, '$1 by $2').replace(/check\.cjs/g, 'check dot C J S');
   }
@@ -1560,9 +1566,9 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
       function next() {
         if (!T.q.length) { T.busy = false; tchg(); return; }
         var text = T.q[0];
-        return tts.generate(sayEn(text), { voice: TTSCFG.voice, speed: 1 }).then(function (audio) {
+        return tts.generate(sayTgt(text), { voice: TTSCFG.voice, speed: 1 }).then(function (audio) {
           var rec = { text: text, type: 'audio/wav', buf: wav16(audio.audio, audio.sampling_rate) };
-          return idbPut('gen', 'en|' + text, rec).then(function () { GEN['en|' + text] = 1; publishAll(); });
+          return idbPut('gen', TGT + '|' + text, rec).then(function () { GEN[TGT + '|' + text] = 1; publishAll(); });
         }).catch(function (e) { console.warn('voice generation failed', e); }).then(function () { T.q.shift(); tchg(); return next(); });
       }
       return next();
@@ -1579,7 +1585,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     },
     queue: function (texts) {
       if (T.state === 'off') return;
-      (texts || []).forEach(function (t) { if (t && !MAP['en|' + t] && T.q.indexOf(t) < 0) T.q.push(t); });
+      (texts || []).forEach(function (t) { if (t && !MAP[TGT + '|' + t] && T.q.indexOf(t) < 0) T.q.push(t); });
       tchg(); processQ();
     },
     onChange: function (f) { T.subs.push(f); }
@@ -1743,7 +1749,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
 <script>
 (function () {
 'use strict';
-var tm = window.__i18n.t, I18N = window.__i18n;
+var tm = window.__i18n.t, I18N = window.__i18n, TGT = I18N.profile.tgt, SRC = I18N.profile.src, LANGS = I18N.langs;
 
 /* ---------- helpers ---------- */
 var PLAN_URL = 'https://claude.ai/artifact/BdXSvseWvMArTfrMHbixQo';
@@ -1935,7 +1941,7 @@ function dictScore(ref, hyp) {
   return { score: r.n ? Math.round(100 * r.hit / r.n) : 0, miss: miss, extra: r.extra };
 }
 function dictCover(lines, hyp) {
-  var r = alignUnits(lines.map(function (l) { return l.en; }), hyp);
+  var r = alignUnits(lines.map(function (l) { return l[TGT]; }), hyp);
   return { score: r.n ? Math.round(100 * r.hit / r.n) : 0, lines: r.tot.map(function (t, k) { return t ? Math.round(100 * r.uhit[k] / t) : 100; }) };
 }
 function dictOn() { return U.settings.dict !== false; }
@@ -2463,13 +2469,13 @@ var DICT_LEX = {
 var dictPrep = {}, dictNames = null, dictNamesN = -1;
 // Proper names come from the answer set itself (words capitalized mid-sentence anywhere, or letter+digit codes); none in code.
 function dictNameSet() {
-  var t = []; (S.answers || []).forEach(function (a) { a.lines.forEach(function (l) { t.push(l.en); }); });
+  var t = []; (S.answers || []).forEach(function (a) { a.lines.forEach(function (l) { t.push(l[TGT]); }); });
   if (!dictNames || t.length !== dictNamesN) { dictNames = verify3.findNames(t); dictNamesN = t.length; dictPrep = {}; }
   return dictNames;
 }
 function dictCheck3(l, said, sig) {
-  var line = { en: l.en, tier: l.tier === 'ezber' ? 'ezber' : 'anlam', mk: l.mk || [] };
-  line._prep = dictPrep[l.en] || (dictPrep[l.en] = verify3.prepareRef(l.en, DICT_LEX, dictNameSet()));
+  var line = { [TGT]: l[TGT], tier: l.tier === 'ezber' ? 'ezber' : 'anlam', mk: l.mk || [] };
+  line._prep = dictPrep[l[TGT]] || (dictPrep[l[TGT]] = verify3.prepareRef(l[TGT], DICT_LEX, dictNameSet()));
   var r = verify3.check(line, said, DICT_LEX, sig ? { nli: sig } : null, { sim: false });
   var miss = [], extra = [];
   var moved = [];
@@ -2486,7 +2492,7 @@ function dictCheck3(l, said, sig) {
 function dictNli(s, l, txt) {
   var M = window.__nli; if (!M || !String(txt).trim() || M.info().state === 'off') return;
   s.dict.pending = true; var t0 = Date.now();
-  M.judge(l.en, txt).then(function (sig) { nliTimeAdd(Date.now() - t0); if (S.sess === s && s.dictText === txt) { s.dict = dictCheck3(l, txt, sig); render(); } },
+  M.judge(l[TGT], txt).then(function (sig) { nliTimeAdd(Date.now() - t0); if (S.sess === s && s.dictText === txt) { s.dict = dictCheck3(l, txt, sig); render(); } },
     function () { if (S.sess === s && s.dict && s.dictText === txt) { s.dict.pending = false; s.dict.nliErr = true; render(); } });
 }
 var DICT_ISSUE = {
@@ -2538,7 +2544,7 @@ function dictRes3(d, said) {
 }
 window.__dict = { score: dictScore, res: dictRes, cover: dictCover, check: dictCheck3,
   // tests/eval: use these texts for name detection instead of the unlocked answer set
-  fix: function (l, said) { var R = dictPrep[l.en] || (dictPrep[l.en] = verify3.prepareRef(l.en, DICT_LEX, dictNameSet())); return verify3.normalizeSaid(said, R).join(' '); },
+  fix: function (l, said) { var R = dictPrep[l[TGT]] || (dictPrep[l[TGT]] = verify3.prepareRef(l[TGT], DICT_LEX, dictNameSet())); return verify3.normalizeSaid(said, R).join(' '); },
   setNames: function (texts) { dictNames = verify3.findNames(texts); dictNamesN = (S.answers || []).reduce(function (n, a) { return n + a.lines.length; }, 0); dictPrep = {}; } };
 function swList(rows) { return '<div class="swlist">' + rows.filter(Boolean).join('') + '</div>'; }
 /* ---- pattern highlight (kalıp): mk = 1–2 multi-word chunks of en, in order. Edited text keeps the chunks it still contains;
@@ -2601,7 +2607,7 @@ function autoMk(en) {
 /* [chunk] marks typed in the edit form: at most 2, each 2+ words */
 function parseMk(raw) {
   raw = String(raw || '').trim();
-  if (!/[\[\]]/.test(raw)) return { en: raw.replace(/\s{2,}/g, ' '), mk: null };
+  if (!/[\[\]]/.test(raw)) return { [TGT]: raw.replace(/\s{2,}/g, ' '), mk: null };
   var mk = [], depth = 0, cur = '';
   for (var i = 0; i < raw.length; i++) {
     var ch = raw.charAt(i);
@@ -2615,23 +2621,23 @@ function parseMk(raw) {
   var en = raw.replace(/[\[\]]/g, '').replace(/\s{2,}/g, ' ').trim();
   var kept = keepMk(mk, en);
   if (kept.length !== mk.length) return { err: tm('parseMk.kalipCumledeBulunamadi') };
-  return { en: en, mk: mk };
+  return { [TGT]: en, mk: mk };
 }
 function withBrackets(l) {
-  var en = String(l.en || ''), mk = keepMk(l.mk, en), out = '', at = 0;
+  var en = String(l[TGT] || ''), mk = keepMk(l.mk, en), out = '', at = 0;
   mk.forEach(function (c) { var k = en.indexOf(c, at); out += en.slice(at, k) + '[' + c + ']'; at = k + c.length; });
   return out + en.slice(at);
 }
 function kpOn() { return !U.settings || U.settings.hl !== false; }
-function hlEn(l) {
-  var en = String(l.en || ''); if (!kpOn()) return esc(en);
+function hlTgt(l) {
+  var en = String(l[TGT] || ''); if (!kpOn()) return esc(en);
   var mk = keepMk(l.mk, en); if (!mk.length) mk = autoMk(en);
   var out = '', at = 0;
   mk.forEach(function (c) { var k = en.indexOf(c, at); if (k < 0) return; out += esc(en.slice(at, k)) + '<span class="kp">' + esc(c) + '</span>'; at = k + c.length; });
   // role="text": the highlighted pieces stay one sentence for Spoken Content (Speech Controller reads the whole line)
   return '<span role="text">' + out + esc(en.slice(at)) + '</span>';
 }
-window.__kp = { auto: autoMk, hl: hlEn, parse: parseMk, lib: kpLibrary };
+window.__kp = { auto: autoMk, hl: hlTgt, parse: parseMk, lib: kpLibrary };
 function pad(n) { return String(n).padStart(2, '0'); }
 function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
 function today() { return ymd(new Date()); }
@@ -2653,11 +2659,18 @@ var S = { db: null, uid: null, sample: null, answers: [], dbState: 'loading', ta
   trackCfg: { scope: 'learned', mode: 'B', shuffle: false, text: true, once: false } };
 var LOCAL = !!window.__LOCAL_TRAINER__;
 var DESKTOP = false; try { DESKTOP = window.matchMedia('(hover: hover) and (pointer: fine)').matches; } catch (e) {}
-var U = { settings: { rateEn: 0.9, rateTr: 1, trAuto: true, listen: true, enVoice: '', trVoice: '', useFiles: true, voiceMode: 'auto', repA: 5, repB: 3, grp: 'all' },
+var U = { settings: { rateTgt: 0.9, rateSrc: 1, srcAuto: true, listen: true, tgtVoice: '', srcVoice: '', useFiles: true, voiceMode: 'auto', repA: 5, repB: 3, grp: 'all' },
   progress: { intro: {}, reh: {}, first: null }, log: { days: {} }, tests: { list: [] }, srs: {} };
 
 /* ---------- persistence (private per-viewer docs) ---------- */
 var dirty = {}, flushT = null, chain = {};
+/* v0.81: settings named after a language (rateEn, trFirst …) are kept by role (rateTgt, srcFirst …); an old name is read
+   once and the setting is saved under the new name the next time settings are saved */
+var SETTING_ROLES = { rateEn: 'rateTgt', rateTr: 'rateSrc', enVoice: 'tgtVoice', trVoice: 'srcVoice', trAuto: 'srcAuto', trFirst: 'srcFirst' };
+function settingsByRole(x) {
+  var out = {}; Object.keys(x || {}).forEach(function (k) { var n = SETTING_ROLES[k]; if (!n) out[k] = x[k]; else if (!(n in x)) out[n] = x[k]; });
+  return out;
+}
 function docBody(id) {
   if (id === 'settings') return U.settings;
   if (id === 'progress') return U.progress;
@@ -2888,7 +2901,7 @@ function hardCount() { var h = hardMap(), n = 0; Object.keys(h).forEach(function
 
 /* ---------- speech ---------- */
 var synth = window.speechSynthesis || null;
-var voices = [], enV = null, trV = null, audioTok = 0, keepU = null;
+var voices = [], tgtV = null, srcV = null, audioTok = 0, keepU = null;
 var EN_PREF = ['Ava', 'Samantha', 'Allison', 'Evan', 'Nathan', 'Zoe', 'Joelle', 'Noelle', 'Tom', 'Susan', 'Nicky', 'Aaron', 'Google US English', 'Microsoft Aria', 'Microsoft Jenny', 'Microsoft Guy', 'Microsoft Ava', 'Microsoft Andrew', 'Microsoft Emma'];
 var TR_PREF = ['Yelda', 'Microsoft Emel', 'Microsoft Ahmet', 'Google Türkçe'];
 var NOVELTY = ['Albert', 'Bad News', 'Bahh', 'Bells', 'Boing', 'Bubbles', 'Cellos', 'Good News', 'Jester', 'Organ', 'Superstar', 'Trinoids', 'Whisper', 'Wobble', 'Zarvox', 'Hysterical', 'Junior', 'Ralph', 'Fred', 'Kathy', 'Eddy', 'Flo', 'Grandma', 'Grandpa', 'Reed', 'Rocko', 'Sandy', 'Shelley'];
@@ -2900,18 +2913,18 @@ function scoreVoice(v, pref) {
   if (v.localService) s += 0.5;
   return s;
 }
-function enVoices() { return voices.filter(function (v) { return /^en[-_]US/i.test(v.lang || '') && NOVELTY.indexOf(baseName(v)) < 0; }); }
-function trVoices() { return voices.filter(function (v) { return /^tr/i.test(v.lang || ''); }); }
+function tgtVoices() { return voices.filter(function (v) { return LANGS[TGT].voice.test(v.lang || '') && NOVELTY.indexOf(baseName(v)) < 0; }); }
+function srcVoices() { return voices.filter(function (v) { return LANGS[SRC].voice.test(v.lang || ''); }); }
 function best(list, pref) { return list.slice().sort(function (a, b) { return scoreVoice(b, pref) - scoreVoice(a, pref); })[0] || null; }
 function pickVoices() {
-  var ev = enVoices(), tv = trVoices();
-  enV = ev.filter(function (v) { return v.voiceURI === U.settings.enVoice; })[0] || best(ev, EN_PREF);
-  trV = tv.filter(function (v) { return v.voiceURI === U.settings.trVoice; })[0] || best(tv, TR_PREF);
+  var ev = tgtVoices(), tv = srcVoices();
+  tgtV = ev.filter(function (v) { return v.voiceURI === U.settings.tgtVoice; })[0] || best(ev, EN_PREF);
+  srcV = tv.filter(function (v) { return v.voiceURI === U.settings.srcVoice; })[0] || best(tv, TR_PREF);
 }
 function loadVoices() { if (!synth) return; voices = synth.getVoices() || []; pickVoices(); if (S.tab === 'settings' && !S.sess) render(); }
 if (synth) { loadVoices(); try { synth.addEventListener('voiceschanged', loadVoices); } catch (e) { synth.onvoiceschanged = loadVoices; } setTimeout(loadVoices, 700); setTimeout(loadVoices, 2500); }
 function sayText(text, lang) {
-  if (lang !== 'en') return text;
+  if (lang !== TGT) return text;
   return text.replace(/\b([A-Z])([A-Z])360\b/g, '$1 $2 three-sixty').replace(/\bSDET\b/g, 'S D E T').replace(/go\/no-go/g, 'go, no-go').replace(/BasePage/g, 'base page')
     .replace(/\bAED\b/g, 'A E D').replace(/\bA\/B\b/g, 'A B').replace(/(\d)\s*×\s*(\d)/g, '$1 by $2').replace(/check\.cjs/g, 'check dot C J S');
 }
@@ -2960,7 +2973,7 @@ function markText(text) {
   if (DESKTOP) { try { var r = document.createRange(); r.selectNodeContents(el); var sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(r); } catch (e) {} }
 }
 function siriSpeak(text, lang, tok) {
-  if (lang !== 'en') return Promise.resolve(0);
+  if (lang !== TGT) return Promise.resolve(0);
   var t0 = Date.now(); markText(text);
   var live = document.getElementById('live');
   if (live) { live.textContent = ''; setTimeout(function () { live.textContent = text; }, 40); }
@@ -2970,8 +2983,8 @@ function speak(text, lang, tok) {
   if (tok !== undefined && tok !== audioTok) return Promise.resolve(0);
   if (siriOn()) return siriSpeak(text, lang, tok);
   var t0 = Date.now(), id = fileFor(text, lang);
-  if (!id && LOCAL && lang === 'en' && window.__localTTS && window.__localTTS.info().state !== 'off') window.__localTTS.queue([text]);
-  var rate = lang === 'en' ? U.settings.rateEn : U.settings.rateTr;
+  if (!id && LOCAL && lang === TGT && window.__localTTS && window.__localTTS.info().state !== 'off') window.__localTTS.queue([text]);
+  var rate = lang === TGT ? U.settings.rateTgt : U.settings.rateSrc;
   if (id) {
     return playFile(id, rate).then(function () { return Date.now() - t0; }, function () {
       if (tok !== undefined && tok !== audioTok) return 0;
@@ -2985,9 +2998,9 @@ function ttsSpeak(text, lang, tok) {
   return new Promise(function (res) {
     if (!synth || (tok !== undefined && tok !== audioTok)) { res(); return; }
     var u = new SpeechSynthesisUtterance(sayText(text, lang));
-    var v = lang === 'en' ? enV : trV;
-    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = lang === 'en' ? 'en-US' : 'tr-TR'; }
-    u.rate = lang === 'en' ? U.settings.rateEn : U.settings.rateTr;
+    var v = lang === TGT ? tgtV : srcV;
+    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = LANGS[lang].bcp; }
+    u.rate = lang === TGT ? U.settings.rateTgt : U.settings.rateSrc;
     var done = false, words = text.split(/\s+/).length;
     var to = setTimeout(fin, 3000 + words * 700 / u.rate);
     function fin() { if (done) return; done = true; clearTimeout(to); res(); }
@@ -3011,10 +3024,10 @@ function wait(ms, tok) { return new Promise(function (res) { var t0 = Date.now()
    fluentMs  the fastest Prova target for a whole answer: about 170 words a minute */
 var THINK = { short: 0.75, normal: 1, long: 1.35 };
 function wordN(text) { return String(text || '').split(/\s+/).filter(Boolean).length; }
-function speakMs(text) { return wordN(text) * 420 / (U.settings.rateEn || 1); }
+function speakMs(text) { return wordN(text) * 420 / (U.settings.rateTgt || 1); }
 function echoMs(heard, text) { return (heard && heard > 500 ? heard : Math.max(1200, speakMs(text))) * 1.15 + 600; }
 function recallMs(text) { return Math.round(Math.max(3000, (1500 + speakMs(text)) * (THINK[U.settings.think] || 1)) / 100) * 100; }
-function fluentMs(lines) { return Math.round(lines.reduce(function (n, l) { return n + wordN(l.en); }, 0) / 170 * 60) * 1000; }
+function fluentMs(lines) { return Math.round(lines.reduce(function (n, l) { return n + wordN(l[TGT]); }, 0) / 170 * 60) * 1000; }
 /* ---- say-along rounds: hear the line, then say it back (Gölgele, Dinle A/B, Pekiştir). One settings table, one method ----
    rounds     how many; hideFrom  the text is hidden from this round on (0 = never)
    withLast   the last round is said together with the voice, with no gap after it (needs at least 2 rounds)
@@ -3250,14 +3263,14 @@ function showReviewCard() {
   render(); stopAudio(); var tok = audioTok;
   if (s.dictOpen && it.dir === 'p') dictFocus();
   if (it.dir === 'p') {
-    if (U.settings.trAuto && synth) { wait(60, tok).then(function () { return speak(it.l.tr, 'tr', tok); }).then(function () { if (S.sess === s && !s.shown && !s.t0) s.t0 = Date.now(); }); }
+    if (U.settings.srcAuto && synth) { wait(60, tok).then(function () { return speak(it.l[SRC], SRC, tok); }).then(function () { if (S.sess === s && !s.shown && !s.t0) s.t0 = Date.now(); }); }
     else s.t0 = Date.now();
-  } else { s.t0 = Date.now(); wait(60, tok).then(function () { return speak(it.l.en, 'en', tok); }); }
+  } else { s.t0 = Date.now(); wait(60, tok).then(function () { return speak(it.l[TGT], TGT, tok); }); }
 }
 function reveal() {
   var s = S.sess; if (!s || s.shown) return;
   s.shown = true; s.ms = s.t0 ? Date.now() - s.t0 : 0; render();
-  var it = s.q[s.i]; if (it.dir === 'p') play(it.l.en, 'en'); else stopAudio();
+  var it = s.q[s.i]; if (it.dir === 'p') play(it.l[TGT], TGT); else stopAudio();
 }
 function grade(g) {
   var s = S.sess; if (!s || !s.shown) return;
@@ -3279,14 +3292,14 @@ function renderReview() {
   if (sk && sk.n >= 3 && !s.shown) h += '<p class="skipnote">' + tm('renderReview.buKartiGundurGeciyorsun', { skN: sk.n }) + '</p>';
   h += '<article class="icard"><div class="ctx"><b>' + (isP ? 'TR → EN' : tm('renderReview.enSesTr')) + '</b><span>' + esc(qLabel(it.a)) + '</span></div>';
   if (isP) {
-    h += '<p class="tr' + (s.shown ? '' : ' big') + '">' + esc(it.l.tr) + '</p>';
-    if (s.shown) h += '<p class="en">' + hlEn(it.l) + '</p>';
+    h += '<p class="tr' + (s.shown ? '' : ' big') + '">' + esc(it.l[SRC]) + '</p>';
+    if (s.shown) h += '<p class="en">' + hlTgt(it.l) + '</p>';
     else h += ('<p class="hint">' + tm('renderReview.ingilizcesiniSesliSoyleSonra') + '</p>');
   } else {
-    if (s.shown) h += '<p class="tr big">' + esc(it.l.tr) + '</p><p class="en small">' + hlEn(it.l) + '</p>';
-    else h += (siriOn() ? '<p class="en masked">' + esc(it.l.en) + '</p>' : '') + '<p class="hint">' + tm('renderReview.dinleVeAnlaminiTurkce') + '</p>';
+    if (s.shown) h += '<p class="tr big">' + esc(it.l[SRC]) + '</p><p class="en small">' + hlTgt(it.l) + '</p>';
+    else h += (siriOn() ? '<p class="en masked">' + esc(it.l[TGT]) + '</p>' : '') + '<p class="hint">' + tm('renderReview.dinleVeAnlaminiTurkce') + '</p>';
   }
-  h += cardFoot(it.l, '<span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown && s.ms ? fmtSec(s.ms) : '') + '</span>') + '</article>';
+  h += cardFoot(it.l, '<span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l[TGT]) ? ' slow' : '') + '">' + (s.shown && s.ms ? fmtSec(s.ms) : '') + '</span>') + '</article>';
   if (s.shown || !isP) h += siriHint();
   if (!s.shown) {
     if (isP && dictOn()) h += dictBox(s, 'dictCheck');
@@ -3352,7 +3365,7 @@ function introPos() { var s = S.sess, n = 0; for (var k = 0; k < s.b; k++) n += 
 function introEnter() {
   var s = S.sess; s.step = 0; s.shadow = 0; s.shPhase = ''; resumeSave(); render(); stopAudio();
   var tok = audioTok, it = curIntro();
-  wait(60, tok).then(function () { return speak(it.l.en, 'en', tok); }).then(function () { if (S.sess === s && tok === audioTok && s.step === 0) { s.step = 1; render(); } });
+  wait(60, tok).then(function () { return speak(it.l[TGT], TGT, tok); }).then(function () { if (S.sess === s && tok === audioTok && s.step === 0) { s.step = 1; render(); } });
 }
 /* Adımları atla (Dinle, Anlam: a line you know) passes over every step, to the line's end (step 5). Atla (Gölgele, İmge)
    passes over that step only: Hatırla comes, since recalling teaches most. Nothing is written; Kontrol asks the line anyway.
@@ -3375,7 +3388,7 @@ function runShadow() {
     tickImg();
   }
   sayRounds(sayPlan('golgele'), {
-    text: it.l.en, tok: tok, alive: alive, play: function () { return speak(it.l.en, 'en', tok); },
+    text: it.l[TGT], tok: tok, alive: alive, play: function () { return speak(it.l[TGT], TGT, tok); },
     show: function (r, phase) { s.shadow = r; s.shPhase = phase; render(); }
   }).then(function () { if (alive()) imagery(); });
 }
@@ -3383,13 +3396,13 @@ function runShadow() {
    then (or on Göster) the English opens and plays. Optional 🎤 check shows the percentage only: no grade, nothing saved. */
 function recallEnter() {
   var s = S.sess; if (!s || s.type !== 'intro') return;
-  stopAudio(); var tok = audioTok, it = curIntro(), ms = recallMs(it.l.en);
+  stopAudio(); var tok = audioTok, it = curIntro(), ms = recallMs(it.l[TGT]);
   s.step = 4; s.rec = { end: Date.now() + ms, shown: false }; s.dictOpen = false; s.dictText = ''; s.dict = null; render();
   wait(ms, tok).then(function () { if (S.sess === s && tok === audioTok && s.step === 4 && !s.rec.shown) recallShow(); });
 }
 function recallShow() {
   var s = S.sess; if (!s || s.step !== 4 || s.rec.shown) return;
-  stopAudio(); s.rec.shown = true; render(); play(curIntro().l.en, 'en');
+  stopAudio(); s.rec.shown = true; render(); play(curIntro().l[TGT], TGT);
 }
 function recallLeft() { var s = S.sess; return s && s.rec ? tm('fmt.secs', { n: Math.max(0, Math.ceil((s.rec.end - Date.now()) / 1000)) }) : ''; }
 setInterval(function () { var e = document.getElementById('recleft'), s = S.sess; if (e && s && s.type === 'intro' && s.step === 4 && s.rec && !s.rec.shown) e.textContent = recallLeft(); }, 250);
@@ -3402,9 +3415,9 @@ function introNext() {
 function quizEnter() {
   var s = S.sess; s.quiz.shown = false; s.dictOpen = false; s.dictText = ''; s.dict = null; resumeSave(); render(); stopAudio();
   var tok = audioTok, it = s.quiz.q[0];
-  if (U.settings.trAuto) wait(60, tok).then(function () { return speak(it.l.tr, 'tr', tok); });
+  if (U.settings.srcAuto) wait(60, tok).then(function () { return speak(it.l[SRC], SRC, tok); });
 }
-function quizReveal() { var s = S.sess; s.quiz.shown = true; render(); play(s.quiz.q[0].l.en, 'en'); }
+function quizReveal() { var s = S.sess; s.quiz.shown = true; render(); play(s.quiz.q[0].l[TGT], TGT); }
 function quizMark(ok) {
   var s = S.sess, it = s.quiz.q.shift();
   if (!ok) { s.quiz.q.push(it); hardBad(it.l.id, 'quiz'); }
@@ -3432,7 +3445,7 @@ function renderIntro() {
     var q = s.quiz, it = q.q[0];
     if (s.pk) return pkView(sessHead(tm('renderIntro.kontrolKaldi', { qLength: q.q.length }), 'pause'), it);
     var h = sessHead(tm('renderIntro.kontrolKaldi', { qLength: q.q.length }), 'pause');
-    h += '<article class="icard"><div class="ctx">' + tm('renderIntro.kontrolTrEnSesli') + '</div><p class="tr big">' + esc(it.l.tr) + '</p>' + (q.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') + cardFoot(it.l) + '</article>' + (q.shown ? siriHint() : '');
+    h += '<article class="icard"><div class="ctx">' + tm('renderIntro.kontrolTrEnSesli') + '</div><p class="tr big">' + esc(it.l[SRC]) + '</p>' + (q.shown ? '<p class="en">' + hlTgt(it.l) + '</p>' : '') + cardFoot(it.l) + '</article>' + (q.shown ? siriHint() : '');
     // 🎤: the result suggests one of the two buttons (İyi → Söyledim, Tekrar → Tekrar sor; Zor → none); the choice stays yours
     var qg = q.shown && s.dict ? dictGrade(s.dict) : -1;
     if (q.shown) h += (s.dict ? dictRes(s.dict, s.dictText) : '') + (qg === 0 || qg === 1 ? '<button class="btn wide" data-act="pkStart" style="margin-bottom:8px">' + lab('pk') + '</button>' : '') +
@@ -3447,15 +3460,15 @@ function renderIntro() {
   var active = Math.min(s.step, 5);
   var h2 = sessHead(tm('renderIntro.yeni', { introPos: introPos(), total: s.total }), 'pause');
   h2 += '<div class="steps">' + stepNames.map(function (n, k) { return '<span class="' + (k < active ? 'did' : k === active ? 'on' : '') + '">' + n + '</span>'; }).join('') + '</div>' + durakBar(it2.a, it2.l);
-  var plan = sayPlan('golgele'), masked = s.step === 2 && sayHidden(plan, s.shadow), recall = s.step === 4, hideEn = recall && !s.rec.shown;
+  var plan = sayPlan('golgele'), masked = s.step === 2 && sayHidden(plan, s.shadow), recall = s.step === 4, hideTgt = recall && !s.rec.shown;
   h2 += '<article class="icard"><div class="ctx"><span>' + esc(qLabel(it2.a)) + '</span>' + (recall ? ('<span>' + tm('renderIntro.trEnSesliSoyle') + '</span>') : '') + '</div>' +
-    (hideEn ? '' : '<p class="en' + (masked ? ' masked' : '') + '">' + (masked ? esc(it2.l.en) : hlEn(it2.l)) + '</p>');
-  if (s.step >= 1) h2 += '<p class="tr' + (recall ? ' big' : '') + '">' + esc(it2.l.tr) + '</p>';
+    (hideTgt ? '' : '<p class="en' + (masked ? ' masked' : '') + '">' + (masked ? esc(it2.l[TGT]) : hlTgt(it2.l)) + '</p>');
+  if (s.step >= 1) h2 += '<p class="tr' + (recall ? ' big' : '') + '">' + esc(it2.l[SRC]) + '</p>';
   if (s.step === 2) h2 += sayLine(s.shPhase || 'listen', { step: s.shadow, total: plan.total, text: !masked });
-  if (hideEn && s.imgSeen) h2 += ('<p class="hint">' + tm('renderIntro.onceImgeniDusunCumle') + '</p>');
-  if (hideEn) h2 += sayLine('recall', { tail: s.dictOpen ? tm('renderIntro.sonraKontrolEt') : '' });
+  if (hideTgt && s.imgSeen) h2 += ('<p class="hint">' + tm('renderIntro.onceImgeniDusunCumle') + '</p>');
+  if (hideTgt) h2 += sayLine('recall', { tail: s.dictOpen ? tm('renderIntro.sonraKontrolEt') : '' });
   if (s.step === 3) h2 += '<p class="hint">' + tm('renderIntro.buCumleyiKendiHayatindan') + '</p><p class="count">' + s.img + '</p>';
-  h2 += cardFoot(it2.l, hideEn && !s.dictOpen ? cardTimer('recleft', recallLeft()) : '') + '</article>' + siriHint();
+  h2 += cardFoot(it2.l, hideTgt && !s.dictOpen ? cardTimer('recleft', recallLeft()) : '') + '</article>' + siriHint();
   if (s.step <= 1) h2 += '<div class="row"><button class="btn ghost" data-act="replayIntro">' + lab('hearEn') + '</button><button class="btn primary" data-act="shadow"' + (s.step === 0 ? ' disabled' : '') + '>' + lab('shadow') + '</button></div><button class="link" data-act="introSkip">' + lab('skipAll') + '</button>';
   else if (s.step === 2 || s.step === 3) h2 += '<div class="row"><button class="btn ghost" data-act="introSkip">' + lab('skip') + '</button></div>';
   else if (recall && !s.rec.shown) h2 += (dictOn() ? dictBox(s, 'recCheck') : '') + '<div class="row"><button class="btn primary" data-act="recShow">' + lab('show') + '</button></div>';
@@ -3471,10 +3484,10 @@ function renderIntro() {
 function pkItem() { var s = S.sess; return s.type === 'intro' ? (s.phase === 'quiz' ? s.quiz.q[0] : curIntro()) : s.q[s.i]; }
 function pkAlive(s, tok) { return S.sess === s && !!s.pk && tok === audioTok; }
 function speakVoice(text, tok) {
-  if (!siriOn()) return speak(text, 'en', tok);
-  var t0 = Date.now(), id = fileFor(text, 'en'), done = function () { return Date.now() - t0; };
-  if (!id) return ttsSpeak(text, 'en', tok).then(done);
-  return playFile(id, U.settings.rateEn).then(done, function () { return ttsSpeak(text, 'en', tok).then(done); });
+  if (!siriOn()) return speak(text, TGT, tok);
+  var t0 = Date.now(), id = fileFor(text, TGT), done = function () { return Date.now() - t0; };
+  if (!id) return ttsSpeak(text, TGT, tok).then(done);
+  return playFile(id, U.settings.rateTgt).then(done, function () { return ttsSpeak(text, TGT, tok).then(done); });
 }
 function pkStart() {
   var s = S.sess, it = pkItem(); if (!s || !it) return;
@@ -3484,21 +3497,21 @@ function pkStart() {
   render(); top();
   var plan = sayPlan('pekistir');
   sayRounds(plan, {
-    text: l.en, tok: tok, alive: function () { return pkAlive(s, tok); }, play: function () { return speakVoice(l.en, tok); },
+    text: l[TGT], tok: tok, alive: function () { return pkAlive(s, tok); }, play: function () { return speakVoice(l[TGT], tok); },
     show: function (r, phase) { if (s.pk.step === r && s.pk.phase === phase) return; s.pk.step = r; s.pk.phase = phase; render(); }
   })
     .then(function () {
       if (!pkAlive(s, tok)) return;
-      var ms = recallMs(l.en); s.pk.step = plan.total; s.pk.phase = 'recall'; s.pk.end = Date.now() + ms; render();
+      var ms = recallMs(l[TGT]); s.pk.step = plan.total; s.pk.phase = 'recall'; s.pk.end = Date.now() + ms; render();
       return wait(ms, tok).then(function () { if (pkAlive(s, tok) && s.pk.phase === 'recall') pkShow(); });
     });
 }
-function pkShow() { var s = S.sess; if (!s || !s.pk) return; stopAudio(); var tok = audioTok; s.pk.phase = 'shown'; render(); wait(60, tok).then(function () { return speakVoice(pkItem().l.en, tok); }); }
+function pkShow() { var s = S.sess; if (!s || !s.pk) return; stopAudio(); var tok = audioTok; s.pk.phase = 'shown'; render(); wait(60, tok).then(function () { return speakVoice(pkItem().l[TGT], tok); }); }
 function pkDone() { var s = S.sess; if (!s || !s.pk) return; stopAudio(); s.pk = null; render(); top(); }
 function pkLeft() { var p = S.sess && S.sess.pk; return p && p.end ? tm('fmt.secs', { n: Math.max(0, Math.ceil((p.end - Date.now()) / 1000)) }) : ''; }
 setInterval(function () { var e = document.getElementById('pkleft'); if (e) e.textContent = pkLeft(); }, 250);
-function pkEn(l, miss) {
-  var h = hlEn(l); if (!miss || !miss.length) return h;
+function pkTgt(l, miss) {
+  var h = hlTgt(l); if (!miss || !miss.length) return h;
   var re = new RegExp('\\b(' + miss.map(function (w) { return w.replace(/[^a-z0-9]/gi, ''); }).filter(Boolean).join('|') + ')\\b', 'gi');
   return h.split(/(<[^>]+>)/).map(function (part) { return part.charAt(0) === '<' ? part : part.replace(re, '<mark class="pkmiss">$1</mark>'); }).join('');
 }
@@ -3519,9 +3532,9 @@ function cardTimer(id, text) { return '<span id="' + id + '" class="timer">' + t
 function pkView(head, it) {
   var p = S.sess.pk, l = it.l, shown = p.phase === 'shown', plan = sayPlan('pekistir'), alone = p.step > plan.rounds; // alone: the step from memory
   var h = head + '<article class="icard"><div class="ctx"><b>' + tx('{pk}') + '</b><span>' + esc(qLabel(it.a)) + '</span></div>';
-  if (shown || (!alone && !sayHidden(plan, p.step))) h += '<p class="en">' + pkEn(l, p.miss) + '</p>';
-  else if (!alone) h += '<p class="en masked">' + esc(l.en) + '</p>';
-  h += '<p class="tr' + (alone && !shown ? ' big' : '') + '">' + esc(l.tr) + '</p>';
+  if (shown || (!alone && !sayHidden(plan, p.step))) h += '<p class="en">' + pkTgt(l, p.miss) + '</p>';
+  else if (!alone) h += '<p class="en masked">' + esc(l[TGT]) + '</p>';
+  h += '<p class="tr' + (alone && !shown ? ' big' : '') + '">' + esc(l[SRC]) + '</p>';
   /* the step counter sits in the status line (sayLine); the seconds left sit in the card foot */
   if (!shown) h += sayLine(p.phase, { step: p.step, total: plan.total, text: !sayHidden(plan, p.step), tail: p.phase === 'recall' && p.dictOpen ? tm('pkView.sonraKontrolEt') : '' });
   h += cardFoot(l, p.phase === 'recall' && !p.dictOpen ? cardTimer('pkleft', pkLeft()) : '') + '</article>';
@@ -3566,7 +3579,7 @@ function openReh(id) {
   var a = ansById(id); if (!a) return;
   endSess(); if (S.track) trackStop(true);
   S.sess = rehNew(a, U.settings.fuOn !== false ? { kind: 'fu', n: 3, steps: [], seen: [a.id] } : null);
-  render(); top(); play(a.q, 'en');
+  render(); top(); play(a.q, TGT);
 }
 /* 4/3/2: rounds 2 and 3 aim for 85% and 70% of round 1 (rounded to 5 s), never faster than ~170 words a minute */
 function roundTarget(a, t1, r) {
@@ -3582,7 +3595,7 @@ function startMock() {
   var pool = mockPool(), a = mockFirst(pool); if (!a) return;
   endSess(); if (S.track) trackStop(true);
   S.sess = rehNew(a, { kind: 'mock', n: Math.min(5, pool.length), steps: [], seen: [a.id], pool: pool.map(function (x) { return x.id; }) });
-  render(); top(); play(a.q, 'en');
+  render(); top(); play(a.q, TGT);
 }
 function chainNext(s) {
   var c = s.chain; if (!c || c.steps.length >= c.n) return null;
@@ -3670,7 +3683,7 @@ function renderRehSess() {
   var times = s.times.concat([s.ms]), over = s.target ? s.ms - s.target : 0, rs = rehSugg(s);
   // Bitir on an unsaved result asks first (the round is saved only with Takıldım / Akıcıydı)
   if (s.leaveAsk) h += '<div class="confirm leave"><p>' + tm('renderRehSess.buProvaHenuzKaydedilmedi') + ' ' + tx(tm('renderRehSess.yaDa')) + ' ' + tm('renderRehSess.dugmesineBas') + '</p><div class="row"><button class="btn" data-act="rehLeaveNo">' + lab('cancel') + '</button><button class="btn" data-act="rehLeave">' + tm('renderRehSess.kaydetmedenCik') + '</button></div></div>';
-  h += '<article class="icard"><div class="ctx">' + tm('renderRehSess.sure', { mmss: mmss(s.ms), v: s.round > 1 ? '<span>' + tm('renderRehSess.tur3Hedef2', { round: s.round, mmss: mmss(s.target), v: over > 0 ? ' ' + tm('renderRehSess.sn', { v: Math.round(over / 1000) }) : ' ✓' }) + '</span>' : '', v2: s.hint ? ('<span>' + tm('renderRehSess.ipucuyla') + '</span>') : '', v3: s.cov ? tm('renderRehSess.soylenen') + ' <b class="sc ' + scoreCls(s.cov.score) + '">%' + s.cov.score + '</b></span>' : '' }) + '</div>' + (times.length > 1 ? '<p class="rounds">' + times.map(mmss).join(' → ') + '</p>' : '') + '<p class="q" style="font-weight:600">' + codeHtml(a) + esc(a.q) + '</p><ol class="anslines">' + a.lines.map(function (l, k) { var cv = s.cov ? s.cov.lines[k] : null; return '<li class="' + esc(l.tier) + '">' + (intentOn() && l.intent ? '<span class="ilab">' + esc(l.intent) + '</span>' : '') + esc(l.en) + (cv != null ? '<span class="cov ' + scoreCls(cv) + '">%' + cv + '</span>' : '') + '</li>'; }).join('') + '</ol><p class="hint">' + tm('renderRehSess.kirmiziCizgiliSatirlarEzber') + '</p>' + (s.cov && s.dictText ? '<details class="said"><summary>' + tm('renderRehSess.soylediginMetin') + '</summary><p>' + esc(s.dictText) + '</p></details>' : '') + infoHtml(a, ['key', 'notes'], 'flat') + '</article>';
+  h += '<article class="icard"><div class="ctx">' + tm('renderRehSess.sure', { mmss: mmss(s.ms), v: s.round > 1 ? '<span>' + tm('renderRehSess.tur3Hedef2', { round: s.round, mmss: mmss(s.target), v: over > 0 ? ' ' + tm('renderRehSess.sn', { v: Math.round(over / 1000) }) : ' ✓' }) + '</span>' : '', v2: s.hint ? ('<span>' + tm('renderRehSess.ipucuyla') + '</span>') : '', v3: s.cov ? tm('renderRehSess.soylenen') + ' <b class="sc ' + scoreCls(s.cov.score) + '">%' + s.cov.score + '</b></span>' : '' }) + '</div>' + (times.length > 1 ? '<p class="rounds">' + times.map(mmss).join(' → ') + '</p>' : '') + '<p class="q" style="font-weight:600">' + codeHtml(a) + esc(a.q) + '</p><ol class="anslines">' + a.lines.map(function (l, k) { var cv = s.cov ? s.cov.lines[k] : null; return '<li class="' + esc(l.tier) + '">' + (intentOn() && l.intent ? '<span class="ilab">' + esc(l.intent) + '</span>' : '') + esc(l[TGT]) + (cv != null ? '<span class="cov ' + scoreCls(cv) + '">%' + cv + '</span>' : '') + '</li>'; }).join('') + '</ol><p class="hint">' + tm('renderRehSess.kirmiziCizgiliSatirlarEzber') + '</p>' + (s.cov && s.dictText ? '<details class="said"><summary>' + tm('renderRehSess.soylediginMetin') + '</summary><p>' + esc(s.dictText) + '</p></details>' : '') + infoHtml(a, ['key', 'notes'], 'flat') + '</article>';
   if (s.round < 3) h += '<button class="btn ghost wide" data-act="rehRound" style="margin-bottom:10px">' + lab('round', tm('renderRehSess.turHedef', { v: s.round + 1, mmss: mmss(roundTarget(a, s.round === 1 ? s.ms : s.times[0], s.round + 1)) })) + '</button>';
   var nx = peekNext(s);
   if (nx) h += '<p class="hint" style="margin-bottom:8px">' + tm('renderRehSess.sonra', { v: s.chain.kind === 'mock' ? 'soru' : tm('renderRehSess.takipSorusu2'), esc: esc(nx.q) }) + '</p>';
@@ -3689,7 +3702,7 @@ function rehSave(ok) {
     var nx = peekNext(s);
     s.chain.steps.push({ id: a.id, times: times, ok: ok, hint: !!s.hint, cov: s.cov ? s.cov.score : null });
     if (nx && s.chain.steps.length < s.chain.n) {
-      s.chain.seen.push(nx.id); var keep = s.dictOpen; S.sess = rehNew(nx, s.chain); S.sess.dictOpen = keep; render(); top(); play(nx.q, 'en'); return;
+      s.chain.seen.push(nx.id); var keep = s.dictOpen; S.sess = rehNew(nx, s.chain); S.sess.dictOpen = keep; render(); top(); play(nx.q, TGT); return;
     }
     if (s.chain.steps.length > 1) { S.sess = { type: 'rehsum', chain: s.chain }; render(); top(); return; }
   }
@@ -3719,11 +3732,11 @@ function startTest() {
   S.sess = { type: 'test', q: pool.slice(0, n), i: 0, shown: false, t0: Date.now(), ms: 0, res: [], start: Date.now() };
   stopAudio(); render(); top();
 }
-function testReveal() { var s = S.sess; if (s.shown) return; s.shown = true; s.ms = Date.now() - s.t0; render(); play(s.q[s.i].l.en, 'en'); }
+function testReveal() { var s = S.sess; if (s.shown) return; s.shown = true; s.ms = Date.now() - s.t0; render(); play(s.q[s.i].l[TGT], TGT); }
 function testMark(ok) {
   var s = S.sess, it = s.q[s.i];
-  s.res.push({ id: it.l.id, a: it.a.id, ok: ok, ms: s.ms, lim: recallMs(it.l.en) });
-  if (ok && s.ms <= recallMs(it.l.en)) hardGood(it.l.id);
+  s.res.push({ id: it.l.id, a: it.a.id, ok: ok, ms: s.ms, lim: recallMs(it.l[TGT]) });
+  if (ok && s.ms <= recallMs(it.l[TGT])) hardGood(it.l.id);
   if (!ok) { var cur = (st(it.a.id, it.l.id) || {}).p; if (cur) { var c = clone(cur); c.due = today(); setSt(it.a.id, it.l.id, 'p', c); } }
   s.i++;
   if (s.i >= s.q.length) {
@@ -3743,13 +3756,13 @@ function renderTest() {
     var slow = s.res.filter(function (x) { return !x.ok || x.ms > x.lim; }).sort(function (x, y) { return (x.ok - y.ok) || (y.ms - x.ms); });
     var h = ('<section class="hero"><h1>' + tm('renderTest.testSonucu') + '</h1><p class="sub">' + tm('renderTest.yanlisOlanlarBugununTekrarina') + '</p></section>');
     h += '<div class="result"><div>' + tm('renderTest.dogru', { v: Math.round(100 * r.ok / r.n) }) + '</div><div>' + tm('renderTest.dogruVeSuresinde', { v: Math.round(100 * r.fast / r.n) }) + '</div><div>' + tm('renderTest.medyanSure', { fmtSec: fmtSec(r.med) }) + '</div></div>';
-    if (slow.length) h += '<h2 style="margin:16px 0 6px">' + tm('renderTest.takilanlar') + '</h2><ul class="reslist">' + slow.map(function (x) { var f = lineById(x.id); return f ? '<li><span>' + esc(f.l.en) + '</span><span class="mono">' + (x.ok ? fmtSec(x.ms) : tm('renderTest.yanlis')) + '</span></li>' : ''; }).join('') + '</ul>';
+    if (slow.length) h += '<h2 style="margin:16px 0 6px">' + tm('renderTest.takilanlar') + '</h2><ul class="reslist">' + slow.map(function (x) { var f = lineById(x.id); return f ? '<li><span>' + esc(f.l[TGT]) + '</span><span class="mono">' + (x.ok ? fmtSec(x.ms) : tm('renderTest.yanlis')) + '</span></li>' : ''; }).join('') + '</ul>';
     return h + '<button class="btn primary wide" style="margin-top:16px" data-act="endSess">' + lab('end') + '</button>';
   }
   var it = s.q[s.i];
   var h2 = sessHead(tm('renderTest.hizTesti', { v: s.i + 1, qLength: s.q.length }));
-  h2 += '<article class="icard"><div class="ctx"><b>TR → EN</b><span>' + esc(qLabel(it.a)) + '</span></div><p class="tr big">' + esc(it.l.tr) + '</p>' + (s.shown ? '<p class="en">' + hlEn(it.l) + '</p>' : '') +
-    cardFoot(it.l, '<span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l.en) ? ' slow' : '') + '">' + (s.shown ? fmtSec(s.ms) : '') + '</span>') + '</article>' + (s.shown ? siriHint() : '');
+  h2 += '<article class="icard"><div class="ctx"><b>TR → EN</b><span>' + esc(qLabel(it.a)) + '</span></div><p class="tr big">' + esc(it.l[SRC]) + '</p>' + (s.shown ? '<p class="en">' + hlTgt(it.l) + '</p>' : '') +
+    cardFoot(it.l, '<span id="timer" class="timer' + (s.shown && s.ms > recallMs(it.l[TGT]) ? ' slow' : '') + '">' + (s.shown ? fmtSec(s.ms) : '') + '</span>') + '</article>' + (s.shown ? siriHint() : '');
   h2 += s.shown ? markRow({ act: 'testMark', data: ' data-ok="0"', key: 'wrong' }, { act: 'testMark', data: ' data-ok="1"', key: 'right' }, -1)
     : '<button class="btn primary wide" data-act="testReveal">' + lab('show') + '</button>';
   return h2 + '<p class="kbd">' + tm('renderTest.klavyeBoslukGoster1') + '</p>';
@@ -3801,9 +3814,9 @@ function kpStart() {
 }
 function kpEnter() {
   var s = S.sess; s.shown = false; s.kc = null; s.dictText = ''; render(); top(); stopAudio();
-  if (U.settings.trAuto) { var it = kpItem(), tok = audioTok; wait(60, tok).then(function () { return speak(it.k.durum[it.d].tr, 'tr', tok); }); }
+  if (U.settings.srcAuto) { var it = kpItem(), tok = audioTok; wait(60, tok).then(function () { return speak(it.k.durum[it.d][SRC], SRC, tok); }); }
 }
-function kpShow() { var s = S.sess; if (!s || s.type !== 'kalip' || s.shown) return; s.shown = true; render(); var it = kpItem(); play(it.k.durum[it.d].ex, 'en'); }
+function kpShow() { var s = S.sess; if (!s || s.type !== 'kalip' || s.shown) return; s.shown = true; render(); var it = kpItem(); play(it.k.durum[it.d].ex, TGT); }
 function kpCheck() {
   var s = S.sess; if (!s || s.type !== 'kalip' || s.shown) return;
   var t = document.getElementById('dict'), txt = t ? t.value : s.dictText;
@@ -3851,7 +3864,7 @@ function renderKalip() {
   }
   var it = kpItem(), k = it.k, d = k.durum[it.d], f = kpSrc(k);
   var h2 = sessHead(tm('renderKalip.kalip', { v: s.i + 1, qLength: s.q.length }));
-  h2 += '<article class="icard"><div class="ctx">' + tm('renderKalip.kalipYeniCumleKur') + '</div><p class="kpat">' + kpPat(k) + '</p>' + (f ? '<p class="hint kporig">' + tm('renderKalip.orijinali', { esc: esc(f.l.en) }) + '</p>' : '') + '<p class="tr big">' + esc(d.tr) + '</p>' + (s.shown ? '<p class="en">' + kpEx(k, d.ex) + '</p><p class="hint">' + tm('renderKalip.ornekCumleSeninkiFarkli') + '</p>' : '') + '</article>';
+  h2 += '<article class="icard"><div class="ctx">' + tm('renderKalip.kalipYeniCumleKur') + '</div><p class="kpat">' + kpPat(k) + '</p>' + (f ? '<p class="hint kporig">' + tm('renderKalip.orijinali', { esc: esc(f.l[TGT]) }) + '</p>' : '') + '<p class="tr big">' + esc(d[SRC]) + '</p>' + (s.shown ? '<p class="en">' + kpEx(k, d.ex) + '</p><p class="hint">' + tm('renderKalip.ornekCumleSeninkiFarkli') + '</p>' : '') + '</article>';
   if (s.shown) h2 += siriHint() + (s.kc ? kpRes(s.kc, s.dictText) : '') + markRow({ act: 'kpMark', data: ' data-ok="0"', key: 'notBuilt' }, { act: 'kpMark', data: ' data-ok="1"', key: 'built' }, s.kc ? (s.kc.ok ? 2 : 0) : -1);
   else h2 += (dictOn() ? dictBox(s, 'kpCheck') : '') + '<div class="row"><button class="btn ghost" data-act="kpTr">' + lab('hearTr') + '</button><button class="btn primary" data-act="kpShow">' + lab('show') + '</button></div>';
   return h2 + '<p class="kbd">' + tm('renderKalip.klavyeBoslukGoster1') + '</p>';
@@ -3877,15 +3890,15 @@ function trackItems(cfg) {
 var REP_OPTS = { A: [2, 3, 5, 7], B: [1, 2, 3, 5] };
 function repN(mode) { var v = mode === 'A' ? U.settings.repA : U.settings.repB; return v || (mode === 'A' ? 5 : 3); }
 function lapsed(x) { return !!(x && x.lapses > 0 && x.ivl <= 1); }
-function trFirstFor(it) {
-  var m = U.settings.trFirst || 'auto';
+function srcFirstFor(it) {
+  var m = U.settings.srcFirst || 'auto';
   if (m === 'off') return false;
   if (m === 'always') return true;
   var s = st(it.a.id, it.l.id);
   return !(s && s.p) || lapsed(s.p) || lapsed(s.l);
 }
 function modeTxt(m) {
-  if (m === 'A') return tm('modeTxt.enHerBirindenSonra', { v: { auto: (tm('modeTxt.ogrenilmemisVeUnutulmusSatirlarda') + ' '), always: (tm('modeTxt.onceTr1') + ' '), off: '' }[U.settings.trFirst || 'auto'] || '', repN: repN('A'), v2: SAY_PLAN.dinleA.hideFrom - 1, v3: U.settings.simul ? (' ' + tm('modeTxt.sonTurdaSesleBirlikte')) : '' });
+  if (m === 'A') return tm('modeTxt.enHerBirindenSonra', { v: { auto: (tm('modeTxt.ogrenilmemisVeUnutulmusSatirlarda') + ' '), always: (tm('modeTxt.onceTr1') + ' '), off: '' }[U.settings.srcFirst || 'auto'] || '', repN: repN('A'), v2: SAY_PLAN.dinleA.hideFrom - 1, v3: U.settings.simul ? (' ' + tm('modeTxt.sonTurdaSesleBirlikte')) : '' });
   if (m === 'B') return tm('modeTxt.trDusunmeSuresiCumle', { repN: repN('B') }) + ' ' + tx(tm('modeTxt.okBildimNoBilemedim'));
   return tm('modeTxt.cevabinTamamiSiraylaAkisi');
 }
@@ -3928,22 +3941,22 @@ function mp3Silent(c) { var z = new Uint8Array(c.size); z.set(c.head); return z;
 /* the steps of one card, with the shared times: a clip ({ ref }) or a wait ({ ms }); ph/rep/n are what the screen shows,
    rate is the speech speed it plays at (a wait always at the English one) */
 function lockSteps(it, mode, clip, q) {
-  var rate = U.settings.rateEn || 1, rtr = U.settings.rateTr || 1, en = clip('en', it.l.en), out = [], total = 0;
-  function say(c, ph, rep) { out.push({ ref: c, ph: ph, rep: rep || 0, n: total, rate: ph === 'tr' ? rtr : rate }); }
+  var rate = U.settings.rateTgt || 1, rtr = U.settings.rateSrc || 1, en = clip(TGT, it.l[TGT]), out = [], total = 0;
+  function say(c, ph, rep) { out.push({ ref: c, ph: ph, rep: rep || 0, n: total, rate: ph === SRC ? rtr : rate }); }
   function gap(ms, ph, rep) { out.push({ ms: ms, ph: ph, rep: rep || 0, n: total, rate: rate }); }
   if (mode === 'C') {
-    if (q) { say(clip('en', it.a.q), 'q'); gap(900, 'q'); }
-    say(en, 'en'); gap(650, 'en');
+    if (q) { say(clip(TGT, it.a.q), 'q'); gap(900, 'q'); }
+    say(en, TGT); gap(650, TGT);
     return out;
   }
-  var plan = sayPlan(mode === 'B' ? 'dinleB' : 'dinleA'), trOn = mode === 'B' || trFirstFor(it);
-  if (trOn) say(clip('tr', it.l.tr), 'tr');
-  if (mode === 'B') gap(recallMs(it.l.en), 'gap'); else if (trOn) gap(500, 'tr');
+  var plan = sayPlan(mode === 'B' ? 'dinleB' : 'dinleA'), trOn = mode === 'B' || srcFirstFor(it);
+  if (trOn) say(clip(SRC, it.l[SRC]), SRC);
+  if (mode === 'B') gap(recallMs(it.l[TGT]), 'gap'); else if (trOn) gap(500, SRC);
   total = plan.rounds;
-  var echo = echoMs(en.ms / rate, it.l.en) + (plan.gapAdd || 0);
+  var echo = echoMs(en.ms / rate, it.l[TGT]) + (plan.gapAdd || 0);
   for (var r = 1; r <= plan.rounds; r++) {
     if (plan.withLast && plan.rounds >= 2 && r === plan.rounds) { gap(SAY_WITH.before, 'with', r); say(en, 'with', r); gap(SAY_WITH.after, 'with', r); }
-    else { say(en, 'en', r); gap(echo, 'you', r); }
+    else { say(en, TGT, r); gap(echo, 'you', r); }
   }
   if (mode === 'B') gap(600, '');
   return out;
@@ -3951,7 +3964,7 @@ function lockSteps(it, mode, clip, q) {
 /* cards [{ it, q }] → one track { parts, cues: [{ at, end, it, ph, rep, n, rate }], dur }, times in seconds of the recording
    (the speech speed is applied while it plays, so a wait is stored that much shorter) */
 function lockJoin(list, mode, clip) {
-  var rate = U.settings.rateEn || 1, first = clip('en', list[0].it.l.en), z = mp3Silent(first), sec = first.frameMs / 1000, t = { parts: [], cues: [], dur: 0 }, n = 0;
+  var rate = U.settings.rateTgt || 1, first = clip(TGT, list[0].it.l[TGT]), z = mp3Silent(first), sec = first.frameMs / 1000, t = { parts: [], cues: [], dur: 0 }, n = 0;
   list.forEach(function (x) {
     lockSteps(x.it, mode, clip, x.q).forEach(function (s) {
       var c = { at: n * sec, it: x.it, ph: s.ph, rep: s.rep, n: s.n, rate: s.rate };
@@ -3967,7 +3980,7 @@ window.__lock = { mp3Clip: mp3Clip, steps: lockSteps, join: lockJoin, t: lockT }
 
 /* the question is said before the first line of an answer (Akış, not over a mixed list) */
 function trackAskQ(items, i, cfg) { return cfg.mode === 'C' && cfg.scope !== 'learned' && cfg.scope !== 'all' && (i === 0 || items[i - 1].a !== items[i].a); }
-function lockNeeds(it, mode, q) { var o = [['en', it.l.en]]; if (mode === 'B' || (mode === 'A' && trFirstFor(it))) o.push(['tr', it.l.tr]); if (q) o.push(['en', it.a.q]); return o; }
+function lockNeeds(it, mode, q) { var o = [[TGT, it.l[TGT]]]; if (mode === 'B' || (mode === 'A' && srcFirstFor(it))) o.push([SRC, it.l[SRC]]); if (q) o.push([TGT, it.a.q]); return o; }
 function lockMissing(items, cfg) { // how many cards have a text without a shipped clip
   return items.filter(function (it, i) { return !lockNeeds(it, cfg.mode, trackAskQ(items, i, cfg)).every(function (x) { return /^idb:/.test(fileFor(x[1], x[0]) || ''); }); }).length;
 }
@@ -3988,7 +4001,7 @@ function lockMake(list, mode) {
 function lockGet(T, i) {
   var cfg = S.trackCfg, u = U.settings, all = function (k) { return { it: T.items[k], q: trackAskQ(T.items, k, cfg) }; };
   var list = lockT.one ? T.items.map(function (x, k) { return all(k); }) : [all(i)];
-  var sig = JSON.stringify([cfg.mode, u.rateEn, u.rateTr, u.think, repN('A'), repN('B'), !!u.simul, list.map(function (x) { return [x.q, x.it.l.en, x.it.l.tr, trFirstFor(x.it)]; })]);
+  var sig = JSON.stringify([cfg.mode, u.rateTgt, u.rateSrc, u.think, repN('A'), repN('B'), !!u.simul, list.map(function (x) { return [x.q, x.it.l[TGT], x.it.l[SRC], srcFirstFor(x.it)]; })]);
   var own = lockT.one ? T : T.items[i], h = own.trk;
   if (h && h.sig === sig && !h.dead) return h;
   h = own.trk = { sig: sig, t: null };
@@ -4074,7 +4087,7 @@ function lockTick() {
   if (c.ph) {
     T.phase = c.ph; T.n = c.n;
     if (c.rep && c.ph !== 'you') { T.rep = c.rep; T.revealed = true; }
-    if (c.ph === 'tr' && S.trackCfg.mode === 'A') T.trOn = true;
+    if (c.ph === SRC && S.trackCfg.mode === 'A') T.trOn = true;
   }
   if (k >= 0 && !T.want) lockTitle();
   updPlayer();
@@ -4091,9 +4104,9 @@ function lockTitle() {
   var T = lockOn(), a = lockT.el, it = T && T.items[T.i]; if (!MSS || !it) return;
   try {
     var m = MSS.metadata, s = lockSpan(T);
-    if (m && T.meta) { m.title = it.l.en; m.artist = qLabel(it.a); } else { mediaMeta(it); T.meta = true; }
+    if (m && T.meta) { m.title = it.l[TGT]; m.artist = qLabel(it.a); } else { mediaMeta(it); T.meta = true; }
     MSS.playbackState = a.paused ? 'paused' : 'playing';
-    if (MSS.setPositionState && s.dur > 0) MSS.setPositionState({ duration: s.dur, playbackRate: U.settings.rateEn || 1, position: Math.max(0, Math.min(a.currentTime - s.at, s.dur)) });
+    if (MSS.setPositionState && s.dur > 0) MSS.setPositionState({ duration: s.dur, playbackRate: U.settings.rateTgt || 1, position: Math.max(0, Math.min(a.currentTime - s.at, s.dur)) });
   } catch (e) {}
 }
 function lockSeek(d) { // the bar shows one sentence, so a drag stays inside it
@@ -4121,7 +4134,7 @@ function renderTrack() {
   if (U.settings.voiceMode === 'siri') h += ('<p class="siri-hint">' + tm('renderTrack.dinleSekmesiOtomatikCalistigi') + '</p>');
   function opt(v, t) { return '<option value="' + esc(v) + '"' + (scope === v ? ' selected' : '') + '>' + esc(t) + '</option>'; }
   var gl = grpList();
-  var tk = U.settings.think || 'normal', tf = U.settings.trFirst || 'auto';
+  var tk = U.settings.think || 'normal', tf = U.settings.srcFirst || 'auto';
   var reps = REP_OPTS[c.mode] ? REP_OPTS[c.mode].map(function (n) { return [n, n + '×']; }) : [];
   var rows = c.mode === 'A' ? segRow(tm('renderTrack.onceTr'), 'trFirstSet', 't', [['auto', tm('renderTrack.otomatik')], ['always', tm('renderTrack.herZaman')], ['off', tm('renderTrack.kapali')]], tf) + segRow(tm('renderTrack.tekrar'), 'repSet', 'n', reps, repN('A'))
     : c.mode === 'B' ? segRow(tm('renderTrack.dusunme'), 'thinkSet', 't', [['short', tm('renderTrack.kisa')], ['normal', tm('renderTrack.normal')], ['long', tm('renderTrack.uzun')]], tk) + segRow(tm('renderTrack.enTekrari'), 'repSet', 'n', reps, repN('B')) : '';
@@ -4148,19 +4161,19 @@ function updCtl() {
 }
 function playerInner() {
   var T = S.track, c = S.trackCfg;
-  if (!T) return '<p class="modetxt">' + modeTxt(c.mode) + '</p><p class="hint">' + tm('playerInner.baslatABasSes', { v: enV ? esc(enV.name) : tm('playerInner.cihazVarsayilani'), v2: U.settings.rateEn.toFixed(2) }) + '</p>';
+  if (!T) return '<p class="modetxt">' + modeTxt(c.mode) + '</p><p class="hint">' + tm('playerInner.baslatABasSes', { v: tgtV ? esc(tgtV.name) : tm('playerInner.cihazVarsayilani'), v2: U.settings.rateTgt.toFixed(2) }) + '</p>';
   var it = T.items[T.i]; if (!it) return '';
-  var hidden = c.mode === 'A' && sayHidden(sayPlan('dinleA'), T.rep), showTr = c.mode === 'B' || (c.mode === 'A' && T.trOn && !hidden), showEn = c.mode !== 'B' || T.phase === 'en' || T.phase === 'you';
+  var hidden = c.mode === 'A' && sayHidden(sayPlan('dinleA'), T.rep), showSrc = c.mode === 'B' || (c.mode === 'A' && T.trOn && !hidden), showTgt = c.mode !== 'B' || T.phase === TGT || T.phase === 'you';
   // the same status line as Gölgele, Hatırla and Pekiştir (sayLine); C has nothing to say along
-  var o = c.mode !== 'C' && T.rep ? { step: T.rep, total: T.n } : {}; o.text = c.text && (c.mode === 'A' ? T.rep >= 1 && !hidden : T.phase === 'en') && c.mode !== 'C';
-  var say = T.paused ? ('<p class="hint">' + tm('playerInner.duraklatildi') + '</p>') : T.phase === 'q' ? ('<p class="hint">' + tm('playerInner.soru') + '</p>') : T.phase === 'tr' && c.mode === 'A' ? ('<p class="hint">' + tm('playerInner.anlam') + '</p>') :
+  var o = c.mode !== 'C' && T.rep ? { step: T.rep, total: T.n } : {}; o.text = c.text && (c.mode === 'A' ? T.rep >= 1 && !hidden : T.phase === TGT) && c.mode !== 'C';
+  var say = T.paused ? ('<p class="hint">' + tm('playerInner.duraklatildi') + '</p>') : T.phase === 'q' ? ('<p class="hint">' + tm('playerInner.soru') + '</p>') : T.phase === SRC && c.mode === 'A' ? ('<p class="hint">' + tm('playerInner.anlam') + '</p>') :
     sayLine({ gap: 'recall', you: 'you', 'with': 'with' }[T.phase] || 'listen', o);
   var h = '<div class="ctx"><span class="mono">' + (T.i + 1) + '/' + T.items.length + '</span><span>' + esc(qLabel(it.a)) + '</span></div>';
   if (c.mode === 'B') h = '<div class="markrow">' + markBox(T, it, 'no') + h + markBox(T, it, 'ok') + '</div>';
   if (T.phase === 'q') return h + '<p class="bigq">' + esc(it.a.q) + '</p>';
   if (c.text) {
-    if (showTr) h += '<p class="tr ' + (c.mode === 'B' ? 'big' : 'anchor') + '">' + esc(it.l.tr) + '</p>';
-    if (showEn) h += '<p class="en' + (hidden ? ' masked' : '') + '">' + (hidden ? esc(it.l.en) : hlEn(it.l)) + '</p>';
+    if (showSrc) h += '<p class="tr ' + (c.mode === 'B' ? 'big' : 'anchor') + '">' + esc(it.l[SRC]) + '</p>';
+    if (showTgt) h += '<p class="en' + (hidden ? ' masked' : '') + '">' + (hidden ? esc(it.l[TGT]) : hlTgt(it.l)) + '</p>';
   }
   return h + say + (c.mode === 'C' ? '' : cardFoot(it.l, T.phase === 'gap' && !T.paused ? cardTimer('gapleft', gapLeft(T)) : ''));
 }
@@ -4253,31 +4266,31 @@ function trackRun() {
     T.revealed = false; T.trOn = false; mediaMeta(it);
     var known = !!(it.mark && it.mark.v === 'ok'); // marked ✓ before: coming back to it plays it like any card
     if (trackAskQ(T.items, T.i, cfg)) {
-      p = p.then(function () { T.phase = 'q'; updPlayer(); return speak(it.a.q, 'en', tok); }).then(function () { return wait(900, tok); });
+      p = p.then(function () { T.phase = 'q'; updPlayer(); return speak(it.a.q, TGT, tok); }).then(function () { return wait(900, tok); });
     }
     /* one EN replay followed by a gap to say it back, as many times as the mode's plan says */
     function echoLoop(plan) {
       T.n = plan.rounds;
       return sayRounds(plan, {
-        text: it.l.en, tok: tok, alive: alive, play: function () { return speak(it.l.en, 'en', tok); },
+        text: it.l[TGT], tok: tok, alive: alive, play: function () { return speak(it.l[TGT], TGT, tok); },
         mute: function () { return !known && !!(it.mark && it.mark.v === 'ok'); }, // just marked ✓: the next card is about to start
-        show: function (r, phase) { if (phase !== 'you') { T.rep = r; T.revealed = true; } T.phase = phase === 'listen' ? 'en' : phase; updPlayer(); }
+        show: function (r, phase) { if (phase !== 'you') { T.rep = r; T.revealed = true; } T.phase = phase === 'listen' ? TGT : phase; updPlayer(); }
       });
     }
     T.rep = 0; T.n = 0;
     if (cfg.mode === 'B') {
-      p = p.then(function () { if (!alive()) return; T.phase = 'tr'; updPlayer(); return speak(it.l.tr, 'tr', tok); })
-        .then(function () { if (!alive()) return; T.phase = 'gap'; T.gapMs = recallMs(it.l.en); T.gapEnd = Date.now() + T.gapMs; updPlayer(); return wait(T.gapMs, tok); })
+      p = p.then(function () { if (!alive()) return; T.phase = SRC; updPlayer(); return speak(it.l[SRC], SRC, tok); })
+        .then(function () { if (!alive()) return; T.phase = 'gap'; T.gapMs = recallMs(it.l[TGT]); T.gapEnd = Date.now() + T.gapMs; updPlayer(); return wait(T.gapMs, tok); })
         .then(function () { if (!alive()) return; return echoLoop(sayPlan('dinleB')); })
         .then(function () { return wait(600, tok); });
     } else if (cfg.mode === 'A') {
-      if (trFirstFor(it)) {
-        p = p.then(function () { if (!alive()) return; T.trOn = true; T.phase = 'tr'; updPlayer(); return speak(it.l.tr, 'tr', tok); })
+      if (srcFirstFor(it)) {
+        p = p.then(function () { if (!alive()) return; T.trOn = true; T.phase = SRC; updPlayer(); return speak(it.l[SRC], SRC, tok); })
           .then(function () { if (!alive()) return; return wait(500, tok); });
       }
       p = p.then(function () { return echoLoop(sayPlan('dinleA')); });
     } else {
-      p = p.then(function () { if (!alive()) return; T.phase = 'en'; updPlayer(); return speak(it.l.en, 'en', tok); }).then(function () { return wait(650, tok); });
+      p = p.then(function () { if (!alive()) return; T.phase = TGT; updPlayer(); return speak(it.l[TGT], TGT, tok); }).then(function () { return wait(650, tok); });
     }
     p.then(function () {
       if (!alive()) return finish();
@@ -4344,7 +4357,7 @@ function mediaOff() {
 function mediaMeta(it) {
   if (!MSS || typeof MediaMetadata === 'undefined') return;
   try {
-    MSS.metadata = new MediaMetadata({ title: it.l.en, artist: qLabel(it.a), album: tm('mediaMeta.mulakatTrainer'), artwork: LOCAL ? [{ src: 'icon-512.png', sizes: '512x512', type: 'image/png' }] : [] });
+    MSS.metadata = new MediaMetadata({ title: it.l[TGT], artist: qLabel(it.a), album: tm('mediaMeta.mulakatTrainer'), artwork: LOCAL ? [{ src: 'icon-512.png', sizes: '512x512', type: 'image/png' }] : [] });
     MSS.playbackState = 'playing';
   } catch (e) {}
 }
@@ -4388,15 +4401,15 @@ function rowMeta(a) {
 }
 function lineRow(a, l) {
   if (S.edit && S.edit.lid === l.id) return editRow(a, l);
-  var h = '<li class="line ' + esc(l.tier) + '"><p class="en">' + esc(l.en) + '</p><p class="tr">' + esc(l.tr) + '</p>';
+  var h = '<li class="line ' + esc(l.tier) + '"><p class="en">' + esc(l[TGT]) + '</p><p class="tr">' + esc(l[SRC]) + '</p>';
   if (l.flag) h += '<p class="flag">⚑ ' + esc(l.flag) + '</p>';
   var dv = l.edited && l.def;
-  if (dv && S.showOrig[l.id]) h += '<div class="orig defbox">' + (l.defNew ? ('<p>' + tm('lineRow.varsayilanGuncellendiSeninMetnin') + '</p>') : '') + '<p>' + tm('lineRow.varsayilan', { esc: esc(l.def.en) }) + '</p><p>' + esc(l.def.tr) + '</p><button class="chipbtn" data-act="revertLine" data-aid="' + a.id + '" data-id="' + l.id + '">' + lab('revert') + '</button></div>';
+  if (dv && S.showOrig[l.id]) h += '<div class="orig defbox">' + (l.defNew ? ('<p>' + tm('lineRow.varsayilanGuncellendiSeninMetnin') + '</p>') : '') + '<p>' + tm('lineRow.varsayilan', { esc: esc(l.def[TGT]) }) + '</p><p>' + esc(l.def[SRC]) + '</p><button class="chipbtn" data-act="revertLine" data-aid="' + a.id + '" data-id="' + l.id + '">' + lab('revert') + '</button></div>';
   h += '<div class="lact">' + (tierOf(l) ? '<span class="tier ' + tierOf(l) + '">' + (l.tier === 'ezber' ? tm('lineRow.ezber') : tm('lineRow.anlam')) + '</span>' : '') + (dv ? '<button class="chipbtn" data-act="toggleDef" data-id="' + l.id + '">' + (S.showOrig[l.id] ? tm('lineRow.gizle') : tm('lineRow.degisti')) + '</button>' : '') + '<span class="sp"></span><button class="chipbtn big" data-act="playLine" data-id="' + l.id + '" aria-label="' + tm('lineRow.ingilizcesiniDinle') + '" title="' + tm('lineRow.ingilizcesiniDinle') + '">' + ico('speaker', 18) + '</button><button class="chipbtn big" data-act="editLine" data-id="' + l.id + '" aria-label="' + tm('lineRow.duzenle') + '" title="' + tm('lineRow.duzenle') + '">' + ico('pencil', 18) + '</button></div></li>';
   return h;
 }
 function editRow(a, l) {
-  var h = '<li class="line"><div class="form"><label for="ed-en">' + tm('editRow.ingilizce') + '</label><textarea id="ed-en" rows="3">' + esc(withBrackets(l)) + '</textarea><p class="hint">' + tm('editRow.kalibiKoseliParantezIcine') + '</p><label for="ed-tr">' + tm('editRow.turkce') + '</label><textarea id="ed-tr" rows="3">' + esc(l.tr) + '</textarea>' + (S.sample ? '<button class="chipbtn" data-act="translate" data-src="ed-en" data-dst="ed-tr">' + lab('reTr') + '</button>' : '') + '<label for="ed-intent">' + tm('editRow.durakAdiNiyet') + '</label><input id="ed-intent" maxlength="40" value="' + esc(l.intent || '') + '"><p class="hint">' + tm('editRow.13KelimeBu') + '</p><label for="ed-tier">' + tm('editRow.tur') + '</label><select id="ed-tier">' + [['anlam', tm('editRow.anlamAnaFikirYeter')], ['ezber', tm('editRow.ezberKelimesiKelimesine')], ['', tm('editRow.bosEtiketYokAna')]].map(function (o) { return '<option value="' + o[0] + '"' + (tierOf(l) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select><p class="hint">' + tm('editRow.ingilizcesiDegisirseBuSatirin') + '</p>';
+  var h = '<li class="line"><div class="form"><label for="ed-en">' + tm('editRow.ingilizce') + '</label><textarea id="ed-en" rows="3">' + esc(withBrackets(l)) + '</textarea><p class="hint">' + tm('editRow.kalibiKoseliParantezIcine') + '</p><label for="ed-tr">' + tm('editRow.turkce') + '</label><textarea id="ed-tr" rows="3">' + esc(l[SRC]) + '</textarea>' + (S.sample ? '<button class="chipbtn" data-act="translate" data-src="ed-en" data-dst="ed-tr">' + lab('reTr') + '</button>' : '') + '<label for="ed-intent">' + tm('editRow.durakAdiNiyet') + '</label><input id="ed-intent" maxlength="40" value="' + esc(l.intent || '') + '"><p class="hint">' + tm('editRow.13KelimeBu') + '</p><label for="ed-tier">' + tm('editRow.tur') + '</label><select id="ed-tier">' + [['anlam', tm('editRow.anlamAnaFikirYeter')], ['ezber', tm('editRow.ezberKelimesiKelimesine')], ['', tm('editRow.bosEtiketYokAna')]].map(function (o) { return '<option value="' + o[0] + '"' + (tierOf(l) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select><p class="hint">' + tm('editRow.ingilizcesiDegisirseBuSatirin') + '</p>';
   if (S.confirmDel === l.id) h += '<div class="confirm">' + tm('editRow.buSatirSilinsinMi') + '<div class="row"><button class="btn" data-act="cancelDel">' + lab('cancel') + '</button><button class="btn" style="color:var(--bad);border-color:var(--bad)" data-act="confirmDel">' + tm('editRow.evetSil') + '</button></div></div>';
   else h += '<div class="row"><button class="btn s ghost neg" data-act="askDel">' + lab('del') + '</button><button class="btn s" data-act="cancelEdit">' + lab('cancel') + '</button><button class="btn s primary" data-act="saveEdit">' + lab('save') + '</button></div>';
   return h + '</div></li>';
@@ -4416,25 +4429,25 @@ function saveEdit() {
   var e = S.edit, a = ansById(e.aid); if (!a) return;
   var pm = parseMk(val('ed-en')), tr = val('ed-tr').trim(), tier = tierOf({ tier: val('ed-tier') }), intent = val('ed-intent').replace(/\s+/g, ' ').trim();
   if (pm.err) { toast(pm.err); return; }
-  var en = pm.en;
+  var en = pm[TGT];
   if (!en || !tr) { toast(tm('saveEdit.ingilizceVeTurkceBos')); return; }
-  var changedEn = false;
+  var changedTgt = false;
   var lines = a.lines.map(function (l) {
     if (l.id !== e.lid) return l;
-    changedEn = l.en !== en;
+    changedTgt = l[TGT] !== en;
     // "edited" (the seed no longer updates this line's text) only when the text, tier or patterns change; a new stop label alone keeps the line on the seed
-    var content = changedEn || l.tr !== tr || tierOf(l) !== tier || JSON.stringify(pm.mk || []) !== JSON.stringify(keepMk(l.mk, l.en));
-    var n = clone(l); n.en = en; n.tr = tr; n.tier = tier;
-    if (content) { if (!l.edited && !l.added && !l.def) { n.def = { en: l.en, tr: l.tr, tier: l.tier }; if (l.mk) n.def.mk = clone(l.mk); } n.edited = today(); delete n.defNew; }
+    var content = changedTgt || l[SRC] !== tr || tierOf(l) !== tier || JSON.stringify(pm.mk || []) !== JSON.stringify(keepMk(l.mk, l[TGT]));
+    var n = clone(l); n[TGT] = en; n[SRC] = tr; n.tier = tier;
+    if (content) { if (!l.edited && !l.added && !l.def) { n.def = { [TGT]: l[TGT], [SRC]: l[SRC], tier: l.tier }; if (l.mk) n.def.mk = clone(l.mk); } n.edited = today(); delete n.defNew; }
     if (pm.mk) n.mk = pm.mk; else delete n.mk;
     if (intent !== (l.intent || '')) { if (intent) n.intent = intent; else delete n.intent; n.intentOwn = 1; }
-    if (l.en !== en || l.tr !== tr) delete n.flag;
+    if (l[TGT] !== en || l[SRC] !== tr) delete n.flag;
     return n;
   });
   writeLines(a, lines);
-  if (changedEn && st(a.id, e.lid)) { var init = { ivl: 0, ease: 2.5, due: today(), reps: 0, lapses: 0 }; setSt(a.id, e.lid, 'p', init); setSt(a.id, e.lid, 'l', clone(init)); }
+  if (changedTgt && st(a.id, e.lid)) { var init = { ivl: 0, ease: 2.5, due: today(), reps: 0, lapses: 0 }; setSt(a.id, e.lid, 'p', init); setSt(a.id, e.lid, 'l', clone(init)); }
   S.edit = null; S.confirmDel = null; render(); toast(tm('saveEdit.kaydedildi'));
-  if (changedEn) ttsAuto(en);
+  if (changedTgt) ttsAuto(en);
 }
 /* "Varsayılana dön": the user's change goes, the line takes its default again and follows seed updates (progress kept;
    a different English starts its review again, as an edit does) */
@@ -4443,8 +4456,8 @@ function revertLine(aid, lid) {
   var back = false;
   writeLines(a, a.lines.map(function (l) {
     if (l.id !== lid || !l.def) return l;
-    var n = clone(l), d = l.def; back = l.en !== d.en;
-    n.en = d.en; n.tr = d.tr; if (d.tier !== undefined) n.tier = d.tier; if (d.mk) n.mk = clone(d.mk); else delete n.mk;
+    var n = clone(l), d = l.def; back = l[TGT] !== d[TGT];
+    n[TGT] = d[TGT]; n[SRC] = d[SRC]; if (d.tier !== undefined) n.tier = d.tier; if (d.mk) n.mk = clone(d.mk); else delete n.mk;
     delete n.edited; delete n.def; delete n.defNew; delete n.flag;
     return n;
   }));
@@ -4473,12 +4486,12 @@ function addLine(btn) {
   var a = ansById(btn.dataset.id); if (!a) return;
   var pm = parseMk(val('add-en-' + a.id)), trEl = document.getElementById('add-tr-' + a.id);
   if (pm.err) { toast(pm.err); return; }
-  var en = pm.en;
+  var en = pm[TGT];
   if (!en) { toast(tm('addLine.onceIngilizceCumleyiYaz')); return; }
   function finish() {
     var tr = (trEl && trEl.value || '').trim();
     if (!tr) { toast(tm('finish.turkcesiniDeYaz')); return; }
-    var l = { id: a.id + '-x' + Date.now().toString(36), en: en, tr: tr, tier: 'anlam', added: today() };
+    var l = { id: a.id + '-x' + Date.now().toString(36), [TGT]: en, [SRC]: tr, tier: 'anlam', added: today() };
     if (pm.mk) l.mk = pm.mk;
     writeLines(a, a.lines.concat([l])); render(); toast(tm('finish.eklendiBirSonrakiYeni'));
     ttsAuto(en);
@@ -4492,10 +4505,10 @@ function addLine(btn) {
 
 /* ----- Settings ----- */
 function audCounts() {
-  var c = { en: 0, enT: 0, tr: 0, trT: 0 };
+  var c = { [TGT]: 0, tgtT: 0, [SRC]: 0, srcT: 0 };
   S.answers.forEach(function (a) {
-    c.enT++; if (audIdx['en|' + a.q]) c.en++;
-    a.lines.forEach(function (l) { c.enT++; c.trT++; if (audIdx['en|' + l.en]) c.en++; if (audIdx['tr|' + l.tr]) c.tr++; });
+    c.tgtT++; if (audIdx[TGT + '|' + a.q]) c[TGT]++;
+    a.lines.forEach(function (l) { c.tgtT++; c.srcT++; if (audIdx[TGT + '|' + l[TGT]]) c[TGT]++; if (audIdx[SRC + '|' + l[SRC]]) c[SRC]++; });
   });
   return c;
 }
@@ -4510,12 +4523,12 @@ function uplText() {
 }
 function filesPanel() {
   var c = audCounts();
-  var h = '<section class="panel set"><div class="ph"><h2>' + tm('filesPanel.siriSesi') + '</h2><span class="mono">EN ' + c.en + '/' + c.enT + ' · TR ' + c.tr + '/' + c.trT + '</span></div><p class="hint">' + tm('filesPanel.siriSesleriWebSayfalarina') + '</p>';
+  var h = '<section class="panel set"><div class="ph"><h2>' + tm('filesPanel.siriSesi') + '</h2><span class="mono">EN ' + c[TGT] + '/' + c.tgtT + ' · TR ' + c[SRC] + '/' + c.srcT + '</span></div><p class="hint">' + tm('filesPanel.siriSesleriWebSayfalarina') + '</p>';
   if (S.assets) h += '<input type="file" id="aud-files" class="vh" multiple accept=".mp4,video/mp4,audio/mp4"' + (S.upl && S.upl.run ? ' disabled' : '') + '><label class="btn wide" for="aud-files">' + lab('upload') + '</label><p class="hint" id="uplstat">' + esc(uplText()) + '</p>';
   else h += ('<p class="hint">' + tm('filesPanel.dosyaYuklemeSadeceSayfa') + '</p>');
   h += swList([swRow('set-files', tm('filesPanel.sesDosyalariniKullan'), U.settings.useFiles !== false, tm('filesPanel.kapaliykenHerSatirdaCihaz'))]);
-  if (c.en + c.tr > 0 && (c.en < c.enT || c.tr < c.trT)) {
-    h += '<p class="hint">' + tm('filesPanel.yeniEklenenYaDa') + '</p><div class="row">' + (c.en < c.enT ? '<button class="btn ghost" data-act="copyMissing" data-lang="en">' + lab('missing', tm('filesPanel.eksikEn', { v: c.enT - c.en })) + '</button>' : '') + (c.tr < c.trT ? '<button class="btn ghost" data-act="copyMissing" data-lang="tr">' + lab('missing', tm('filesPanel.eksikTr', { v: c.trT - c.tr })) + '</button>' : '') + '</div><div id="cmdbox"></div>';
+  if (c[TGT] + c[SRC] > 0 && (c[TGT] < c.tgtT || c[SRC] < c.srcT)) {
+    h += '<p class="hint">' + tm('filesPanel.yeniEklenenYaDa') + '</p><div class="row">' + (c[TGT] < c.tgtT ? '<button class="btn ghost" data-act="copyMissing" data-lang="en">' + lab('missing', tm('filesPanel.eksikEn', { v: c.tgtT - c[TGT] })) + '</button>' : '') + (c[SRC] < c.srcT ? '<button class="btn ghost" data-act="copyMissing" data-lang="tr">' + lab('missing', tm('filesPanel.eksikTr', { v: c.srcT - c[SRC] })) + '</button>' : '') + '</div><div id="cmdbox"></div>';
   }
   return h + '</section>';
 }
@@ -4523,10 +4536,10 @@ function shq(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
 function missingScript(lang) {
   var items = [];
   S.answers.forEach(function (a) {
-    if (lang === 'en' && !audIdx['en|' + a.q]) items.push(['q-' + a.id, a.q]);
+    if (lang === TGT && !audIdx[TGT + '|' + a.q]) items.push(['q-' + a.id, a.q]);
     a.lines.forEach(function (l) { if (!audIdx[lang + '|' + l[lang]]) items.push([l.id, l[lang]]); });
   });
-  var out = [tm('missingScript.eksikSesDosyalariOnce', { v: lang.toUpperCase(), itemsLength: items.length, v2: lang === 'en' ? 'English (US) → Siri Voice 2' : tm('missingScript.turkceSiriVoice2') }),
+  var out = [tm('missingScript.eksikSesDosyalariOnce', { v: lang.toUpperCase(), itemsLength: items.length, v2: lang === TGT ? 'English (US) → Siri Voice 2' : tm('missingScript.turkceSiriVoice2') }),
     tm('missingScript.outHomeDownloadsTrainer')];
   items.forEach(function (x) { var f = x[0] + '.' + lang + '.mp4'; out.push('say -o _t.aiff ' + shq(sayText(x[1], lang)) + ' && afconvert -f mp4f -d aac _t.aiff ' + shq(f) + ' && rm -f _t.aiff && echo ' + shq(f)); });
   out.push(tm('missingScript.echoBittiOut'));
@@ -4534,7 +4547,7 @@ function missingScript(lang) {
 }
 function copyMissing(el) { copyText(missingScript(el.dataset.lang), 'cmdbox', tm('copyMissing.komut')); }
 function textFor(id, lang) {
-  if (id.indexOf('q-') === 0) { var a = ansById(id.slice(2)); return a && lang === 'en' ? a.q : null; }
+  if (id.indexOf('q-') === 0) { var a = ansById(id.slice(2)); return a && lang === TGT ? a.q : null; }
   var f = lineById(id); return f ? f.l[lang] : null;
 }
 function writeAudio(batch) {
@@ -4587,7 +4600,7 @@ function voicePanel() {
   var h = '<section class="panel set"><h2>' + tm('voicePanel.sesKaynagi') + '</h2><div class="seg" style="margin:0"><button data-act="voiceMode" data-m="auto" aria-pressed="' + (m === 'auto') + '">' + tm('voicePanel.otomatik') + '</button><button data-act="voiceMode" data-m="siri" aria-pressed="' + (m === 'siri') + '">Siri (Spoken Content)</button></div>';
   if (m === 'auto' && LOCAL) {
     var c = audCounts();
-    h += '<p class="hint">' + tm('voicePanel.sayfaKendisiOkurHazir') + '</p><p class="hint">' + tm('voicePanel.kaliteliIngilizceSesTurkce', { en: c.en, enT: c.enT, tr: c.tr, trT: c.trT, v: c.en ? '' : (' ' + tm('voicePanel.sesPaketiHenuzYuklenmedi')) }) + '</p>';
+    h += '<p class="hint">' + tm('voicePanel.sayfaKendisiOkurHazir') + '</p><p class="hint">' + tm('voicePanel.kaliteliIngilizceSesTurkce', { tgtN: c[TGT], tgtT: c.tgtT, srcN: c[SRC], srcT: c.srcT, v: c[TGT] ? '' : (' ' + tm('voicePanel.sesPaketiHenuzYuklenmedi')) }) + '</p>';
   } else if (m === 'auto') h += ('<p class="hint">' + tm('voicePanel.sayfaKendisiOkurOnce') + '</p>');
   else h += ('<p class="hint">' + tm('voicePanel.sayfaSessizKalirIngilizce') + '</p>');
   h += '<details class="howto"' + (m === 'siri' ? ' open' : '') + '><summary>' + tm('voicePanel.siriIcinBirKerelik') + '</summary><p class="k">iPhone</p><ol><li>' + tm('voicePanel.settingsAccessibilitySpokenContent') + '</li><li>' + tm('voicePanel.speakSelectionVeSpeak') + '</li><li>' + tm('voicePanel.speechControllerShowController') + '</li><li>' + tm('voicePanel.voicesEnglishSiriVoice') + '</li><li>' + tm('voicePanel.speakingRateIOrtanin') + '</li></ol><p>' + tm('voicePanel.kullanimEkrandakiKumandadaEl') + '</p><p class="k">Mac</p><ol><li>' + tm('voicePanel.systemSettingsAccessibilitySpoken') + '</li><li>' + tm('voicePanel.systemVoiceSiriVoice') + '</li><li>' + tm('voicePanel.speakSelectionIAc') + '</li></ol><p>' + tm('voicePanel.kullanimTrainerIngilizceCumleyi') + '</p></details>';
@@ -4615,7 +4628,7 @@ function notesText(withTr) {
   var g = curGrp(), out = [tm('notesText.mulakatCevaplari', { v: g !== 'all' ? ' · ' + grpLabel(g) : '', v2: withTr ? ' · TR + EN' : '' }), ''];
   grpAnswers().forEach(function (a) {
     out.push(qLabel(a), '');
-    a.lines.forEach(function (l) { if (withTr) out.push(l.tr, l.en, ''); else out.push(l.en); });
+    a.lines.forEach(function (l) { if (withTr) out.push(l[SRC], l[TGT], ''); else out.push(l[TGT]); });
     if (!withTr) out.push('');
   });
   return out.join('\n').trim() + '\n';
@@ -4630,7 +4643,7 @@ function importCode(code) {
   if (code.indexOf('MT1:') !== 0) throw new Error('format');
   var o = JSON.parse(decodeURIComponent(escape(atob(code.slice(4)))));
   if (!o || !o.U) throw new Error('format');
-  U.settings = Object.assign(U.settings, o.U.settings || {});
+  U.settings = Object.assign(U.settings, settingsByRole(o.U.settings || {}));
   U.progress = Object.assign({ intro: {}, reh: {}, first: null }, o.U.progress || {});
   U.log = Object.assign({ days: {} }, o.U.log || {});
   U.tests = Object.assign({ list: [] }, o.U.tests || {});
@@ -4649,19 +4662,19 @@ function importCode(code) {
 function usedTexts() {
   var m = {};
   (S.answers || []).forEach(function (a) {
-    if (a.q) m['en|' + a.q] = 1; if (a.qtr) m['tr|' + a.qtr] = 1;
-    a.lines.forEach(function (l) { if (l.en) m['en|' + l.en] = 1; if (l.tr) m['tr|' + l.tr] = 1; });
+    if (a.q) m[TGT + '|' + a.q] = 1; if (a.qtr) m[SRC + '|' + a.qtr] = 1;
+    a.lines.forEach(function (l) { if (l[TGT]) m[TGT + '|' + l[TGT]] = 1; if (l[SRC]) m[SRC + '|' + l[SRC]] = 1; });
   });
-  (S.kalip || []).forEach(function (k) { (k.durum || []).forEach(function (d) { if (d.ex) m['en|' + d.ex] = 1; if (d.tr) m['tr|' + d.tr] = 1; }); });
+  (S.kalip || []).forEach(function (k) { (k.durum || []).forEach(function (d) { if (d.ex) m[TGT + '|' + d.ex] = 1; if (d[SRC]) m[SRC + '|' + d[SRC]] = 1; }); });
   return m;
 }
 var pruneT = null;
 // clips no text uses any more go; waits until the pattern list (Kalıp) has loaded too, so its clips are not taken for unused
 function schedulePrune() { clearTimeout(pruneT); pruneT = setTimeout(function () { if (S.kalip === undefined) { schedulePrune(); return; } if (window.__pruneAudio) window.__pruneAudio(); }, 4000); }
-function missingEn() {
+function missingTgt() {
   var out = [];
-  S.answers.forEach(function (a) { if (!audIdx['en|' + a.q]) out.push(a.q); a.lines.forEach(function (l) { if (!audIdx['en|' + l.en]) out.push(l.en); }); });
-  (S.kalip || []).forEach(function (k) { (k.durum || []).forEach(function (d) { if (d.ex && !audIdx['en|' + d.ex]) out.push(d.ex); }); });
+  S.answers.forEach(function (a) { if (!audIdx[TGT + '|' + a.q]) out.push(a.q); a.lines.forEach(function (l) { if (!audIdx[TGT + '|' + l[TGT]]) out.push(l[TGT]); }); });
+  (S.kalip || []).forEach(function (k) { (k.durum || []).forEach(function (d) { if (d.ex && !audIdx[TGT + '|' + d.ex]) out.push(d.ex); }); });
   return out;
 }
 function ttsAuto(text) {
@@ -4671,7 +4684,7 @@ function ttsAuto(text) {
 }
 function ttsPanel() {
   var T = window.__localTTS; if (!LOCAL || !T) return '';
-  var i = T.info(), miss = missingEn().length;
+  var i = T.info(), miss = missingTgt().length;
   var h = '<section class="panel set"><div class="ph"><h2>' + tm('ttsPanel.otomatikSeslendirme') + '</h2><span class="mono">deneysel</span></div><p class="hint">' + tm('ttsPanel.yeniYaDaDuzenlenen') + '</p>';
   if (i.state === 'off') h += '<p class="hint">' + tm('ttsPanel.ilkAcilistaSesModeli') + '</p><button class="btn" data-act="ttsEnable">' + lab('model') + '</button>';
   else if (i.state === 'loading') h += '<p class="hint">' + tm('ttsPanel.modelYukleniyor', { iPct: i.pct }) + '</p>';
@@ -4686,11 +4699,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v80'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v81'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-26 12:50'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-26 13:17'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -4770,25 +4783,25 @@ function nliPanel() {
   return h + (speedOn() ? speedBox() : '') + '</section>';
 }
 function renderSettings() {
-  var ev = enVoices(), tv = trVoices();
+  var ev = tgtVoices(), tv = srcVoices();
   var h = ('<section class="hero"><h1>' + tm('renderSettings.ayarlar') + '</h1></section><div class="stack">');
   h += voicePanel();
-  h += '<section class="panel set"><h2>' + tm('renderSettings.konusmaHizi') + '</h2><p class="hint">' + tm('renderSettings.060150') + '</p><div class="rangehead"><label for="rate-en">' + tm('renderSettings.ingilizce') + '</label><span class="mono" id="rate-en-o">' + U.settings.rateEn.toFixed(2) + '×</span></div><input type="range" id="rate-en" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateEn + '"><div class="rangehead"><label for="rate-tr">' + tm('renderSettings.turkce') + '</label><span class="mono" id="rate-tr-o">' + U.settings.rateTr.toFixed(2) + '×</span></div><input type="range" id="rate-tr" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateTr + '"><div class="row"><button class="btn" data-act="testEn">' + lab('tryEn') + '</button><button class="btn" data-act="testTr">' + lab('tryTr') + '</button></div></section>';
+  h += '<section class="panel set"><h2>' + tm('renderSettings.konusmaHizi') + '</h2><p class="hint">' + tm('renderSettings.060150') + '</p><div class="rangehead"><label for="rate-en">' + tm('renderSettings.ingilizce') + '</label><span class="mono" id="rate-en-o">' + U.settings.rateTgt.toFixed(2) + '×</span></div><input type="range" id="rate-en" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateTgt + '"><div class="rangehead"><label for="rate-tr">' + tm('renderSettings.turkce') + '</label><span class="mono" id="rate-tr-o">' + U.settings.rateSrc.toFixed(2) + '×</span></div><input type="range" id="rate-tr" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateSrc + '"><div class="row"><button class="btn" data-act="testEn">' + lab('tryEn') + '</button><button class="btn" data-act="testTr">' + lab('tryTr') + '</button></div></section>';
   h += ttsPanel();
   h += nliPanel();
   if (!LOCAL) h += filesPanel();
   h += ('<section class="panel set"><h2>' + tm('renderSettings.ingilizceCihazSesiYedek') + '</h2>');
   if (!synth) h += ('<p class="hint">' + tm('renderSettings.buTarayiciSesliOkuma') + '</p>');
   else {
-    h += ev.length ? '<label class="hint" for="v-en">' + tm('renderSettings.ses') + '</label><select id="v-en">' + ev.map(function (v) { return '<option value="' + esc(v.voiceURI) + '"' + (enV && enV.voiceURI === v.voiceURI ? ' selected' : '') + '>' + esc(v.name) + '</option>'; }).join('') + '</select>' : ('<p class="hint">' + tm('renderSettings.usSesBulunamadiCihaz') + '</p>');
+    h += ev.length ? '<label class="hint" for="v-en">' + tm('renderSettings.ses') + '</label><select id="v-en">' + ev.map(function (v) { return '<option value="' + esc(v.voiceURI) + '"' + (tgtV && tgtV.voiceURI === v.voiceURI ? ' selected' : '') + '>' + esc(v.name) + '</option>'; }).join('') + '</select>' : ('<p class="hint">' + tm('renderSettings.usSesBulunamadiCihaz') + '</p>');
     h += ('<p class="hint">' + tm('renderSettings.yalnizcaSesDosyasiOlmayan') + '</p>');
   }
   h += '</section>';
   if (synth) {
-    h += '<section class="panel set"><h2>' + tm('renderSettings.turkceCihazSesiYedek') + '</h2>' + (tv.length ? '<label class="hint" for="v-tr">' + tm('renderSettings.ses') + '</label><select id="v-tr">' + tv.map(function (v) { return '<option value="' + esc(v.voiceURI) + '"' + (trV && trV.voiceURI === v.voiceURI ? ' selected' : '') + '>' + esc(v.name) + '</option>'; }).join('') + '</select>' : ('<p class="hint">' + tm('renderSettings.turkceSesBulunamadi') + '</p>')) + '<p class="hint">' + tm('renderSettings.yalnizcaSesDosyasiOlmayan2') + '</p></section>';
+    h += '<section class="panel set"><h2>' + tm('renderSettings.turkceCihazSesiYedek') + '</h2>' + (tv.length ? '<label class="hint" for="v-tr">' + tm('renderSettings.ses') + '</label><select id="v-tr">' + tv.map(function (v) { return '<option value="' + esc(v.voiceURI) + '"' + (srcV && srcV.voiceURI === v.voiceURI ? ' selected' : '') + '>' + esc(v.name) + '</option>'; }).join('') + '</select>' : ('<p class="hint">' + tm('renderSettings.turkceSesBulunamadi') + '</p>')) + '<p class="hint">' + tm('renderSettings.yalnizcaSesDosyasiOlmayan2') + '</p></section>';
   }
   h += '<section class="panel set"><h2>' + tm('renderSettings.akis') + '</h2>' + swList([
-      swRow('set-trauto', tm('renderSettings.turkceyiSesliOku'), U.settings.trAuto, tm('renderSettings.trEnKartindaTurkce')),
+      swRow('set-trauto', tm('renderSettings.turkceyiSesliOku'), U.settings.srcAuto, tm('renderSettings.trEnKartindaTurkce')),
       swRow('set-listen', tm('renderSettings.dinlemeKartlari'), U.settings.listen, tm('renderSettings.tekrardaEnSesTr')),
       swRow('set-hl', tm('renderSettings.kalipVurgusu'), kpOn(), tm('renderSettings.calismaEkranlarindaIngilizceKaliplar')),
       swRow('set-intent', tm('renderSettings.niyetVeIskelet'), intentOn(), tm('renderSettings.yeniDeCevabinDuraklari')),
@@ -4817,7 +4830,7 @@ function resetBox() {
   if (b) h += '<p class="hint">' + tm('resetBox.sonSifirlama', { fmtD: fmtD(b.at.slice(0, 10)), v: b.at.slice(11, 16) }) + '</p><button class="btn ghost" data-act="resetUndo">' + lab('resetUndo') + '</button>';
   return h + '</div>';
 }
-function resetOkTyped() { var e = document.getElementById('reset-ok'); return !!e && /^s[ıi]f[ıi]rla$/i.test(e.value.trim().toLocaleLowerCase('tr')); }
+function resetOkTyped() { var e = document.getElementById('reset-ok'); return !!e && /^s[ıi]f[ıi]rla$/i.test(e.value.trim().toLocaleLowerCase(I18N.profile.ui)); }
 function backupPath() { return 'data/users/' + S.uid + '/backup'; }
 function resetProgress() {
   if (!S.db || !S.uid) { toast(tm('resetProgress.kayitAcikDegil')); return; }
@@ -4944,10 +4957,10 @@ var ACT = {
   startIntro: function () { startIntro(false); },
   startIntroForce: function () { startIntro(true); },
   reveal: reveal,
-  replayCard: function () { var s = S.sess, it = s.q[s.i]; play(it.dir === 'p' ? it.l.tr : it.l.en, it.dir === 'p' ? 'tr' : 'en'); },
-  replayEn: function () { var s = S.sess; play(s.q[s.i].l.en, 'en'); },
+  replayCard: function () { var s = S.sess, it = s.q[s.i]; play(it.dir === 'p' ? it.l[SRC] : it.l[TGT], it.dir === 'p' ? SRC : TGT); },
+  replayEn: function () { var s = S.sess; play(s.q[s.i].l[TGT], TGT); },
   grade: function (el) { grade(+el.dataset.g); },
-  replayIntro: function () { var s = S.sess, it = curIntro(); play(it.l.en, 'en').then(function () { if (S.sess === s && s.step === 0) { s.step = 1; render(); } }); },
+  replayIntro: function () { var s = S.sess, it = curIntro(); play(it.l[TGT], TGT).then(function () { if (S.sess === s && s.step === 0) { s.step = 1; render(); } }); },
   shadow: runShadow,
   introSkip: introSkip,
   recShow: function () { recallShow(); },
@@ -4980,12 +4993,12 @@ var ACT = {
     try { if (t) t.blur(); } catch (e) {}
     var l = s.quiz.q[0].l; s.dictText = txt; s.dict = dictCheck3(l, txt); dictNli(s, l, txt); quizReveal();
   },
-  replayQuizTr: function () { play(S.sess.quiz.q[0].l.tr, 'tr'); },
+  replayQuizTr: function () { play(S.sess.quiz.q[0].l[SRC], SRC); },
   quizOk: function () { quizMark(true); },
   quizAgain: function () { quizMark(false); },
   openReh: function (el) { openReh(el.dataset.id); },
   rehRandom: function () { var all = grpAnswers(), pool = all.filter(started); if (!pool.length) pool = all.length ? all : S.answers; openReh(pool[Math.floor(Math.random() * pool.length)].id); },
-  rehPlayQ: function () { play(S.sess.a.q, 'en'); },
+  rehPlayQ: function () { play(S.sess.a.q, TGT); },
   rehStart: function () { var s = S.sess; stopAudio(); if (s.phase === 'skel') s.skelDone = true; s.skel = null; s.phase = 'talk'; s.t0 = Date.now(); render(); if (s.dictOpen) dictFocus(); },
   skelStart: function () { skelStart(); },
   rehLeave: function () { var cs = S.sess; if (!cs) return; cs.leaveOk = true; ACT.endSess(); },
@@ -4994,7 +5007,7 @@ var ACT = {
   kpShow: function () { kpShow(); },
   kpCheck: function () { kpCheck(); },
   kpMark: function (el) { kpMark(el.dataset.ok === '1'); },
-  kpTr: function () { var it = kpItem(); play(it.k.durum[it.d].tr, 'tr'); },
+  kpTr: function () { var it = kpItem(); play(it.k.durum[it.d][SRC], SRC); },
   skelShow: function () { skelShow(); },
   rehStop: function () { rehStop(); },
   rehRound: function () { rehRound(); },
@@ -5028,7 +5041,7 @@ var ACT = {
   resetDo: function () { if (resetOkTyped()) resetProgress(); },
   resetUndo: resetUndo,
   thinkSet: function (el) { U.settings.think = el.dataset.t; save('settings'); render(); },
-  trFirstSet: function (el) { U.settings.trFirst = el.dataset.t; save('settings'); render(); },
+  trFirstSet: function (el) { U.settings.srcFirst = el.dataset.t; save('settings'); render(); },
   repSet: function (el) { var n = +el.dataset.n; if (S.trackCfg.mode === 'A') U.settings.repA = n; else U.settings.repB = n; save('settings'); if (S.track) { trackStop(true); } render(); },
   trackPlay: function () { S.trackCfg.once = false; trackPlay(); },
   trackStop: function () { trackStop(); },
@@ -5040,7 +5053,7 @@ var ACT = {
   toggleAns: function (el) { var id = el.dataset.id; S.openAns[id] = !S.openAns[id]; render(); },
   toggleDef: function (el) { var id = el.dataset.id; S.showOrig[id] = !S.showOrig[id]; render(); },
   revertLine: function (el) { revertLine(el.dataset.aid, el.dataset.id); },
-  playLine: function (el) { var f = lineById(el.dataset.id); if (f) play(f.l.en, 'en'); },
+  playLine: function (el) { var f = lineById(el.dataset.id); if (f) play(f.l[TGT], TGT); },
   editLine: function (el) { var f = lineById(el.dataset.id); if (!f) return; S.edit = { aid: f.a.id, lid: f.l.id }; S.confirmDel = null; render(); var t = document.getElementById('ed-en'); if (t) t.focus(); },
   cancelEdit: function () { S.edit = null; S.confirmDel = null; render(); },
   saveEdit: saveEdit,
@@ -5049,8 +5062,8 @@ var ACT = {
   confirmDel: deleteLine,
   translate: function (el) { translate(el); },
   addLine: function (el) { addLine(el); },
-  testEn: function () { var l = S.answers[0] && S.answers[0].lines[0]; play(l ? l.en : "I'm a QA automation engineer.", 'en'); },
-  testTr: function () { var l = S.answers[0] && S.answers[0].lines[0]; play(l ? l.tr : tm('testTr.birQaOtomasyonMuhendisiyim'), 'tr'); },
+  testEn: function () { var l = S.answers[0] && S.answers[0].lines[0]; play(l ? l[TGT] : "I'm a QA automation engineer.", TGT); },
+  testTr: function () { var l = S.answers[0] && S.answers[0].lines[0]; play(l ? l[SRC] : tm('testTr.birQaOtomasyonMuhendisiyim'), SRC); },
   copyMissing: copyMissing,
   nliEnable: function () { var M = window.__nli; if (!M) return; M.enable().then(function () { toast(tm('nliEnable.anlamKontroluAcik')); }, function () {}); render(); },
   nliSpeed: function () { nliSpeedRun(); },
@@ -5065,10 +5078,10 @@ var ACT = {
   nliDrop: function () { var M = window.__nli; if (!M || !confirm(tm('nliDrop.anlamModeliBuCihazdan'))) return; M.disable(true).then(function () { toast(tm('nliDrop.anlamModeliSilindi')); render(); }); },
   ttsOff: function () { var T = window.__localTTS; if (!T) return; T.disable(false).then(function () { toast(tm('ttsOff.otomatikSeslendirmeKapali')); render(); }); },
   ttsDrop: function () { var T = window.__localTTS; if (!T || !confirm(tm('ttsDrop.sesModeliBuCihazdan'))) return; T.disable(true).then(function () { toast(tm('ttsDrop.sesModeliSilindi')); render(); }); },
-  ttsEnable: function () { var T = window.__localTTS; if (!T) return; T.enable().then(function () { T.queue(missingEn()); }, function () {}); render(); },
-  ttsFill: function () { var T = window.__localTTS; if (T) { T.queue(missingEn()); render(); } },
+  ttsEnable: function () { var T = window.__localTTS; if (!T) return; T.enable().then(function () { T.queue(missingTgt()); }, function () {}); render(); },
+  ttsFill: function () { var T = window.__localTTS; if (T) { T.queue(missingTgt()); render(); } },
   voiceMode: function (el) { stopAudio(); U.settings.voiceMode = el.dataset.m; save('settings'); render(); },
-  exportNotes: function (el) { shareOrCopy(notesText(el.dataset.tr === '1'), tm('exportNotes.mulakatCevaplari'), 'notesbox', tm('exportNotes.notlarIcinMetin')); },
+  exportNotes: function (el) { shareOrCopy(notesText(el.dataset[SRC] === '1'), tm('exportNotes.mulakatCevaplari'), 'notesbox', tm('exportNotes.notlarIcinMetin')); },
   exportProg: function () { shareOrCopy(exportCode(), tm('exportProg.trainerIlerlemeKodu'), 'progbox', tm('exportProg.ilerlemeKodu')); },
   importProg: function (el) {
     var code = val('imp-code');
@@ -5087,15 +5100,15 @@ document.addEventListener('click', function (e) {
 });
 document.addEventListener('change', function (e) {
   var t = e.target;
-  if (t.id === 'v-en') { U.settings.enVoice = t.value; pickVoices(); save('settings'); }
-  else if (t.id === 'v-tr') { U.settings.trVoice = t.value; pickVoices(); save('settings'); }
-  else if (t.id === 'set-trauto') { U.settings.trAuto = t.checked; save('settings'); }
+  if (t.id === 'v-en') { U.settings.tgtVoice = t.value; pickVoices(); save('settings'); }
+  else if (t.id === 'v-tr') { U.settings.srcVoice = t.value; pickVoices(); save('settings'); }
+  else if (t.id === 'set-trauto') { U.settings.srcAuto = t.checked; save('settings'); }
   else if (t.id === 'set-listen') { U.settings.listen = t.checked; save('settings'); }
   else if (t.id === 'set-hl') { U.settings.hl = t.checked; save('settings'); }
   else if (t.id === 'set-intent') { U.settings.intent = t.checked; save('settings'); }
   else if (t.id === 'set-files') { U.settings.useFiles = t.checked; save('settings'); }
   else if (t.id === 'aud-files') { uploadFiles(t.files); }
-  else if (t.id === 'pk-trfirst') { U.settings.trFirst = t.value; save('settings'); render(); }
+  else if (t.id === 'pk-trfirst') { U.settings.srcFirst = t.value; save('settings'); render(); }
   else if (t.id === 'pk-think') { U.settings.think = t.value; save('settings'); render(); }
   else if (t.id === 'pk-rep') { var n = +t.value; if (S.trackCfg.mode === 'A') U.settings.repA = n; else U.settings.repB = n; save('settings'); if (S.track) trackStop(true); render(); }
   else if (t.id === 'tr-scope') { if (S.track) trackStop(true); S.trackCfg.scope = t.value; S.trackCfg.once = false; render(); }
@@ -5110,8 +5123,8 @@ document.addEventListener('input', function (e) {
   var t = e.target, o;
   if (t.id === 'dict' && S.sess) { S.sess.dictText = t.value; return; }
   if (t.id === 'reset-ok') { var bt = document.getElementById('reset-do'); if (bt) bt.disabled = !resetOkTyped(); return; }
-  if (t.id === 'rate-en') { U.settings.rateEn = +t.value; o = document.getElementById('rate-en-o'); if (o) o.textContent = (+t.value).toFixed(2) + '×'; save('settings'); }
-  else if (t.id === 'rate-tr') { U.settings.rateTr = +t.value; o = document.getElementById('rate-tr-o'); if (o) o.textContent = (+t.value).toFixed(2) + '×'; save('settings'); }
+  if (t.id === 'rate-en') { U.settings.rateTgt = +t.value; o = document.getElementById('rate-en-o'); if (o) o.textContent = (+t.value).toFixed(2) + '×'; save('settings'); }
+  else if (t.id === 'rate-tr') { U.settings.rateSrc = +t.value; o = document.getElementById('rate-tr-o'); if (o) o.textContent = (+t.value).toFixed(2) + '×'; save('settings'); }
 });
 document.addEventListener('focusout', function () { setTimeout(function () { if (S.pending) softRender(); }, 50); });
 document.addEventListener('keydown', function (e) {
@@ -5164,7 +5177,7 @@ setInterval(function () {
   }
   if ((s.type === 'review' || s.type === 'test') && !s.shown) {
     if (!s.t0) { el.textContent = ''; return; }
-    var ms = Date.now() - s.t0, cur = s.q && s.q[s.i]; el.textContent = fmtSec(ms); el.classList.toggle('slow', !!cur && ms > recallMs(cur.l.en));
+    var ms = Date.now() - s.t0, cur = s.q && s.q[s.i]; el.textContent = fmtSec(ms); el.classList.toggle('slow', !!cur && ms > recallMs(cur.l[TGT]));
   }
 }, 100);
 
@@ -5172,7 +5185,7 @@ setInterval(function () {
 function init() {
   if (LOCAL) {
     window.__setLocalAudio = function (m) { LOCAL_AUD = m || {}; rebuildIdx(); softRender(); };
-    window.__ttsMissing = missingEn;
+    window.__ttsMissing = missingTgt;
     window.__usedTexts = usedTexts;
     window.__toast = toast;
     if (window.__localTTS) window.__localTTS.onChange(function () { if (S.tab === 'settings' && !S.sess) softRender(); });
@@ -5194,7 +5207,7 @@ function init() {
       return db.collection('data/users/' + S.uid).get().then(function (snap) {
         snap.docs.forEach(function (d) {
           var id = d.id, x = clone(d.data() || {});
-          if (id === 'settings') Object.assign(U.settings, x);
+          if (id === 'settings') Object.assign(U.settings, settingsByRole(x));
           else if (id === 'progress') U.progress = Object.assign({ intro: {}, reh: {}, first: null }, x);
           else if (id === 'log') U.log = Object.assign({ days: {} }, x);
           else if (id === 'tests') U.tests = Object.assign({ list: [] }, x);

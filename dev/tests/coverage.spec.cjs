@@ -104,12 +104,12 @@ async function dinleA(page, settings, again) {
 const spoken = (page) => page.evaluate(() => window.__spoken.filter((t) => t.trim())); // " " is the tap that wakes speech
 
 test('Dinle A · Önce Türkçe: Otomatik skips TR on learned lines; Her zaman starts with TR', async ({ page }) => {
-  let lines = await dinleA(page, { trFirst: 'auto' });
+  let lines = await dinleA(page, { srcFirst: 'auto' });
   let s = await spoken(page);
   expect(s.length).toBe(1);
   expect(lines.map((l) => l.tr)).not.toContain(s[0]);
 
-  lines = await dinleA(page, { trFirst: 'always' }, true);
+  lines = await dinleA(page, { srcFirst: 'always' }, true);
   s = await spoken(page);
   expect(lines.map((l) => l.tr)).toContain(s[0]);
   await expect(page.locator('#player')).toContainText('Anlam');
@@ -121,14 +121,14 @@ test('Dinle A · Eşzamanlı: the last round is said with the voice, only when i
     for (let k = 0; k < 6; k++) { phases.push(await page.locator('#player').textContent()); await end(page); await page.clock.fastForward(15000); }
     return phases.join(' | ');
   };
-  await dinleA(page, { trFirst: 'off', simul: true });
+  await dinleA(page, { srcFirst: 'off', simul: true });
   expect(await seen()).toContain('Birlikte söyle · 2/2');
-  await dinleA(page, { trFirst: 'off', simul: false }, true);
+  await dinleA(page, { srcFirst: 'off', simul: false }, true);
   expect(await seen()).not.toContain('Birlikte söyle');
 });
 
 test('Dinle: the status line is the shared one, with the step once and the seconds bottom right', async ({ page }) => {
-  await dinleA(page, { trFirst: 'off', repA: 3, simul: false });
+  await dinleA(page, { srcFirst: 'off', repA: 3, simul: false });
   const line = page.locator('#player .sayline');
   for (let r = 1; r <= 3; r++) {
     await expect(line).toHaveText((r < 3 ? 'Dinle ve oku' : 'Dinle') + ' · ' + r + '/3'); // round 3 is blurred

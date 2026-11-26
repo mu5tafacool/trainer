@@ -5,6 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, expect } = require('@playwright/test');
+const { requirePass, unlock, dumpStore, writeStore } = require('./helpers.cjs');
 
 const HTML = fs.readFileSync(path.resolve(__dirname, '..', '..', process.env.TRAINER_PAGE || 'index.html'), 'utf8');
 const cut = (s, a, b) => s.slice(s.indexOf(a), s.indexOf(b) + b.length);
@@ -122,4 +123,33 @@ test('dates and numbers come from Intl in the interface language', () => {
   expect(i18n.date(new Date(2026, 0, 4))).toBe('Paz 4 Oca');
   expect(i18n.dec1(3.45)).toBe('3,5');
   expect(i18n.dec1(12)).toBe('12,0');
+});
+
+test('the code reads languages by role: no l.en / l.tr, no en / tr literal outside the language table', () => {
+  const code = CODE.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, ''); // every script except the i18n block, verify3 and icons; no comments
+  const member = [...code.matchAll(/\.(en|tr)\b(?!\w)/g)].map((m) => code.slice(Math.max(0, m.index - 30), m.index + 4).replace(/\s+/g, ' '));
+  expect(member.filter((x) => !/https?:|\.tr\(|['"][^'"]*\.(en|tr)\b/.test(x)), 'read l[TGT] / l[SRC]').toEqual([]);
+  expect(literals(code).filter((x) => x === 'en' || x === 'tr'), "use TGT / SRC").toEqual([]);
+  expect(/\b(rateEn|rateTr|enVoice|trVoice|trAuto|trFirst)\b/.test(code.replace(/var SETTING_ROLES = [^\n]*/, '')), 'settings by role').toBe(false);
+});
+
+test('settings saved under the old names (rateEn, trFirst …) are read by role after the update', async ({ page }) => {
+  requirePass(test);
+  await page.route('**/audio*.bin', (r) => r.abort());
+  await unlock(page);
+  const st = await dumpStore(page);
+  await writeStore(page, { 'data/users/local/settings': { ...(st['data/users/local/settings'] || {}), rateEn: 0.7, rateTr: 1.2, trFirst: 'always', trAuto: false } });
+  await page.reload();
+  await page.locator('nav.tabs [data-tab="settings"]').click();
+  await expect(page.locator('#rate-en')).toHaveValue('0.7');
+  await expect(page.locator('#rate-tr')).toHaveValue('1.2');
+  await expect(page.locator('#set-trauto')).not.toBeChecked();
+  await page.locator('nav.tabs [data-tab="track"]').click();
+  await page.locator('[data-act="trackMode"][data-m="A"]').click();
+  await expect(page.locator('[data-act="trFirstSet"][data-t="always"]')).toHaveAttribute('aria-pressed', 'true');
+  // a new name wins over an old one left in the same document
+  await writeStore(page, { 'data/users/local/settings': { ...(st['data/users/local/settings'] || {}), rateEn: 0.7, rateTgt: 1.1 } });
+  await page.reload();
+  await page.locator('nav.tabs [data-tab="settings"]').click();
+  await expect(page.locator('#rate-en')).toHaveValue('1.1');
 });

@@ -21,22 +21,22 @@ async function set(page, settings) {
 const T = (page, fn, ...a) => page.evaluate(([fn, a]) => window.__timing[fn](...a), [fn, a]);
 
 test('recall time: (1.5 s + 0.42 s a word ÷ speed) × Düşünme süresi, at least 3 s, no ceiling', async ({ page }) => {
-  await boot(page, { rateEn: 1, think: 'normal' });
+  await boot(page, { rateTgt: 1, think: 'normal' });
   expect(await T(page, 'recallMs', words(2))).toBe(3000);
   expect(await T(page, 'recallMs', words(6))).toBe(4000);
   expect(await T(page, 'recallMs', words(12))).toBe(6500);
   expect(await T(page, 'recallMs', words(24))).toBe(11600);
-  await set(page, { rateEn: 0.7 });
+  await set(page, { rateTgt: 0.7 });
   expect(await T(page, 'recallMs', words(12))).toBe(8700);
   expect(await T(page, 'recallMs', words(24))).toBe(15900); // above the old 12 s ceiling: saying it alone takes ~14 s
-  await set(page, { rateEn: 1, think: 'long' });
+  await set(page, { rateTgt: 1, think: 'long' });
   expect(await T(page, 'recallMs', words(12))).toBe(8800);
   await set(page, { think: 'short' });
   expect(await T(page, 'recallMs', words(12))).toBe(4900);
 });
 
 test('echo gap follows the clip heard (or the estimate), Prova floor is ~170 words a minute', async ({ page }) => {
-  await boot(page, { rateEn: 1 });
+  await boot(page, { rateTgt: 1 });
   expect(await T(page, 'echoMs', 2000, words(5))).toBe(2900);
   expect(Math.round(await T(page, 'echoMs', 0, words(10)))).toBe(Math.round(4200 * 1.15 + 600));
   expect(await T(page, 'fluentMs', [{ en: words(85) }, { en: words(85) }])).toBe(60000);
