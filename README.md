@@ -236,6 +236,7 @@ On AirPods, double and triple tap can be set to next/previous track in the iPhon
 ## Development
 
 - `dev/lib/verify3.js` is the spoken check. `index.html` carries a copy between `verify3:start` and `verify3:end`; after changing the file run `node dev/tools/sync-verify3.cjs` (a test fails if they differ).
+- Every text on screen lives in one table in `index.html` (`i18n:start` … `i18n:end`, `MSG.tr`); screens call `tm('key', {…})`, dates and decimals come from `Intl`. The interface language follows a saved choice, then the browser's languages, then Turkish (only Turkish exists yet). `i18n.spec` fails on text written anywhere else, on a missing or unused key, and on a placeholder a call does not fill.
 - Icons and button words live in one block of `index.html` (`icons:start` … `icons:end`): `ICONS` holds the drawings (our own, 24×24, drawn in the text colour), `LABEL` maps each button's meaning to an icon and a word. Screens use `lab(key)`, the help texts `{key}`, so a renamed button or a new drawing is one line. `icons.spec` fails on a missing or unused key, or on any icon drawn elsewhere.
 - `dev/lib/seed.cjs` decrypts and re-encrypts the answer set the same way the app does. The passphrase is passed in, never stored.
 - Tests use Playwright (`@playwright/test`) and contain no answer text:

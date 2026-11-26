@@ -8,15 +8,23 @@ const { requirePass, unlock, stubSpeech, seedOf, makeDue } = require('./helpers.
 
 const HTML = fs.readFileSync(path.resolve(__dirname, '..', '..', process.env.TRAINER_PAGE || 'index.html'), 'utf8');
 const BLOCK = HTML.slice(HTML.indexOf('/* icons:start */'), HTML.indexOf('/* icons:end */'));
-const REST = HTML.replace(BLOCK, '').replace(/<script id="(seed|audio-meta)"[\s\S]*?<\/script>/g, '');
+const I18N = HTML.slice(HTML.indexOf('/* i18n:start */'), HTML.indexOf('/* i18n:end */'));
+const REST = HTML.replace(BLOCK, '').replace(I18N, '').replace(/<script id="(seed|audio-meta)"[\s\S]*?<\/script>/g, '');
 // runs the block by itself: it needs nothing but a document and a window
-function registry() { return new Function('document', 'window', BLOCK + '\nreturn { ICONS: ICONS, LABEL: LABEL, ico: ico, lab: lab, tx: tx };')({ querySelectorAll: () => [] }, {}); }
+function registry() {
+  const win = {}, doc = { documentElement: {}, querySelectorAll: () => [] };
+  new Function('window', 'document', 'navigator', 'localStorage', I18N)(win, doc, { languages: ['tr'] }, { getItem: () => null });
+  const r = new Function('document', 'window', 'tm', BLOCK + '\nreturn { ICONS: ICONS, LABEL: LABEL, ico: ico, lab: lab, tx: tx };')(doc, {}, win.__i18n.t);
+  r.word = (k) => win.__i18n.msg.tr['btn.' + k];
+  return r;
+}
 const uses = (re) => [...REST.matchAll(re)].map((m) => m[1]);
+const usesMsg = (re) => [...I18N.matchAll(re)].map((m) => m[1]); // help texts live in the i18n table
 
 test('every icon and label a screen names exists, and none is left over', () => {
   const { ICONS, LABEL } = registry();
   const labels = new Set([
-    ...uses(/\blab\('(\w+)'/g), ...uses(/data-lab="(\w+)"/g), ...uses(/\bkey: '(\w+)'/g), ...uses(/tchip\('[\w-]+', '(\w+)'/g), ...uses(/\{(\w+)\}/g).filter((k) => LABEL[k]),
+    ...uses(/\blab\('(\w+)'/g), ...uses(/data-lab="(\w+)"/g), ...uses(/\bkey: '(\w+)'/g), ...uses(/tchip\('[\w-]+', '(\w+)'/g), ...uses(/\{(\w+)\}/g).filter((k) => LABEL[k]), ...usesMsg(/\{(\w+)\}/g).filter((k) => LABEL[k]),
     // lab(cond ? 'a' : 'b') and sessHead(…, 'pause')
     ...[...REST.matchAll(/\blab\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)].flatMap((m) => [...m[1].matchAll(/\?\s*'(\w+)'\s*:\s*'(\w+)'/g)].flatMap((x) => [x[1], x[2]])),
     ...uses(/sessHead\([^\n]*?, '(pause|end)'\)/g), 'end',
@@ -27,7 +35,7 @@ test('every icon and label a screen names exists, and none is left over', () => 
     ...[...REST.matchAll(/\bico\([^()]*\?\s*'(\w+)'\s*:\s*'(\w+)'/g)].flatMap((x) => [x[1], x[2]])]);
   expect([...icons].filter((k) => !ICONS[k]), 'icon named but not drawn').toEqual([]);
   expect(Object.keys(ICONS).filter((k) => !icons.has(k)), 'drawing nobody uses').toEqual([]);
-  expect(uses(/\{:(\w+)\}/g).length, 'help texts show icons').toBeGreaterThan(5);
+  expect(usesMsg(/\{:(\w+)\}/g).length, 'help texts show icons').toBeGreaterThan(5);
 });
 
 test('the registry is the only place that draws: no other svg, emoji or arrow used as an icon', () => {
@@ -40,9 +48,9 @@ test('the registry is the only place that draws: no other svg, emoji or arrow us
 test('lab, tx: arrows forward sit after the word, words can be replaced, unknown tokens stay as they are', () => {
   const { LABEL, lab, tx } = registry();
   Object.keys(LABEL).forEach((k) => {
-    expect(LABEL[k][1], k).toBeTruthy();
-    expect(LABEL[k][2] === 'end', k + ': side').toBe(['skip', 'fwd'].includes(LABEL[k][0]));
-    const h = lab(k); expect(h.startsWith('<svg'), k).toBe(LABEL[k][2] !== 'end'); expect(h).toContain('aria-hidden="true"');
+    expect(registry().word(k), k + ': word in MSG.tr').toBeTruthy();
+    expect(LABEL[k][1] === 'end', k + ': side').toBe(['skip', 'fwd'].includes(LABEL[k][0]));
+    const h = lab(k); expect(h.startsWith('<svg'), k).toBe(LABEL[k][1] !== 'end'); expect(h).toContain('aria-hidden="true"');
   });
   expect(lab('round', '2. tur')).toContain('<span>2. tur</span>');
   expect(lab('skip')).toMatch(/^<span>Atla<\/span><svg/);
@@ -51,8 +59,8 @@ test('lab, tx: arrows forward sit after the word, words can be replaced, unknown
 });
 
 test('one icon, one word: a word is not written under two keys, and did it / did not never share an icon', () => {
-  const { LABEL } = registry(), seen = {};
-  Object.keys(LABEL).forEach((k) => { (seen[LABEL[k][1]] = seen[LABEL[k][1]] || []).push(k); });
+  const { LABEL, word } = registry(), seen = {};
+  Object.keys(LABEL).forEach((k) => { (seen[word(k)] = seen[word(k)] || []).push(k); });
   // Bitir is two things on purpose: it stops the sound (stop) or leaves the screen (back)
   expect(Object.values(seen).filter((v) => v.length > 1)).toEqual([['trStop', 'end']]);
   ['stuck', 'notBuilt', 'wrong'].forEach((k) => expect(LABEL[k][0]).toBe('no'));
