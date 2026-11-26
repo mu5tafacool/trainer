@@ -214,7 +214,7 @@ Every "say it" time comes from one place, so all screens agree. It follows the s
 | Speed test | Space = reveal · 1 = wrong · 2 = right |
 | Patterns (*Kalıp*) | Space/Enter = show the example · 1 = couldn't · 2 = built it |
 | Rehearsal, skeleton round | Space/Enter = show the stops · then start the full answer |
-| Reinforce (*Pekiştir*) | P = open (when its button shows) · inside: Space/Enter = show (3/3) or back to the card · R = one more round · Esc = leave. Keys go by position, so they work on any keyboard layout. |
+| Reinforce (*Pekiştir*) | P = open (when its button shows) · inside: Space/Enter = show (3/3) or back to the card · R = one more round · Esc = back to the card. Keys go by position, so they work on any keyboard layout. |
 | Listen | ← previous · → next · Space = pause/resume |
 | Listen, mode B | 1 = ✗ not known · 2 = ✓ known |
 | Headphones / lock screen | next · previous · pause / resume from the same place (while Listen is running) |

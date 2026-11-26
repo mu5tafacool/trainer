@@ -151,7 +151,7 @@ test('Pekiştir keys: P opens it, Esc leaves, Space shows and returns, R runs an
   await expect(page.getByRole('button', { name: 'Karta dön' })).toBeVisible();
   await page.keyboard.press('r');
   await expect(card(page)).toContainText('1/3');
-  const back = page.getByRole('button', { name: 'Karta dön' });
+  const back = page.locator('[data-act="pkStart"]'); // "Bir tur daha": only at the end (Karta dön is there all along since v0.83)
   for (let k = 0; k < 30 && !(await back.isVisible()); k++) { await page.evaluate(() => window.__speechEnd()); await page.clock.fastForward(2000); }
   await page.keyboard.press('Enter');
   await page.clock.fastForward(200);

@@ -991,7 +991,6 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "keyHelp.33TeGoster": "3/3'te Göster · sonda Karta dön",
     "keyHelp.birTurDaha": "Bir tur daha",
     "keyHelp.esc": "Esc",
-    "keyHelp.birak": "Bırak",
     "keyHelp.dinleCalarken": "Dinle (çalarken)",
     "keyHelp.oncekiKart": "Önceki kart",
     "keyHelp.sonrakiKart": "Sonraki kart",
@@ -1209,7 +1208,6 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "btn.notBuilt": "Kuramadım",
     "btn.wrong": "Yanlış",
     "btn.cancel": "Vazgeç",
-    "btn.quit": "Bırak",
     "btn.off": "Kapat",
     "btn.chainEnd": "Zinciri bitir",
     "btn.save": "Kaydet",
@@ -1881,7 +1879,7 @@ var LABEL = {
   said: ['ok'], fluent: ['ok'], built: ['ok'], right: ['ok'], done: ['ok'],
   stuck: ['no'], notBuilt: ['no'], wrong: ['no'],
   // leave, stop
-  cancel: ['no'], quit: ['no'], off: ['no'], chainEnd: ['stop'],
+  cancel: ['no'], off: ['no'], chainEnd: ['stop'],
   // edit, save, move data
   save: ['ok'], del: ['trash'], add: ['plus'], toTr: ['lang'], reTr: ['lang'],
   revert: ['undo'], resetUndo: ['undo'], notesEn: ['share'], notesBoth: ['share'],
@@ -3607,7 +3605,7 @@ function pkView(head, it) {
     var P = p.dict && dictPairs(p.dict.miss, p.dict.extra);
     if (p.dict) h += '<div class="dres"><div><b class="sc ' + scoreCls(p.dict.pct) + '">%' + p.dict.pct + '</b> · ' + (l.tier === 'ezber' ? 'kelime' : 'terim') + ' isabeti</div>' + dictPairRow(P.pairs, p.dict.mkMiss) + (P.miss.length ? '<div class="miss">' + tm('pkView.eksik', { esc: esc(P.miss.slice(0, 8).join(', ')) }) + '</div>' : '') + '<div class="said">' + tm('pkView.sen', { esc: esc(p.dictText) }) + '</div></div>';
     h += '<div class="row"><button class="btn ghost" data-act="pkStart">' + lab('pkMore') + '</button><button class="btn primary" data-act="pkDone">' + lab('toCard') + '</button></div>';
-  } else h += '<div class="row"><button class="btn ghost" data-act="pkDone">' + lab('quit') + '</button></div>';
+  } else h += '<div class="row"><button class="btn ghost" data-act="pkDone">' + lab('toCard') + '</button></div>'; // the same way out as at the end; ghost: going back is not the step forward
   return h + '<p class="hint">' + tm('pkView.puanIlkDenemeneGore') + '</p>';
 }
 
@@ -4774,11 +4772,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v82'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v83'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-26 13:53'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-26 15:31'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -4892,7 +4890,7 @@ function keyHelp() {
   function k(x) { return '<kbd>' + x + '</kbd>'; }
   function row(keys, what) { return '<li><span class="kk">' + keys + '</span><span class="kw">' + what + '</span></li>'; }
   function blk(t, rows) { return '<div class="kblock"><p class="kt">' + t + '</p><ul class="klist">' + rows.join('') + '</ul></div>'; }
-  return tx('<p class="hint">' + tm('keyHelp.macTeYaDa') + '</p>' + blk(tm('keyHelp.tekrarKarti'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.ingilizceyiGoster')), row(k('1') + k('2') + k('3') + k('4'), tm('keyHelp.puanVer1Tekrar')), row(k('G'), tm('keyHelp.bugunGecKartYarin'))]) + blk(tm('keyHelp.yeniCevapKontrol'), [row(k(tm('keyHelp.bosluk')), tm('keyHelp.ingilizceyiGoster')), row(k('1'), tm('keyHelp.bilemedimTekrarSor')), row(k('2'), tm('keyHelp.soyledimDevam'))]) + blk(tm('keyHelp.hizTesti'), [row(k(tm('keyHelp.bosluk')), tm('keyHelp.gosterSureDurur')), row(k('1'), tm('keyHelp.yanlis')), row(k('2'), tm('keyHelp.dogru'))]) + blk(tm('keyHelp.provaKalip'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.ornekCumleyiGoster')), row(k('1'), tm('keyHelp.kuramadim')), row(k('2'), tm('keyHelp.kurdum'))]) + blk(tm('keyHelp.provaIskeletTuru'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.duraklariGosterSonraTam'))]) + blk('{pk}', [row(k('P'), tm('keyHelp.pekistirIAcDugme')), row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.33TeGoster')), row(k('R'), tm('keyHelp.birTurDaha')), row(k(tm('keyHelp.esc')), tm('keyHelp.birak'))]) + blk(tm('keyHelp.dinleCalarken'), [row(k('←'), tm('keyHelp.oncekiKart')), row(k('→'), tm('keyHelp.sonrakiKart')), row(k(tm('keyHelp.bosluk')), tm('keyHelp.duraklatDevamEt')), row(k('1'), tm('keyHelp.bModundaNoBilemedim')), row(k('2'), tm('keyHelp.bModundaOkBildim'))]) + blk(tm('keyHelp.kulaklikVeKilitEkrani'), [row(k('⏭'), tm('keyHelp.sonrakiKart')), row(k('⏮'), tm('keyHelp.oncekiKart')), row(k('⏯'), tm('keyHelp.duraklatKaldigiYerdenDevam'))]) + blk('AirPods', [row('Pro, 3, 4', tm('keyHelp.sapa2KezBas')), row('1, 2', tm('keyHelp.ciftDokunusaSonrakiParca'))]));
+  return tx('<p class="hint">' + tm('keyHelp.macTeYaDa') + '</p>' + blk(tm('keyHelp.tekrarKarti'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.ingilizceyiGoster')), row(k('1') + k('2') + k('3') + k('4'), tm('keyHelp.puanVer1Tekrar')), row(k('G'), tm('keyHelp.bugunGecKartYarin'))]) + blk(tm('keyHelp.yeniCevapKontrol'), [row(k(tm('keyHelp.bosluk')), tm('keyHelp.ingilizceyiGoster')), row(k('1'), tm('keyHelp.bilemedimTekrarSor')), row(k('2'), tm('keyHelp.soyledimDevam'))]) + blk(tm('keyHelp.hizTesti'), [row(k(tm('keyHelp.bosluk')), tm('keyHelp.gosterSureDurur')), row(k('1'), tm('keyHelp.yanlis')), row(k('2'), tm('keyHelp.dogru'))]) + blk(tm('keyHelp.provaKalip'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.ornekCumleyiGoster')), row(k('1'), tm('keyHelp.kuramadim')), row(k('2'), tm('keyHelp.kurdum'))]) + blk(tm('keyHelp.provaIskeletTuru'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.duraklariGosterSonraTam'))]) + blk('{pk}', [row(k('P'), tm('keyHelp.pekistirIAcDugme')), row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.33TeGoster')), row(k('R'), tm('keyHelp.birTurDaha')), row(k(tm('keyHelp.esc')), tm('btn.toCard'))]) + blk(tm('keyHelp.dinleCalarken'), [row(k('←'), tm('keyHelp.oncekiKart')), row(k('→'), tm('keyHelp.sonrakiKart')), row(k(tm('keyHelp.bosluk')), tm('keyHelp.duraklatDevamEt')), row(k('1'), tm('keyHelp.bModundaNoBilemedim')), row(k('2'), tm('keyHelp.bModundaOkBildim'))]) + blk(tm('keyHelp.kulaklikVeKilitEkrani'), [row(k('⏭'), tm('keyHelp.sonrakiKart')), row(k('⏮'), tm('keyHelp.oncekiKart')), row(k('⏯'), tm('keyHelp.duraklatKaldigiYerdenDevam'))]) + blk('AirPods', [row('Pro, 3, 4', tm('keyHelp.sapa2KezBas')), row('1, 2', tm('keyHelp.ciftDokunusaSonrakiParca'))]));
 }
 /* progress reset: review schedule, learned lines, rehearsals, tests and daily counts.
    Answers, edits, settings, sound and the passphrase stay. A backup is kept so the reset can be undone. */

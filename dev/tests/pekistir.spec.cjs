@@ -157,3 +157,25 @@ test('Tekrar: Pekiştir next to EN dinle when Zor; 🎤 inside shows a percentag
   await page.locator('[data-act="pkDone"]').click();
   await expect(page.locator('[data-act="grade"][data-g="1"]')).toHaveClass(/sugg/); // still Zor from the first try
 });
+
+test('one way out of Pekiştir: ‹ Karta dön, secondary while it runs, primary at the end; no Bırak, no ✗', async ({ page }) => {
+  await boot(page);
+  await page.locator('[data-act="startIntro"]').click();
+  await end(page);
+  await page.locator('[data-act="introSkip"]').click(); // Adımları atla: the line end, where Pekiştir is offered
+  await page.locator('[data-act="shadow"]').click(); await page.locator('[data-act="introSkip"]').click(); // → Hatırla
+  await page.locator('[data-act="recShow"]').click();
+  await page.locator('[data-act="pkStart"]').click();
+  const out = page.locator('[data-act="pkDone"]');
+  await expect(out).toHaveText('Karta dön');
+  await expect(out).toHaveClass(/ghost/);
+  await expect(out.locator('[data-ico="back"]')).toHaveCount(1);
+  await expect(out.locator('[data-ico="no"]')).toHaveCount(0);
+  await expect(page.getByText('Bırak', { exact: true })).toHaveCount(0);
+  await runPkEnd(page);
+  await expect(out).toHaveText('Karta dön');
+  await expect(out).toHaveClass(/primary/); // at the end it is the next step
+  await out.click();
+  await expect(page.locator('[data-act="introNext"]')).toBeVisible(); // back on the card
+});
+async function runPkEnd(page) { for (let k = 0; k < 3; k++) { await end(page).catch(() => {}); await page.clock.fastForward(20000); } await page.clock.fastForward(30000); }
