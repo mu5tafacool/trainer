@@ -448,6 +448,18 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
 .idrawer .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .idrawer .acts.one { grid-template-columns: 1fr; }
 @media (prefers-reduced-motion: reduce) { .idrawer { transition: none; } }
+
+/* Pressed: every control shows the touch at once, as iPhone controls do: a tint and a slight shrink (tint only when motion is
+   reduced). iOS Safari applies :active only while the page listens to touchstart; that listener sits next to the click handler. */
+.btn, .link, .chipbtn, .seg button, nav.tabs button, .tchip > span, .mark, .stage, .arow, .anshead, .grps button { touch-action: manipulation; transition: transform .08s ease, background-color .08s ease, filter .08s ease, opacity .08s ease; }
+.btn:not(:disabled):active, .chipbtn:active, .seg button:active, .mark:not(:disabled):active, .stage:not(:disabled):active, .arow:active, .grps button:active, .tchip:active > span { transform: scale(.97); }
+.btn:not(.primary):not(.g2):not(:disabled):active, .chipbtn:active, .seg button:active, .mark:not(:disabled):active, .stage:not(:disabled):active, .arow:active, .grps button:active, .tchip:active > span, nav.tabs button:active { background-color: var(--accent-soft); }
+.btn.primary:not(:disabled):active, .btn.g2:not(:disabled):active { filter: brightness(.9); }
+.link:active, .anshead:active { opacity: .6; }
+@media (prefers-reduced-motion: reduce) {
+  .btn, .link, .chipbtn, .seg button, nav.tabs button, .tchip > span, .mark, .stage, .arow, .anshead, .grps button { transition: none; }
+  .btn:not(:disabled):active, .chipbtn:active, .seg button:active, .mark:not(:disabled):active, .stage:not(:disabled):active, .arow:active, .grps button:active, .tchip:active > span { transform: none; }
+}
 </style>
 </head>
 <body>
@@ -2520,8 +2532,8 @@ function dictNameSet() {
 }
 /* the spoken check: the target language's own rules where it has them (English: verify3), else the general check */
 function dictCheck3(l, said, sig) { return LANGS[TGT].check === 'verify3' ? checkEn(l, said, sig) : checkAny(l, said, TGT); }
-/* general check, any language: the line's words in order (longest common sequence) against what was said; case,
-   punctuation and accents of the same letter are not counted. Same result shape as the English check, without its extras. */
+/* general check, any language: the line's words in order (longest common sequence) against what was said; case and
+   punctuation are not counted (accents still are: plan d64). Same result shape as the English check, without its extras. */
 function checkAny(l, said, lang) {
   var ref = I18N.tokens(l[lang], lang), hyp = I18N.tokens(said, lang), n = ref.length, m = hyp.length, i, j, L = [];
   for (i = 0; i <= n; i++) L.push(new Uint16Array(m + 1));
@@ -4772,11 +4784,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v83'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v84'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-26 15:31'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-26 15:54'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -5165,6 +5177,7 @@ var ACT = {
   }
 };
 var unlocked = false;
+document.addEventListener('touchstart', function () {}, { passive: true }); // lets iOS Safari show the pressed state (:active)
 document.addEventListener('click', function (e) {
   var t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
   if (!unlocked && synth) { unlocked = true; try { var u0 = new SpeechSynthesisUtterance(' '); u0.volume = 0; synth.speak(u0); } catch (err) {} }
