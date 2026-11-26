@@ -68,7 +68,7 @@ test('every key used exists, every key is used, and each call gives the placehol
   const used = new Set([...code.matchAll(/\btm\('([^']+)'/g)].map((m) => m[1]).filter((k) => !k.endsWith('.')) // tm('btn.' + key): LABEL below
     .concat([...markup.matchAll(/data-t="([^"]+)"/g)].map((m) => m[1]))
     .concat([...markup.matchAll(/data-t-attr="([^"]+)"/g)].flatMap((m) => m[1].split(';').map((p) => p.split(':')[1])))
-    .concat(LABEL_KEYS.map((k) => 'btn.' + k)).concat(['fmt.date']));
+    .concat(LABEL_KEYS.map((k) => 'btn.' + k)).concat(['fmt.date']).concat(Object.keys(MSG).filter((k) => /^lang\.\w+\.\w+$/.test(k)))); // lang.*: by role, below
   expect([...used].filter((k) => MSG[k] === undefined), 'used but not in MSG.tr').toEqual([]);
   expect(Object.keys(MSG).filter((k) => !used.has(k)), 'in MSG.tr but no screen uses it').toEqual([]);
   // tm('key', { a: …, b: … }): the top-level names of the object literal
@@ -152,4 +152,55 @@ test('settings saved under the old names (rateEn, trFirst …) are read by role 
   await page.reload();
   await page.locator('nav.tabs [data-tab="settings"]').click();
   await expect(page.locator('#rate-en')).toHaveValue('1.1');
+});
+
+test('words are counted by the language: spaces, or Intl.Segmenter where a language writes none', () => {
+  const { i18n: x } = block({ });
+  expect(x.words('I checked the numbers again.', 'en')).toBe(5);
+  expect(x.words('  Rakamları   bir daha kontrol ettim. ', 'tr')).toBe(5);
+  x.langs.ja = { bcp: 'ja-JP', spaces: false };
+  expect(x.words('私は数字をもう一度確認しました。', 'ja')).toBeGreaterThan(4); // one "word" by spaces, several by the segmenter
+});
+
+test('the reset word: typed in any case, with or without the Turkish dotless i', () => {
+  expect(i18n.fold('SIFIRLA')).toBe(i18n.fold(MSG['resetBox.word']));
+  expect(i18n.fold('sıfırla')).toBe(i18n.fold(MSG['resetBox.word']));
+  expect(i18n.fold(' SİFİRLA ')).toBe(i18n.fold(MSG['resetBox.word']));
+  expect(i18n.fold('sifirla')).toBe(i18n.fold(MSG['resetBox.word']));
+  expect(i18n.fold('SIFIRLAMA')).not.toBe(i18n.fold(MSG['resetBox.word']));
+  expect(MSG['resetBox.onaylamakIcinSifirlaYaz']).toContain('{word}');
+});
+
+test('language names come by role, in the form the sentence needs; every language has every form', () => {
+  const forms = [...new Set(Object.values(MSG).join(' ').match(/\{(?:tgt|src)\.(\w+)\}/g).map((x) => x.slice(5, -1)))];
+  Object.keys(i18n.langs).forEach((code) => forms.forEach((f) => expect(MSG['lang.' + code + '.' + f], code + '.' + f).toBeTruthy()));
+  expect(i18n.t('renderToday.trDusunmeSuresiIngilizcesini')).toContain('İngilizcesini');
+  expect(Object.keys(MSG).filter((k) => !k.startsWith('lang.') && /İngilizce|Türkçe|\b(TR|EN)\b/.test(MSG[k])), 'a language named by hand').toEqual([]);
+});
+
+test('the general check (a language without its own rules): words in order, case and punctuation free, the same result shape', async ({ page }) => {
+  await page.goto(process.env.TRAINER_PAGE || 'index.html');
+  const r = await page.evaluate(() => {
+    const any = window.__dict.any, I = window.__i18n;
+    I.langs.ja = { bcp: 'ja-JP', spaces: false };
+    const line = { tr: 'İstanbul\'da yaşıyorum, uzaktan çalışıyorum.', tier: 'ezber', mk: ['uzaktan çalışıyorum'] };
+    return {
+      full: any(line, 'istanbulda yaşıyorum uzaktan çalışıyorum', 'tr'),
+      same: any(line, 'İSTANBUL\'DA YAŞIYORUM, UZAKTAN ÇALIŞIYORUM!', 'tr'),
+      half: any(line, 'yaşıyorum ve çalışıyorum', 'tr'),
+      none: any(line, '', 'tr'),
+      anlam: any({ tr: 'bir iki üç dört beş altı yedi', tier: 'anlam' }, 'bir iki üç dört beş altı', 'tr'),
+      ja: any({ ja: '私は数字を確認しました', tier: 'ezber' }, '私は数字を確認しました', 'ja'),
+      kp: [window.__dict.kpAny(['uzaktan çalışıyorum'], 'ben uzaktan çalışıyorum', 'tr').ok, window.__dict.kpAny(['uzaktan çalışıyorum'], 'çalışıyorum uzaktan', 'tr').ok],
+      en: window.__i18n.langs.en.check, tr: window.__i18n.langs.tr.check
+    };
+  });
+  expect(r.same.score).toBe(100); expect(r.same.grade).toBe(2); expect(r.same.miss).toEqual([]);
+  expect(r.full.miss).toEqual(['istanbul', 'da']); expect(r.full.extra).toEqual(['istanbulda']); // the apostrophe splits the written word; said as one, it shows
+  expect(r.half.grade).toBe(0); expect(r.half.miss).toContain('uzaktan'); expect(r.half.extra).toEqual(['ve']); expect(r.half.mkMiss).toEqual(['uzaktan çalışıyorum']);
+  expect(r.none.score).toBe(0);
+  expect(r.anlam.score).toBe(86); expect(r.anlam.grade).toBe(2); // anlam: 85% is enough
+  expect(r.ja.score).toBe(100); expect(r.ja.v).toBe(3);
+  expect(r.kp).toEqual([true, false]);
+  expect([r.en, r.tr]).toEqual(['verify3', '']); // English keeps its own rules
 });
