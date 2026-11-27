@@ -523,6 +523,24 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "lang.tr.code": "TR",
     "lang.tr.native": "Türkçe",
     "lang.tr.nativeDat": "Türkçeye",
+    "lang.es.name": "İspanyolca",
+    "lang.es.acc": "İspanyolcayı",
+    "lang.es.poss": "İspanyolcası",
+    "lang.es.possAcc": "İspanyolcasını",
+    "lang.es.dat": "İspanyolcaya",
+    "lang.es.abl": "İspanyolcadan",
+    "lang.es.code": "ES",
+    "lang.es.native": "Español",
+    "lang.es.nativeDat": "Español'a",
+    "lang.fr.name": "Fransızca",
+    "lang.fr.acc": "Fransızcayı",
+    "lang.fr.poss": "Fransızcası",
+    "lang.fr.possAcc": "Fransızcasını",
+    "lang.fr.dat": "Fransızcaya",
+    "lang.fr.abl": "Fransızcadan",
+    "lang.fr.code": "FR",
+    "lang.fr.native": "Français",
+    "lang.fr.nativeDat": "Français'ya",
     "applySeed.yeniCevapVeGuncellenen": "{added} yeni cevap ve güncellenen satırlar eklendi.",
     "applySeed.cevaplarGuncellendi": "Cevaplar güncellendi.",
     "loadModel.bilinmeyenHata": "bilinmeyen hata",
@@ -541,8 +559,8 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "dictRes.sen": "Sen: {esc}",
     "number.sayiFarkliOlmaliSen": "Sayı farklı: <b>{esc}</b> olmalı, sen <b>{esc2}</b> dedin",
     "number-missing.sayiEksik": "Sayı eksik: <b>{esc}</b>",
-    "negation.olumsuzlukEksikNotNo": "Olumsuzluk eksik (not, no, never…)",
-    "negation.fazladanOlumsuzlukNotNo": "Fazladan olumsuzluk (not, no, never…)",
+    "negation.olumsuzlukEksikNotNo": "Olumsuzluk eksik ({v}…)",
+    "negation.fazladanOlumsuzlukNotNo": "Fazladan olumsuzluk ({v}…)",
     "antonym.tersAnlamOlmaliSen": "Ters anlam: <b>{esc}</b> olmalı, sen <b>{esc2}</b> dedin",
     "order.siraTersOlmaliSen": "Sıra ters: <b>{esc}</b> olmalı, sen <b>{esc2}</b> dedin",
     "dictPairRow.kalipta": "(kalıpta)",
@@ -1296,8 +1314,26 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   var LANGS = {
     // check: 'verify3' = the detailed English rules; '' = the general check (words in order, any language)
     // nli: the meaning model knows it · autoMk: common frames are found by themselves when a line has no pattern marked
-    en: { bcp: 'en-US', dir: 'ltr', voice: /^en[-_]US/i, spaces: true, check: 'verify3', nli: true, autoMk: true },
-    tr: { bcp: 'tr-TR', dir: 'ltr', voice: /^tr/i, spaces: true, check: '', nli: false, autoMk: false }
+    en: { bcp: 'en-US', dir: 'ltr', voice: /^en[-_]US/i, spaces: true, check: 'verify3', nli: true, autoMk: true, negEx: 'not, no, never' },
+    tr: { bcp: 'tr-TR', dir: 'ltr', voice: /^tr/i, spaces: true, check: '', nli: false, autoMk: false },
+    /* v1 · 3a/5 (d64): rules for the general check. marks: false = accents are not counted (café = cafe; dictation and keyboards
+       differ on them), keepTilde = ñ stays a letter of its own · neg = words that make a sentence negative (one is enough) ·
+       one = "a / one" words, equal to 1 but not a number on their own · and = the word inside a number (treinta y uno) ·
+       num = number words (accents already folded), x20 = quatre-vingts */
+    es: { bcp: 'es-ES', dir: 'ltr', voice: /^es/i, spaces: true, check: '', nli: false, autoMk: false, marks: false, keepTilde: true,
+      neg: ['no', 'nunca', 'jamas', 'nada', 'nadie', 'ninguno', 'ninguna', 'ningun', 'ningunos', 'ningunas', 'tampoco', 'ni'], negEx: 'no, nunca, nada',
+      one: ['un', 'una', 'uno'], and: ['y'],
+      num: { cero: 0, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14,
+        quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiuno: 21, veintiun: 21, veintiuna: 21, veintidos: 22,
+        veintitres: 23, veinticuatro: 24, veinticinco: 25, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40,
+        cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300,
+        trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500, seiscientos: 600, seiscientas: 600, setecientos: 700,
+        setecientas: 700, ochocientos: 800, ochocientas: 800, novecientos: 900, novecientas: 900, mil: 1000 } },
+    fr: { bcp: 'fr-FR', dir: 'ltr', voice: /^fr/i, spaces: true, check: '', nli: false, autoMk: false, marks: false,
+      neg: ['ne', 'n', 'pas', 'jamais', 'rien', 'aucun', 'aucune', 'guere', 'nulle'], negEx: 'ne … pas, jamais, rien',
+      one: ['un', 'une'], and: ['et'], x20: true,
+      num: { zero: 0, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, treize: 13, quatorze: 14,
+        quinze: 15, seize: 16, vingt: 20, vingts: 20, trente: 30, quarante: 40, cinquante: 50, soixante: 60, cent: 100, cents: 100, mille: 1000, mil: 1000 } }
   };
   var M = MSG[PROFILE.ui], BASE = MSG.tr, PR = null;
   function plural(n) { try { PR = PR || new Intl.PluralRules(PROFILE.ui); return PR.select(n); } catch (e) { return n === 1 ? 'one' : 'other'; } }
@@ -1333,6 +1369,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   function tokens(text, lang) {
     var t = fold(String(text || '').normalize('NFKC'), lang).replace(/[\p{P}\p{S}]+/gu, ' ');
     var L = LANGS[lang];
+    if (L && L.marks === false) t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, function (m, i, all) { return L.keepTilde && m === '\u0303' && all[i - 1] === 'n' ? m : ''; }).normalize('NFC');
     if ((L && L.spaces === false) && typeof Intl.Segmenter === 'function') {
       try { SEG[lang] = SEG[lang] || new Intl.Segmenter(lang, { granularity: 'word' }); var out = [];
         for (var it = SEG[lang].segment(t)[Symbol.iterator](), x = it.next(); !x.done; x = it.next()) if (x.value.isWordLike) out.push(x.value.segment);
@@ -2572,18 +2609,77 @@ function dictNameSet() {
 function dictCheck3(l, said, sig) { return LANGS[TGT].check === 'verify3' ? checkEn(l, said, sig) : checkAny(l, said, TGT); }
 /* general check, any language: the line's words in order (longest common sequence) against what was said; case and
    punctuation are not counted (accents still are: plan d64). Same result shape as the English check, without its extras. */
+/* v1 · 3a/5 (d64): the general check reads a text through its language's rules (LANGS: marks, neg, one, and, num, x20) and the
+   set's short synonym list (CHECK_SYN[lang] = [[canonical, other, …], …], phrases allowed; filled by the sentence set, d26).
+   Number words become digits (trois = 3, treinta y uno = 31, quatre-vingt-dix = 90, 1 500 = 1500); "a / one" words stay words
+   but equal 1. A number or negation that differs makes the suggestion Tekrar, like the English rules. */
+var CHECK_SYN = {}, synCache = {};
+function synGroups(lang) {
+  if (synCache[lang]) return synCache[lang];
+  return (synCache[lang] = (CHECK_SYN[lang] || []).map(function (g) { return g.map(function (p) { return I18N.tokens(p, lang); }).filter(function (t) { return t.length; }); }).filter(function (g) { return g.length > 1; }));
+}
+function synApply(t, lang) {
+  synGroups(lang).forEach(function (g) {
+    var to = g[0];
+    g.slice(1).forEach(function (from) {
+      for (var i = 0; i + from.length <= t.length; i++) {
+        var ok = true; for (var k = 0; k < from.length && ok; k++) ok = t[i + k] === from[k];
+        if (ok) { t = t.slice(0, i).concat(to, t.slice(i + from.length)); i += to.length - 1; }
+      }
+    });
+  });
+  return t;
+}
+function anyPrep(text, lang) {
+  var L = LANGS[lang] || {}, N = L.num || {}, ONE = L.one || [], AND = L.and || [], t = synApply(I18N.tokens(text, lang), lang), out = [], nums = [], i = 0;
+  var isNum = function (w) { return N[w] !== undefined || ONE.indexOf(w) >= 0; };
+  while (i < t.length) {
+    var w = t[i];
+    if (/^\d+$/.test(w)) { // 1 500 / 1.500 / 1,500 → 1500 (a group of three digits after a short number)
+      while (w.length <= 3 && /^\d{3}$/.test(t[i + 1] || '')) { w += t[i + 1]; i++; }
+      out.push(String(Number(w))); nums.push(String(Number(w))); i++; continue;
+    }
+    if (!isNum(w)) { out.push(w); i++; continue; }
+    var total = 0, cur = 0, last = Infinity, used = 0, j = i;
+    while (j < t.length) {
+      var x = t[j];
+      if (AND.indexOf(x) >= 0 && used && j + 1 < t.length && isNum(t[j + 1])) { j++; continue; }
+      if (!isNum(x)) break;
+      var v = N[x] !== undefined ? N[x] : 1;
+      if (v === 100) { cur = (cur || 1) * 100; last = 100; }
+      else if (v === 1000) { total += (cur || 1) * 1000; cur = 0; last = 1000; }
+      else if (v === 20 && L.x20 && cur === 4 && last === 4) { cur = 80; last = 20; }
+      else if (v < last) { cur += v; last = v; }
+      else break;
+      used++; j++;
+    }
+    if (used === 1 && ONE.indexOf(w) >= 0) { out.push(w); i++; continue; } // "un café": a word, equal to 1 below
+    var n = String(total + cur); out.push(n); nums.push(n); i = j;
+  }
+  var neg = (L.neg || []).length ? t.some(function (x) { return L.neg.indexOf(x) >= 0; }) : null;
+  return { t: out, nums: nums, neg: neg, one: ONE };
+}
 function checkAny(l, said, lang) {
-  var ref = I18N.tokens(l[lang], lang), hyp = I18N.tokens(said, lang), n = ref.length, m = hyp.length, i, j, L = [];
+  var R = anyPrep(l[lang], lang), H = anyPrep(said, lang), ref = R.t, hyp = H.t, n = ref.length, m = hyp.length, i, j, L = [];
+  var eq = function (a, b) { return a === b || (a === '1' && R.one.indexOf(b) >= 0) || (b === '1' && R.one.indexOf(a) >= 0); };
   for (i = 0; i <= n; i++) L.push(new Uint16Array(m + 1));
-  for (i = n - 1; i >= 0; i--) for (j = m - 1; j >= 0; j--) L[i][j] = ref[i] === hyp[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  for (i = n - 1; i >= 0; i--) for (j = m - 1; j >= 0; j--) L[i][j] = eq(ref[i], hyp[j]) ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
   var hitR = [], hitH = []; i = 0; j = 0;
-  while (i < n && j < m) { if (ref[i] === hyp[j]) { hitR[i] = hitH[j] = true; i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++; }
+  while (i < n && j < m) { if (eq(ref[i], hyp[j])) { hitR[i] = hitH[j] = true; i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++; }
   var miss = ref.filter(function (w, k) { return !hitR[k]; }), extra = hyp.filter(function (w, k) { return !hitH[k]; });
   var acc = n ? (n - miss.length) / n : 0, tier = l.tier === 'ezber' ? 'ezber' : 'anlam';
   var grade = acc >= (tier === 'ezber' ? 0.94 : 0.85) ? 2 : acc >= 0.7 ? 1 : 0;
+  // numbers and negation: the same warnings as the English rules
+  var issues = [], left = H.nums.slice(), missingNums = [];
+  R.nums.forEach(function (x) { var k = left.indexOf(x); if (k >= 0) left.splice(k, 1); else if (!(x === '1' && hyp.some(function (w) { return R.one.indexOf(w) >= 0; }))) missingNums.push(x); });
+  left = left.filter(function (x) { return !(x === '1' && ref.some(function (w) { return R.one.indexOf(w) >= 0; })); });
+  if (missingNums.length && left.length) issues.push({ kind: 'number', ref: missingNums.join(', '), said: left.join(', '), hard: true });
+  else if (missingNums.length) issues.push({ kind: 'number-missing', ref: missingNums.join(', ') });
+  if (R.neg !== null && m && R.neg !== H.neg) issues.push({ kind: 'negation', ref: R.neg ? 1 : 0, said: H.neg ? 1 : 0, hard: true });
+  if (issues.some(function (x) { return x.hard; })) grade = 0;
   var hits = {}; hyp.forEach(function (w) { hits[w] = 1; });
-  var mkMiss = (l.mk || []).filter(function (c) { return I18N.tokens(c, lang).some(function (w) { return !hits[w]; }); });
-  return { v: 3, tier: tier, grade: grade, score: Math.round(100 * acc), cov: Math.round(100 * acc), mkMiss: mkMiss, mkAs: [], miss: miss, extra: extra, moved: [], issues: [], nli: false, con: 0, entF: 1, entB: 1, text: said };
+  var mkMiss = (l.mk || []).filter(function (c) { return anyPrep(c, lang).t.some(function (w) { return !hits[w]; }); });
+  return { v: 3, tier: tier, grade: grade, score: Math.round(100 * acc), cov: Math.round(100 * acc), mkMiss: mkMiss, mkAs: [], miss: miss, extra: extra, moved: [], issues: issues, nli: false, con: 0, entF: 1, entB: 1, text: said };
 }
 function checkEn(l, said, sig) {
   var line = { [TGT]: l[TGT], tier: l.tier === 'ezber' ? 'ezber' : 'anlam', mk: l.mk || [] };
@@ -2610,7 +2706,7 @@ function dictNli(s, l, txt) {
 var DICT_ISSUE = {
   number: function (x) { return tm('number.sayiFarkliOlmaliSen', { esc: esc(x.ref), esc2: esc(x.said) }); },
   'number-missing': function (x) { return tm('number-missing.sayiEksik', { esc: esc(x.ref) }); },
-  negation: function (x) { return x.said < x.ref ? tm('negation.olumsuzlukEksikNotNo') : tm('negation.fazladanOlumsuzlukNotNo'); },
+  negation: function (x) { var v = LANGS[TGT].negEx || ''; return x.said < x.ref ? tm('negation.olumsuzlukEksikNotNo', { v: v }) : tm('negation.fazladanOlumsuzlukNotNo', { v: v }); },
   antonym: function (x) { return tm('antonym.tersAnlamOlmaliSen', { esc: esc(x.ref), esc2: esc(x.said) }); },
   order: function (x) { return tm('order.siraTersOlmaliSen', { esc: esc(x.ref), esc2: esc(x.said) }); }
 };
@@ -2654,7 +2750,8 @@ function dictRes3(d, said) {
   else if (!d.nli && d.tier !== 'ezber' && st === 'off') h += ('<div class="said">' + tm('dictRes3.anlamModeliKapaliSadece') + '</div>');
   return h + '<div class="said">' + tm('dictRes3.sen', { esc: esc(said) }) + '</div></div>';
 }
-window.__dict = { score: dictScore, res: dictRes, cover: dictCover, check: dictCheck3, any: checkAny, kpAny: kpMatchAny,
+window.__dict = { score: dictScore, res: dictRes, cover: dictCover, check: dictCheck3, any: checkAny, kpAny: kpMatchAny, prep: anyPrep,
+  setSyn: function (lang, groups) { CHECK_SYN[lang] = groups || []; synCache = {}; },
   // tests/eval: use these texts for name detection instead of the unlocked answer set
   fix: function (l, said) { var R = dictPrep[l[TGT]] || (dictPrep[l[TGT]] = verify3.prepareRef(l[TGT], DICT_LEX, dictNameSet())); return verify3.normalizeSaid(said, R).join(' '); },
   setNames: function (texts) { dictNames = verify3.findNames(texts); dictNamesN = (S.answers || []).reduce(function (n, a) { return n + a.lines.length; }, 0); dictPrep = {}; } };
@@ -3920,9 +4017,9 @@ function kpMatch(need, said) {
 }
 /* the pattern's fixed parts in order, for a language without its own rules */
 function kpMatchAny(need, said, lang) {
-  var H = I18N.tokens(said, lang), at = 0, miss = [];
+  var H = anyPrep(said, lang).t, at = 0, miss = [];
   (need || []).forEach(function (part) {
-    var P = I18N.tokens(part, lang), hit = -1;
+    var P = anyPrep(part, lang).t, hit = -1;
     for (var i = at; P.length && i + P.length <= H.length && hit < 0; i++) { var ok = true; for (var j = 0; j < P.length && ok; j++) ok = P[j] === H[i + j]; if (ok) hit = i; }
     if (hit < 0) miss.push(part); else at = hit + P.length;
   });
@@ -4823,11 +4920,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v86'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v87'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-27 10:01'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-27 10:15'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
