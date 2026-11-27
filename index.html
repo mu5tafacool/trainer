@@ -625,8 +625,6 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "siriHint.ingilizceCumleSeciliEsc": "{tgt.name} cümle seçili; <kbd>⌥ Esc</kbd> ile dinle.",
     "siriHint.kumandadakiElSimgesineDokun": "kumandadaki el simgesine dokun, sonra {tgt.name} cümleye dokun.",
     "siriHint.siri": "Siri: {v}",
-    "tierTxt.ezberKelimesiKelimesine": "Ezber · kelimesi kelimesine",
-    "tierTxt.anlamAnaFikirVe": "Anlam · ana fikir ve terimler yeter",
     "intentOf.satir": "Satır {v}",
     "durakBar.durak": "<span class=\"mono\">Durak {v}/{n}</span> {v2}<b>{esc}</b>{v3}",
     "renderReview.buKartiGundurGeciyorsun": "Bu kartı {skN} gündür geçiyorsun. Bugün bir dene; zorsa Tekrar ver, kısa aralıkla yeniden gelir.",
@@ -3332,7 +3330,8 @@ function siriHint() {
 function sessHead(label, key) { return '<div class="sesshead"><button class="link" data-act="endSess">' + lab(key || 'end') + '</button><span class="mono">' + label + '</span></div>'; }
 /* a line's type: ezber (word for word), anlam (main idea) or '' (none chosen: no tag on the card, graded like anlam) */
 function tierOf(l) { return l.tier === 'ezber' || l.tier === '' ? l.tier : 'anlam'; }
-function tierTxt(l) { return l.tier === 'ezber' ? tm('tierTxt.ezberKelimesiKelimesine') : tm('tierTxt.anlamAnaFikirVe'); }
+/* v1 · 2/5 (d54): the card shows the same short word as the Lines list; what each type means is in the guide (Yeni satır öğrenmek) */
+function tierTxt(l) { return l.tier === 'ezber' ? tm('lineRow.ezber') : tm('lineRow.anlam'); }
 /* ---- Niyet / iskelet. line.intent (seed v10) = a 1–3 word Turkish label for the line's job in the answer ("Sonuç").
    Yeni: a stop bar above the card (where this line sits in the answer, the stops before and after it).
    Prova (Cevap provası, round 1): an optional 20 s skeleton round before the full answer: say the stops in order, then
@@ -4824,11 +4823,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v85'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v86'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-27 09:22'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-27 10:01'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }

@@ -54,6 +54,7 @@ test('shadow round 3 together with the voice, then Hatırla: hidden, Göster, ti
   await toRecall(page);
   await expect(card(page).locator('.en')).toHaveCount(0); // English not on the page
   await expect(card(page).locator('.cardfoot #recleft')).toHaveText(/^\d+ sn$/); // the countdown sits in the card foot
+  await expect(card(page).locator('.cardfoot .tier')).toHaveText(/^(Ezber|Anlam)$/); // d54: the same short word as the Lines list
   // on a phone the seconds stay at the card's bottom right, in view; from 375 px on, on the same row as the tag
   for (const w of [320, 375, 390]) {
     await page.setViewportSize({ width: w, height: 760 });
