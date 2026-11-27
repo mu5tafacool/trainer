@@ -1,0 +1,513 @@
+{
+ "v": "t1",
+ "note": "Travel set (d26): generic travel phrases, public and unencrypted by the owner's choice (2026-11-27). Edit here, then run node dev/tools/travel.cjs; a text change bumps v.",
+ "answers": {
+  "t1": {
+   "q": "Temel ve nezaket",
+   "qtr": "Temel ve nezaket",
+   "order": 1,
+   "tag": "Temel ve nezaket",
+   "lines": [
+    {
+     "id": "t1-01",
+     "tr": "Merhaba, günaydın.",
+     "en": "Hello, good morning.",
+     "es": "Hola, buenos días.",
+     "fr": "Bonjour.",
+     "tier": "",
+     "intent": "Selam"
+    },
+    {
+     "id": "t1-02",
+     "tr": "Çok teşekkür ederim.",
+     "en": "Thank you very much.",
+     "es": "Muchas gracias.",
+     "fr": "Merci beaucoup.",
+     "tier": "",
+     "intent": "Teşekkür"
+    },
+    {
+     "id": "t1-03",
+     "tr": "Affedersiniz, bir sorum var.",
+     "en": "Excuse me, I have a question.",
+     "es": "Disculpe, tengo una pregunta.",
+     "fr": "Excusez-moi, j'ai une question.",
+     "tier": "",
+     "intent": "Dikkat çekme"
+    },
+    {
+     "id": "t1-04",
+     "tr": "Özür dilerim, anlamadım.",
+     "en": "Sorry, I don't understand.",
+     "es": "Lo siento, no entiendo.",
+     "fr": "Désolé, je ne comprends pas.",
+     "tier": "",
+     "intent": "Anlamadım",
+     "fr~f": "Désolée, je ne comprends pas."
+    },
+    {
+     "id": "t1-05",
+     "tr": "Biraz daha yavaş konuşabilir misiniz?",
+     "en": "Could you speak a little more slowly?",
+     "es": "¿Podría hablar un poco más despacio?",
+     "fr": "Pourriez-vous parler un peu plus lentement ?",
+     "tier": "",
+     "intent": "Rica"
+    },
+    {
+     "id": "t1-06",
+     "tr": "İngilizce biliyor musunuz?",
+     "en": "Do you speak English?",
+     "es": "¿Habla inglés?",
+     "fr": "Parlez-vous anglais ?",
+     "tier": "",
+     "intent": "Dil sorma"
+    },
+    {
+     "id": "t1-07",
+     "tr": "Bunu yazabilir misiniz?",
+     "en": "Could you write that down?",
+     "es": "¿Podría escribirlo?",
+     "fr": "Pourriez-vous l'écrire ?",
+     "tier": "",
+     "intent": "Rica"
+    },
+    {
+     "id": "t1-08",
+     "tr": "İyi günler, görüşmek üzere.",
+     "en": "Have a nice day, see you soon.",
+     "es": "Que tenga un buen día, hasta pronto.",
+     "fr": "Bonne journée, à bientôt.",
+     "tier": "",
+     "intent": "Veda"
+    }
+   ]
+  },
+  "t2": {
+   "q": "Havalimanı",
+   "qtr": "Havalimanı",
+   "order": 2,
+   "tag": "Havalimanı",
+   "lines": [
+    {
+     "id": "t2-01",
+     "tr": "Check-in nerede?",
+     "en": "Where is check-in?",
+     "es": "¿Dónde está la facturación?",
+     "fr": "Où est l'enregistrement ?",
+     "tier": "",
+     "intent": "Yer sorma"
+    },
+    {
+     "id": "t2-02",
+     "tr": "Bir valizim ve bir el çantam var.",
+     "en": "I have one suitcase and one carry-on bag.",
+     "es": "Tengo una maleta y un equipaje de mano.",
+     "fr": "J'ai une valise et un bagage à main.",
+     "tier": "",
+     "intent": "Bagaj"
+    },
+    {
+     "id": "t2-03",
+     "tr": "Cam kenarı bir koltuk alabilir miyim?",
+     "en": "Could I have a window seat?",
+     "es": "¿Podría darme un asiento de ventanilla?",
+     "fr": "Pourrais-je avoir une place côté hublot ?",
+     "tier": "",
+     "intent": "İstek"
+    },
+    {
+     "id": "t2-04",
+     "tr": "Uçuş kapısı hangisi?",
+     "en": "Which gate is it?",
+     "es": "¿Cuál es la puerta de embarque?",
+     "fr": "Quelle est la porte d'embarquement ?",
+     "tier": "",
+     "intent": "Kapı sorma"
+    },
+    {
+     "id": "t2-05",
+     "tr": "Uçuşum rötar yaptı.",
+     "en": "My flight is delayed.",
+     "es": "Mi vuelo tiene retraso.",
+     "fr": "Mon vol a du retard.",
+     "tier": "",
+     "intent": "Sorun"
+    },
+    {
+     "id": "t2-06",
+     "tr": "Valizim gelmedi.",
+     "en": "My suitcase didn't arrive.",
+     "es": "Mi maleta no ha llegado.",
+     "fr": "Ma valise n'est pas arrivée.",
+     "tier": "",
+     "intent": "Kayıp bagaj"
+    }
+   ]
+  },
+  "t3": {
+   "q": "Ulaşım",
+   "qtr": "Ulaşım",
+   "order": 3,
+   "tag": "Ulaşım",
+   "lines": [
+    {
+     "id": "t3-01",
+     "tr": "Bilet nereden alabilirim?",
+     "en": "Where can I buy a ticket?",
+     "es": "¿Dónde puedo comprar un billete?",
+     "fr": "Où puis-je acheter un billet ?",
+     "tier": "",
+     "intent": "Bilet"
+    },
+    {
+     "id": "t3-02",
+     "tr": "Şehir merkezine nasıl gidebilirim?",
+     "en": "How can I get to the city center?",
+     "es": "¿Cómo puedo llegar al centro?",
+     "fr": "Comment puis-je aller au centre-ville ?",
+     "tier": "",
+     "intent": "Yol sorma"
+    },
+    {
+     "id": "t3-03",
+     "tr": "Şehir merkezine bir bilet, lütfen.",
+     "en": "One ticket to the city center, please.",
+     "es": "Un billete al centro, por favor.",
+     "fr": "Un billet pour le centre-ville, s'il vous plaît.",
+     "tier": "",
+     "intent": "İstek"
+    },
+    {
+     "id": "t3-04",
+     "tr": "Bu otobüs havalimanına gidiyor mu?",
+     "en": "Does this bus go to the airport?",
+     "es": "¿Este autobús va al aeropuerto?",
+     "fr": "Est-ce que ce bus va à l'aéroport ?",
+     "tier": "",
+     "intent": "Güzergâh"
+    },
+    {
+     "id": "t3-05",
+     "tr": "Bir sonraki tren ne zaman?",
+     "en": "When is the next train?",
+     "es": "¿Cuándo sale el próximo tren?",
+     "fr": "À quelle heure est le prochain train ?",
+     "tier": "",
+     "intent": "Saat"
+    },
+    {
+     "id": "t3-06",
+     "tr": "Bu adrese gitmek istiyorum.",
+     "en": "I'd like to go to this address.",
+     "es": "Quisiera ir a esta dirección.",
+     "fr": "Je voudrais aller à cette adresse.",
+     "tier": "",
+     "intent": "Taksi"
+    }
+   ]
+  },
+  "t4": {
+   "q": "Yol tarifi",
+   "qtr": "Yol tarifi",
+   "order": 4,
+   "tag": "Yol tarifi",
+   "lines": [
+    {
+     "id": "t4-01",
+     "tr": "İstasyon nerede?",
+     "en": "Where is the station?",
+     "es": "¿Dónde está la estación?",
+     "fr": "Où est la gare ?",
+     "tier": "",
+     "intent": "Yer sorma"
+    },
+    {
+     "id": "t4-02",
+     "tr": "Buradan yürüyerek ne kadar sürer?",
+     "en": "How long does it take to walk from here?",
+     "es": "¿Cuánto se tarda a pie desde aquí?",
+     "fr": "Combien de temps faut-il à pied d'ici ?",
+     "tier": "",
+     "intent": "Süre"
+    },
+    {
+     "id": "t4-03",
+     "tr": "Haritada gösterebilir misiniz?",
+     "en": "Could you show me on the map?",
+     "es": "¿Me lo puede mostrar en el mapa?",
+     "fr": "Pouvez-vous me le montrer sur la carte ?",
+     "tier": "",
+     "intent": "Rica"
+    },
+    {
+     "id": "t4-04",
+     "tr": "Düz gidin, sonra sola dönün.",
+     "en": "Go straight, then turn left.",
+     "es": "Siga recto y luego gire a la izquierda.",
+     "fr": "Allez tout droit, puis tournez à gauche.",
+     "tier": "",
+     "intent": "Tarif"
+    },
+    {
+     "id": "t4-05",
+     "tr": "Sanırım kayboldum.",
+     "en": "I think I'm lost.",
+     "es": "Creo que me he perdido.",
+     "fr": "Je crois que je suis perdu.",
+     "tier": "",
+     "intent": "Sorun",
+     "fr~f": "Je crois que je suis perdue."
+    }
+   ]
+  },
+  "t5": {
+   "q": "Otel ve konaklama",
+   "qtr": "Otel ve konaklama",
+   "order": 5,
+   "tag": "Otel ve konaklama",
+   "lines": [
+    {
+     "id": "t5-01",
+     "tr": "Bir rezervasyonum var, üç gece için.",
+     "en": "I have a reservation for three nights.",
+     "es": "Tengo una reserva para tres noches.",
+     "fr": "J'ai une réservation pour trois nuits.",
+     "tier": "",
+     "intent": "Giriş"
+    },
+    {
+     "id": "t5-02",
+     "tr": "Boş odanız var mı?",
+     "en": "Do you have a room available?",
+     "es": "¿Tiene una habitación libre?",
+     "fr": "Avez-vous une chambre libre ?",
+     "tier": "",
+     "intent": "Oda sorma"
+    },
+    {
+     "id": "t5-03",
+     "tr": "Kahvaltı dahil mi?",
+     "en": "Is breakfast included?",
+     "es": "¿Está incluido el desayuno?",
+     "fr": "Le petit-déjeuner est-il compris ?",
+     "tier": "",
+     "intent": "Fiyat"
+    },
+    {
+     "id": "t5-04",
+     "tr": "Wi-Fi şifresi nedir?",
+     "en": "What is the Wi-Fi password?",
+     "es": "¿Cuál es la contraseña del wifi?",
+     "fr": "Quel est le mot de passe du wifi ?",
+     "tier": "",
+     "intent": "Bilgi"
+    },
+    {
+     "id": "t5-05",
+     "tr": "Odadaki klima çalışmıyor.",
+     "en": "The air conditioning in my room isn't working.",
+     "es": "El aire acondicionado de la habitación no funciona.",
+     "fr": "La climatisation de la chambre ne marche pas.",
+     "tier": "",
+     "intent": "Sorun"
+    },
+    {
+     "id": "t5-06",
+     "tr": "Çıkış saat kaçta?",
+     "en": "What time is check-out?",
+     "es": "¿A qué hora es la salida?",
+     "fr": "À quelle heure faut-il libérer la chambre ?",
+     "tier": "",
+     "intent": "Saat"
+    }
+   ]
+  },
+  "t6": {
+   "q": "Yemek ve restoran",
+   "qtr": "Yemek ve restoran",
+   "order": 6,
+   "tag": "Yemek ve restoran",
+   "lines": [
+    {
+     "id": "t6-01",
+     "tr": "İki kişilik bir masa, lütfen.",
+     "en": "A table for two, please.",
+     "es": "Una mesa para dos, por favor.",
+     "fr": "Une table pour deux, s'il vous plaît.",
+     "tier": "",
+     "intent": "Masa"
+    },
+    {
+     "id": "t6-02",
+     "tr": "Menüyü alabilir miyim?",
+     "en": "Could I see the menu, please?",
+     "es": "¿Me trae la carta, por favor?",
+     "fr": "Pourrais-je avoir la carte, s'il vous plaît ?",
+     "tier": "",
+     "intent": "İstek"
+    },
+    {
+     "id": "t6-03",
+     "tr": "Ne önerirsiniz?",
+     "en": "What would you recommend?",
+     "es": "¿Qué me recomienda?",
+     "fr": "Que me conseillez-vous ?",
+     "tier": "",
+     "intent": "Soru"
+    },
+    {
+     "id": "t6-04",
+     "tr": "Bunu alayım, bir de su.",
+     "en": "I'll have this, and some water.",
+     "es": "Tomaré esto, y un agua.",
+     "fr": "Je vais prendre ceci, et de l'eau.",
+     "tier": "",
+     "intent": "Sipariş"
+    },
+    {
+     "id": "t6-05",
+     "tr": "İki bira alabilir miyim?",
+     "en": "Could I have two beers, please?",
+     "es": "¿Me da dos cervezas, por favor?",
+     "fr": "Pourrais-je avoir deux bières, s'il vous plaît ?",
+     "tier": "",
+     "intent": "Sipariş"
+    },
+    {
+     "id": "t6-06",
+     "tr": "Fıstığa alerjim var.",
+     "en": "I'm allergic to peanuts.",
+     "es": "Tengo alergia a los cacahuetes.",
+     "fr": "Je suis allergique aux arachides.",
+     "tier": "",
+     "intent": "Alerji"
+    },
+    {
+     "id": "t6-07",
+     "tr": "Çok lezzetliydi, teşekkürler.",
+     "en": "It was delicious, thank you.",
+     "es": "Estaba delicioso, gracias.",
+     "fr": "C'était délicieux, merci.",
+     "tier": "",
+     "intent": "Övgü"
+    },
+    {
+     "id": "t6-08",
+     "tr": "Hesap, lütfen.",
+     "en": "The check, please.",
+     "es": "La cuenta, por favor.",
+     "fr": "L'addition, s'il vous plaît.",
+     "tier": "",
+     "intent": "Hesap"
+    }
+   ]
+  },
+  "t7": {
+   "q": "Alışveriş",
+   "qtr": "Alışveriş",
+   "order": 7,
+   "tag": "Alışveriş",
+   "lines": [
+    {
+     "id": "t7-01",
+     "tr": "Bu kaç para?",
+     "en": "How much is this?",
+     "es": "¿Cuánto cuesta esto?",
+     "fr": "Combien ça coûte ?",
+     "tier": "",
+     "intent": "Fiyat"
+    },
+    {
+     "id": "t7-02",
+     "tr": "Sadece bakıyorum, teşekkürler.",
+     "en": "I'm just looking, thank you.",
+     "es": "Solo estoy mirando, gracias.",
+     "fr": "Je regarde seulement, merci.",
+     "tier": "",
+     "intent": "Bakma"
+    },
+    {
+     "id": "t7-03",
+     "tr": "Daha büyük bir beden var mı?",
+     "en": "Do you have a larger size?",
+     "es": "¿Tiene una talla más grande?",
+     "fr": "Avez-vous une taille plus grande ?",
+     "tier": "",
+     "intent": "Beden"
+    },
+    {
+     "id": "t7-04",
+     "tr": "Kartla ödeyebilir miyim?",
+     "en": "Can I pay by card?",
+     "es": "¿Puedo pagar con tarjeta?",
+     "fr": "Puis-je payer par carte ?",
+     "tier": "",
+     "intent": "Ödeme"
+    },
+    {
+     "id": "t7-05",
+     "tr": "Bir poşet alabilir miyim?",
+     "en": "Could I have a bag, please?",
+     "es": "¿Me da una bolsa, por favor?",
+     "fr": "Pourrais-je avoir un sac, s'il vous plaît ?",
+     "tier": "",
+     "intent": "İstek"
+    }
+   ]
+  },
+  "t8": {
+   "q": "Acil durum",
+   "qtr": "Acil durum",
+   "order": 8,
+   "tag": "Acil durum",
+   "lines": [
+    {
+     "id": "t8-01",
+     "tr": "Yardım edin, lütfen!",
+     "en": "Please help me!",
+     "es": "¡Ayúdeme, por favor!",
+     "fr": "Aidez-moi, s'il vous plaît !",
+     "tier": "",
+     "intent": "Yardım"
+    },
+    {
+     "id": "t8-02",
+     "tr": "Bir doktora ihtiyacım var.",
+     "en": "I need a doctor.",
+     "es": "Necesito un médico.",
+     "fr": "J'ai besoin d'un médecin.",
+     "tier": "",
+     "intent": "Doktor"
+    },
+    {
+     "id": "t8-03",
+     "tr": "En yakın eczane nerede?",
+     "en": "Where is the nearest pharmacy?",
+     "es": "¿Dónde está la farmacia más cercana?",
+     "fr": "Où est la pharmacie la plus proche ?",
+     "tier": "",
+     "intent": "Eczane"
+    },
+    {
+     "id": "t8-04",
+     "tr": "Cüzdanımı kaybettim.",
+     "en": "I lost my wallet.",
+     "es": "He perdido mi cartera.",
+     "fr": "J'ai perdu mon portefeuille.",
+     "tier": "",
+     "intent": "Kayıp"
+    },
+    {
+     "id": "t8-05",
+     "tr": "Polisi arayın, lütfen.",
+     "en": "Please call the police.",
+     "es": "Llame a la policía, por favor.",
+     "fr": "Appelez la police, s'il vous plaît.",
+     "tier": "",
+     "intent": "Polis"
+    }
+   ]
+  }
+ }
+}

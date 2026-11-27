@@ -968,6 +968,14 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "renderSettings.konusmaHizi": "Konuşma hızı",
     "renderSettings.060150": "0,60–1,50 arası. Hazır ses dosyalarına (Fenrir, Siri), bu cihazda üretilen seslere ve cihaz sesine birlikte uygulanır; ses perdesi değişmez, \"şimdi sen söyle\" süreleri ve kart sayacının sınırı da hıza göre uzar ya da kısalır (Nasıl çalışır → Süreler). Siri modunda hız iPhone ayarından gelir.",
     "renderSettings.ingilizce": "{tgt.name}",
+    "appPanel.dil": "Dil",
+    "appPanel.ogrendiginDil": "Öğrendiğin dil",
+    "appPanel.herDilinIlerlemesiAyri": "Her dilin ilerlemesi ayrı tutulur; dil değiştirince kaldığın yerden devam edersin.",
+    "appPanel.konusan": "Konuşan",
+    "appPanel.kadin": "Kadın",
+    "appPanel.erkek": "Erkek",
+    "appPanel.belirtme": "Belirtme",
+    "appPanel.cinsiyetNotu": "Bazı dillerde cümle konuşana göre değişir (Désolé / Désolée). Belirtmezsen eril biçim gelir.",
     "renderSettings.turkce": "{src.name}",
     "renderSettings.ingilizceCihazSesiYedek": "{tgt.name} cihaz sesi (yedek)",
     "renderSettings.buTarayiciSesliOkuma": "Bu tarayıcı sesli okuma desteklemiyor. Safari ya da Chrome ile aç.",
@@ -1309,7 +1317,33 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     for (var i = 0; i < langs.length; i++) { var b = String(langs[i] || '').toLowerCase().split('-')[0]; if (MSG[b]) return b; }
     return 'tr';
   }
-  var PROFILE = { ui: pickUi(), src: 'tr', tgt: 'en' };
+  /* v1 · 3b/5 (d26): one code, several apps. A page names its app in <meta name="mt-app" content="…"> (none = interview).
+     store = the storage prefix; an app with more than one target language keeps each pair apart (mt2:es: …).
+     off = parts of the app it does not have (screens and guide sections ask appHas(), never the app's name):
+       rehearse (Cevap provası and its suggestion), mock (Mülakat), kalip (Kalıp), skeleton (İskelet turu), question (a spoken question
+       before an answer; a travel set's 'answers' are topics).
+     gender = the app asks the speaker's gender once (lines that change with it carry "<lang>~f"). */
+  var APPS = {
+    interview: { store: 'mt1:', tgts: ['en'], off: [], gender: false },
+    travel: { store: 'mt2:', tgts: ['en', 'es', 'fr'], off: ['rehearse', 'mock', 'kalip', 'skeleton', 'question'], gender: true }
+  };
+  function pickApp() { var m = document.querySelector && document.querySelector('meta[name="mt-app"]'); var a = m && m.getAttribute('content'); return APPS[a] ? a : 'interview'; }
+  var APP_ID = pickApp(), APP = APPS[APP_ID];
+  function own(k) { try { return localStorage.getItem(APP.store + k); } catch (e) { return null; } }
+  function pickTgt() { var t = own('__tgt'); return APP.tgts.indexOf(t) >= 0 ? t : APP.tgts[0]; }
+  var PROFILE = { ui: pickUi(), src: 'tr', tgt: pickTgt(), app: APP_ID };
+  var STORE = APP.store + (APP.tgts.length > 1 ? PROFILE.tgt + ':' : '');
+  function gender() { var g = APP.gender ? own('__gender') : ''; return g === 'f' || g === 'm' ? g : ''; }
+  /* a new target language or gender: saved for this app, then the page starts again (each pair has its own store; the
+     sentence set is read again so lines take the gender's form) */
+  function setTgt(t) { if (APP.tgts.indexOf(t) < 0) return; try { localStorage.setItem(APP.store + '__tgt', t); } catch (e) {} location.reload(); }
+  function setGender(g) {
+    try {
+      localStorage.setItem(APP.store + '__gender', g === 'f' || g === 'm' ? g : '');
+      APP.tgts.forEach(function (t) { var k = APP.store + (APP.tgts.length > 1 ? t + ':' : '') + '__seed', v = JSON.parse(localStorage.getItem(k) || 'null'); if (v) { v.v = '~'; localStorage.setItem(k, JSON.stringify(v)); } });
+    } catch (e) {}
+    location.reload();
+  }
   /* what the code needs to know about a language; the code asks this table, never "is it English?" */
   var LANGS = {
     // check: 'verify3' = the detailed English rules; '' = the general check (words in order, any language)
@@ -1335,7 +1369,57 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
       num: { zero: 0, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, treize: 13, quatorze: 14,
         quinze: 15, seize: 16, vingt: 20, vingts: 20, trente: 30, quarante: 40, cinquante: 50, soixante: 60, cent: 100, cents: 100, mille: 1000, mil: 1000 } }
   };
-  var M = MSG[PROFILE.ui], BASE = MSG.tr, PR = null;
+  /* an app's own words on top of MSG (d26): the travel app says "konu" where the interview app says "cevap". Only texts that
+     differ are listed; a key here must exist in MSG.tr with the same placeholders (profile.spec). */
+  var TEXT_APP = {
+    travel: { tr: {
+      "applySeed.yeniCevapVeGuncellenen": "{added} yeni konu ve güncellenen satırlar eklendi.",
+      "applySeed.cevaplarGuncellendi": "Cümleler güncellendi.",
+      "queueTxt.siradakiYeniCevap": "Sıradaki yeni konu",
+      "queueTxt.yeniCevapSirasi": "Yeni konu sırası: {p}",
+      "render.cumlelerEklendigindeBuradaCevaplara": "Cümleler eklendiğinde burada konulara göre görünecek.",
+      "renderToday.onceTekrarlarSonraYeni": "Önce tekrarlar, sonra yeni konu. Her şeyi sesli söyle.",
+      "renderToday.cevapSatirGundeBir": "{answersLength} konu, {total} satır. Günde bir yeni konu; nereden başlayacağını Yeni bölümünde seç.",
+      "renderToday.yeniCevapOgrendikceTekrarlar": "Yeni konu öğrendikçe tekrarlar burada birikir.",
+      "renderToday.basladiginCevaplarinKalanSatirlari": "Başladığın konuların kalan satırları:",
+      "renderToday.bugununYeniCevabiTamam": "Bugünün yeni konusu tamam. Yarın sıradaki gelir.",
+      "renderToday.tumCevaplarOgrenildiArtik": "Tüm konular öğrenildi; artık sadece tekrar ve hız testi.",
+      "renderIntro.yeniCevapTamam": "Yeni konu tamam",
+      "renderTestConfig.onceBirCevapOgren": "Önce bir konu öğren",
+      "modeTxt.cevabinTamamiSiraylaAkisi": "Konunun bütün cümleleri sırayla. Akışı kulağa yerleştir.",
+      "renderTrack.tumCevaplar": "Tüm konular",
+      "mediaMeta.mulakatTrainer": "Seyahat Trainer",
+      "INST.mulakatTrainer": "Seyahat Trainer",
+      "renderLines.satirCevapKirmiziKenarli": "{total} satır, {answersLength} konu. Bar: yeşil oturdu (tekrar aralığı 7+ gün), mavi öğrenildi, gri henüz yok; sağda öğrenilen/toplam satır.{v}",
+      "rowMeta.siradakiYeniCevap": "sıradaki yeni konu",
+      "rowMeta.yeniCevapSirasi": "yeni konu sırası: {p}",
+      "editRow.13KelimeBu": "1–3 kelime: bu satır ne işe yarıyor (örneğin “Selam”, “Rica”, “Soru”). Yeni'de durak çubuğunda görünür.",
+      "notesText.mulakatCevaplari": "Seyahat cümleleri{v}{v2}",
+      "exportNotes.mulakatCevaplari": "Seyahat cümleleri",
+      "renderSettings.yeniDeCevabinDuraklari": "Yeni'de konunun durakları",
+      "keyHelp.yeniCevapKontrol": "Yeni konu · kontrol",
+      "resetBox.silinirTekrarTakvimiOgrenilen": "Silinir: tekrar takvimi, öğrenilen satırlar, test geçmişi, günlük sayaçlar. Kalır: cümleler, düzenlemelerin, ayarlar. Önce otomatik yedek alınır; buradan geri alabilirsin.",
+      "resetBox.bastanBaslamakIcinCevaplarin": "Baştan başlamak için. Cümleler silinmez.",
+      "help.gunGrup": "Yeni cümleler konular halinde gelir, günde bir konu. İlk konuyu Yeni bölümünde seçersin ({v}); bitince sıradaki ertesi gün gelir.",
+      "help.dAkis": "<b>Akış:</b> bir konunun bütün cümleleri sırayla.",
+      "help.cGor": "Konuları ve satırları burada görürsün; her konunun yanında durumu yazar (✓ öğrenildi, +N öğrenilmemiş satır).",
+      "helpPanel.yeniDeKartinUstunde": "<b>Yeni</b>'de kartın üstünde: çizgi konunun tüm satırları (yeşil = geçtiğin, mavi = şimdiki), altında <b>Durak 4/8</b> · önceki › <b>şimdiki</b> › sonraki.",
+      "helpPanel.tekrarKontrolMulakatVe": "Tekrar, Kontrol ve Dinle'de görünmez; oralarda cümlenin kendisi çalışılır. Durak adını <b>Cümleler</b>'de satırı düzenleyerek değiştirebilirsin; cümle güncellemesi senin yazdığını ezmez. Kapatmak: Ayarlar → Akış → <b>Niyet ve iskelet</b>.",
+      "helpPanel.siraOnceAraligiKisa": "<b>Sıra</b>: önce aralığı kısa olan kartlar (dün, önceki gün öğrendiklerin ya da Tekrar dediklerin), sonra eskiler. Taze kart bir gün gecikince çok unutulur, oturmuş kart az. Hepsini bitiremeyeceğin gün tazeleri yapıp Bitir de; kalanlar yarın gelir. Aynı aralıktaki kartlar karışık gelir, konular sırayla.",
+      "helpPanel.kapsamBugunCalisilacaklarVadesi": "<b>Kapsam</b>: Bugün çalışılacaklar (vadesi gelenler; A ve B), öğrendiklerin, tümü, bir konu.",
+      "helpPanel.soldaKodSagdaDurum": "Sağda durum: <b>✓</b> öğrenildi · <b>+N</b> öğrenilmemiş satır · <b>#N</b> yeni konu sırası, sonra satır sayısı.",
+      "helpPanel.cevabiAcincaTurkceSoru": "Konuyu açınca cümleleri {src.name} karşılıklarıyla görürsün.",
+      "helpPanel.parolaHerCihazdaBir": "Parola sorulmaz: seyahat cümleleri herkese açık. İlerlemen yalnız bu cihazda.",
+      "helpPanel.ilerlemeyiSifirlaTekrarTakvimi": "<b>İlerlemeyi sıfırla</b>: tekrar takvimi, öğrenilen satırlar ve test geçmişi silinir; cümleler, düzenlemeler ve ayarlar kalır. Önce otomatik yedek alınır, <b>Sıfırlamayı geri al</b> ile dönebilirsin.",
+      "btn.startNew": "Yeni konuya başla",
+      "btn.hearA": "Konuyu dinle",
+      "btn.hearAll": "Tüm konuyu dinle",
+      "stagePicker.neredenBaslansinSectiginGrup": "Nereden başlansın? Seçtiğin konu bitince diğerleri gelir.",
+      "nliPanel.ileSoyledigininHedefCumleyle": "ile söylediğinin hedef cümleyle aynı şeyi söyleyip söylemediğini bu cihazdaki küçük bir modelle kontrol eder; sırası ya da kelimeleri farklı doğru söyleyişi kabul eder, çelişen söyleyişi yakalar. Sonra internetsiz çalışır."
+    } }
+  };
+  var OWN = TEXT_APP[APP_ID] || {};
+  var M = Object.assign({}, MSG[PROFILE.ui], OWN[PROFILE.ui]), BASE = Object.assign({}, MSG.tr, OWN.tr), PR = null;
   function plural(n) { try { PR = PR || new Intl.PluralRules(PROFILE.ui); return PR.select(n); } catch (e) { return n === 1 ? 'one' : 'other'; } }
   function tm(key, vars) {
     var s = M[key]; if (s === undefined) s = BASE[key]; if (s === undefined) return key;
@@ -1387,7 +1471,8 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   document.documentElement.dir = (LANGS[PROFILE.ui] || {}).dir || 'ltr'; // right-to-left languages: CSS uses start/end, not left/right
   document.querySelectorAll('[data-t-lang]').forEach(function (e) { e.lang = LANGS[PROFILE[e.getAttribute('data-t-lang')]].bcp; });
   fill(document);
-  window.__i18n = { t: tm, profile: PROFILE, langs: LANGS, words: words, fold: fold, tokens: tokens, msg: MSG, packs: Object.keys(MSG), date: date, dec1: dec1, fill: fill };
+  window.__i18n = { t: tm, profile: PROFILE, langs: LANGS, words: words, fold: fold, tokens: tokens, msg: MSG, packs: Object.keys(MSG), date: date, dec1: dec1, fill: fill,
+    app: APP, apps: APPS, store: STORE, appText: TEXT_APP, gender: gender, setTgt: setTgt, setGender: setGender };
 })();
 /* i18n:end */
 </script>
@@ -1397,7 +1482,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
   var tm = window.__i18n.t, TGT = window.__i18n.profile.tgt, SRC = window.__i18n.profile.src;
   if (window.claude) return;
   window.__LOCAL_TRAINER__ = true;
-  var P = 'mt1:';
+  var P = window.__i18n.store; // mt1: for the interview app; mt2:<target>: for travel (each language pair apart)
   function get(k) { try { var v = localStorage.getItem(P + k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
   function put(k, v) { localStorage.setItem(P + k, JSON.stringify(v)); }
   function del(k) { try { localStorage.removeItem(P + k); } catch (e) {} }
@@ -1534,7 +1619,15 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     out.lines = cl(res);
     return out;
   }
+  /* lines that change with the speaker's gender carry "<lang>~f" (Désolée); the chosen gender picks the form once, here */
+  function byGender(data) {
+    if (window.__i18n.gender() !== 'f') return data;
+    var d = cl(data), ans = d.answers || d;
+    Object.keys(ans).forEach(function (id) { (ans[id].lines || []).forEach(function (l) { if (l[TGT + '~f']) l[TGT] = l[TGT + '~f']; }); });
+    return d;
+  }
   function applySeed(data) {
+    data = byGender(data);
     var ans = data.answers || data, prev = get('__seed'), known = {}, added = 0, ord = data.order || [], hist = data.hist || {};
     var upto = prev ? ord.indexOf(prev.v) : -1;
     Object.keys(hist).forEach(function (v) { var i = ord.indexOf(v); if (!prev || upto < 0 || i <= upto) hist[v].forEach(function (id) { known[id] = 1; }); });
@@ -1549,7 +1642,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     if (prev && prev.v !== SEED.v) setTimeout(function () { if (window.__toast) window.__toast(added ? tm('applySeed.yeniCevapVeGuncellenen', { added: added }) : tm('applySeed.cevaplarGuncellendi')); }, 400);
     return added;
   }
-  window.__reseed = function () { return storedKey().then(function (key) { if (key) return decryptAnswers(key).then(applySeed); }).catch(function (e) { console.warn('reseed failed', e); }); };
+  window.__reseed = function () { if (SEED.plain) { applySeed(SEED.plain); return Promise.resolve(); } return storedKey().then(function (key) { if (key) return decryptAnswers(key).then(applySeed); }).catch(function (e) { console.warn('reseed failed', e); }); };
 
   /* ---- audio store (IndexedDB): 'clips' = shipped pack, 'gen' = voiced on this device ---- */
   function idb() {
@@ -1842,6 +1935,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     var g = document.getElementById('gate'), f = document.getElementById('gate-form'), inp = document.getElementById('gate-pass'),
       err = document.getElementById('gate-err'), btn = f.querySelector('button'), sub = document.getElementById('gate-sub'), skip = document.getElementById('gate-skip');
     var seed0 = get('__seed'), seeded = !!seed0, stale = seeded && seed0.v !== SEED.v;
+    if (SEED.plain) { if (!seeded || stale) applySeed(SEED.plain); return; } // an open set: nothing to unlock
     function show(mode) {
       if (mode === 'audio') { sub.textContent = tm('show.kaliteliSesPaketiGeldi'); skip.hidden = false; }
       if (mode === 'data') { sub.textContent = tm('show.yeniCevaplarGeldiEklemek'); skip.hidden = false; }
@@ -1882,6 +1976,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
 (function () {
 'use strict';
 var tm = window.__i18n.t, I18N = window.__i18n, TGT = I18N.profile.tgt, SRC = I18N.profile.src, LANGS = I18N.langs;
+function appHas(part) { return I18N.app.off.indexOf(part) < 0; } // APPS[…].off in the i18n block
 
 /* ---------- helpers ---------- */
 var PLAN_URL = 'https://claude.ai/artifact/BdXSvseWvMArTfrMHbixQo';
@@ -2983,7 +3078,7 @@ function grpChips() {
     return '<button data-act="grp" data-g="' + esc(g.id) + '" aria-pressed="' + (cur === g.id) + '">' + esc(grpLabel(g.id)) + '<span class="mono">' + g.n + '</span></button>';
   }).join('') + '</div>';
 }
-function tagHtml(a) { return a.tag ? ' <span class="tagchip' + (prioOf(a) === 1 ? ' t1' : '') + '">' + esc(a.tag) + '</span>' : ''; }
+function tagHtml(a) { return a.tag && a.tag !== a.q ? ' <span class="tagchip' + (prioOf(a) === 1 ? ' t1' : '') + '">' + esc(a.tag) + '</span>' : ''; }
 function hintList(a) { var k = a.kw; return !k ? [] : Array.isArray(k) ? k : [k]; }
 function infoHtml(a, parts, cls) {
   var h = '', kw = hintList(a);
@@ -3364,7 +3459,7 @@ function renderToday() {
   var t = today(), due = dueList(), nq = newQueue(false), learned = learnedLines().length, total = totalLines();
   var groups = []; nq.forEach(function (x) { if (groups.indexOf(x.a) < 0) groups.push(x.a); });
   var pendingAny = S.answers.some(function (a) { return !started(a); });
-  var sug = rehSuggestion(), d = U.log.days[t] || { rev: 0, new: 0 };
+  var sug = appHas('rehearse') ? rehSuggestion() : null, d = U.log.days[t] || { rev: 0, new: 0 };
   var np = due.filter(function (x) { return x.dir === 'p'; }).length;
   var h = '';
   if (S.noSave) h += ('<div class="banner">' + tm('renderToday.ilerlemeBuOturumdaTutuluyor') + '</div>');
@@ -3649,7 +3744,7 @@ function renderIntro() {
   var s = S.sess;
   if (s.phase === 'finish') {
     var ids = []; s.batches.forEach(function (b) { b.forEach(function (x) { if (ids.indexOf(x.a.id) < 0) ids.push(x.a.id); }); });
-    return '<section class="hero"><h1>' + tm('renderIntro.yeniCevapTamam') + '</h1><p class="sub">' + tm('renderIntro.satirOgrenildiYarinTekrarda', { total: s.total }) + '</p></section><div class="stack">' + ids.map(function (id) { var a = ansById(id); return a ? '<section class="panel"><p class="q">' + codeHtml(a) + esc(a.q) + '</p><div class="row"><button class="btn" data-act="listenAnswer" data-id="' + a.id + '">' + lab('hearAll') + '</button><button class="btn" data-act="openReh" data-id="' + a.id + '">' + lab('reh') + '</button></div></section>' : ''; }).join('') + '<button class="btn primary wide" data-act="endSess">' + lab('home') + '</button></div>';
+    return '<section class="hero"><h1>' + tm('renderIntro.yeniCevapTamam') + '</h1><p class="sub">' + tm('renderIntro.satirOgrenildiYarinTekrarda', { total: s.total }) + '</p></section><div class="stack">' + ids.map(function (id) { var a = ansById(id); return a ? '<section class="panel"><p class="q">' + codeHtml(a) + esc(a.q) + '</p><div class="row"><button class="btn" data-act="listenAnswer" data-id="' + a.id + '">' + lab('hearAll') + '</button>' + (appHas('rehearse') ? '<button class="btn" data-act="openReh" data-id="' + a.id + '">' + lab('reh') + '</button>' : '') + '</div></section>' : ''; }).join('') + '<button class="btn primary wide" data-act="endSess">' + lab('home') + '</button></div>';
   }
   if (s.phase === 'quiz') {
     var q = s.quiz, it = q.q[0];
@@ -3766,7 +3861,11 @@ function renderDone() {
 /* ----- Prova ----- */
 function renderReh() {
   var mode = S.rehMode;
-  var h = '<section class="hero"><h1>' + tm('renderReh.prova') + '</h1></section><div class="seg"><button data-act="rehMode" data-m="answer" aria-pressed="' + (mode === 'answer') + '">' + tm('renderReh.cevapProvasi') + '</button><button data-act="rehMode" data-m="mock" aria-pressed="' + (mode === 'mock') + '">' + tm('renderReh.mulakat') + '</button><button data-act="rehMode" data-m="test" aria-pressed="' + (mode === 'test') + '">' + tm('renderReh.hizTesti') + '</button><button data-act="rehMode" data-m="kalip" aria-pressed="' + (mode === 'kalip') + '">' + tm('renderReh.kalip') + '</button></div>';
+  var modes = [['answer', tm('renderReh.cevapProvasi'), 'rehearse'], ['mock', tm('renderReh.mulakat'), 'mock'], ['test', tm('renderReh.hizTesti'), ''], ['kalip', tm('renderReh.kalip'), 'kalip']]
+    .filter(function (m) { return !m[2] || appHas(m[2]); });
+  if (!modes.some(function (m) { return m[0] === mode; })) mode = S.rehMode = modes[0][0];
+  var h = '<section class="hero"><h1>' + (modes.length > 1 ? tm('renderReh.prova') : modes[0][1]) + '</h1></section>' + (modes.length > 1 ? '<div class="seg">' + modes.map(function (m) {
+    return '<button data-act="rehMode" data-m="' + m[0] + '" aria-pressed="' + (mode === m[0]) + '">' + m[1] + '</button>'; }).join('') + '</div>' : '');
   h += grpChips();
   if (mode === 'test') return h + renderTestConfig();
   if (mode === 'kalip') return h + renderKpConfig();
@@ -4200,7 +4299,7 @@ function lockJoin(list, mode, clip) {
 window.__lock = { mp3Clip: mp3Clip, steps: lockSteps, join: lockJoin, t: lockT }; // read by the tests
 
 /* the question is said before the first line of an answer (Akış, not over a mixed list) */
-function trackAskQ(items, i, cfg) { return cfg.mode === 'C' && cfg.scope !== 'learned' && cfg.scope !== 'all' && (i === 0 || items[i - 1].a !== items[i].a); }
+function trackAskQ(items, i, cfg) { return cfg.mode === 'C' && appHas('question') && cfg.scope !== 'learned' && cfg.scope !== 'all' && (i === 0 || items[i - 1].a !== items[i].a); }
 function lockNeeds(it, mode, q) { var o = [[TGT, it.l[TGT]]]; if (mode === 'B' || (mode === 'A' && srcFirstFor(it))) o.push([SRC, it.l[SRC]]); if (q) o.push([TGT, it.a.q]); return o; }
 function lockMissing(items, cfg) { // how many cards have a text without a shipped clip
   return items.filter(function (it, i) { return !lockNeeds(it, cfg.mode, trackAskQ(items, i, cfg)).every(function (x) { return /^idb:/.test(fileFor(x[1], x[0]) || ''); }); }).length;
@@ -4920,13 +5019,13 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v87'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v88'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-27 10:15'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-27 14:54'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
-var SPEED_UI = 'mt1:__speed_ui';
+var SPEED_UI = I18N.store + '__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
 function speedHash() {
   if (location.hash !== '#hiz') return;
@@ -4935,10 +5034,10 @@ function speedHash() {
 }
 window.addEventListener('hashchange', speedHash);
 function versionLine() {
-  var seedV = ''; try { seedV = (JSON.parse(localStorage.getItem('mt1:__seed') || '{}').v) || ''; } catch (e) {}
+  var seedV = ''; try { seedV = (JSON.parse(localStorage.getItem(I18N.store + '__seed') || '{}').v) || ''; } catch (e) {}
   return '<p class="hint mono verline">' + tm('versionLine.surumUtc', { esc: esc(appVer()), esc2: esc(APP_BUILT), v: seedV ? ' ' + tm('versionLine.cumleler', { esc: esc(seedV) }) : '' }) + '</p>';
 }
-var NLI_TIMES = 'mt1:__nli_ms';
+var NLI_TIMES = I18N.store + '__nli_ms';
 function nliTimeAdd(ms) { try { var a = JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); a.push(ms); localStorage.setItem(NLI_TIMES, JSON.stringify(a.slice(-20))); } catch (e) {} }
 function nliTimes() { try { return JSON.parse(localStorage.getItem(NLI_TIMES) || '[]'); } catch (e) { return []; } }
 var SPEED_PAIRS = [
@@ -5003,9 +5102,18 @@ function nliPanel() {
   else h += '<p class="hint">' + tm('nliPanel.acik', { v: i.state === 'idle' ? tm('nliPanel.ilkKontroldeYuklenir') : '.' }) + '</p>' + modelOff('nli', tm('nliPanel.kapaliykenKelimeVeKural'));
   return h + (speedOn() ? speedBox() : '') + '</section>';
 }
+/* the app's own choices (travel): which language is learned (each pair keeps its own progress) and, where lines change
+   with it, the speaker's gender */
+function appPanel() {
+  var A = I18N.app, h = '<section class="panel set" id="app-panel"><h2>' + tm('appPanel.dil') + '</h2>';
+  if (A.tgts.length > 1) h += segRow(tm('appPanel.ogrendiginDil'), 'tgtSet', 'l', A.tgts.map(function (c) { return [c, tm('lang.' + c + '.native')]; }), TGT) + '<p class="hint">' + tm('appPanel.herDilinIlerlemesiAyri') + '</p>';
+  if (A.gender) h += segRow(tm('appPanel.konusan'), 'genderSet', 'g', [['f', tm('appPanel.kadin')], ['m', tm('appPanel.erkek')], ['', tm('appPanel.belirtme')]], I18N.gender()) + '<p class="hint">' + tm('appPanel.cinsiyetNotu') + '</p>';
+  return h + '</section>';
+}
 function renderSettings() {
   var ev = tgtVoices(), tv = srcVoices();
   var h = ('<section class="hero"><h1>' + tm('renderSettings.ayarlar') + '</h1></section><div class="stack">');
+  if (I18N.app.tgts.length > 1 || I18N.app.gender) h += appPanel();
   h += voicePanel();
   h += '<section class="panel set"><h2>' + tm('renderSettings.konusmaHizi') + '</h2><p class="hint">' + tm('renderSettings.060150') + '</p><div class="rangehead"><label for="rate-en">' + tm('renderSettings.ingilizce') + '</label><span class="mono" id="rate-en-o">' + U.settings.rateTgt.toFixed(2) + '×</span></div><input type="range" id="rate-en" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateTgt + '"><div class="rangehead"><label for="rate-tr">' + tm('renderSettings.turkce') + '</label><span class="mono" id="rate-tr-o">' + U.settings.rateSrc.toFixed(2) + '×</span></div><input type="range" id="rate-tr" min="0.6" max="1.5" step="0.05" value="' + U.settings.rateSrc + '"><div class="row"><button class="btn" data-act="testEn">' + lab('tryEn') + '</button><button class="btn" data-act="testTr">' + lab('tryTr') + '</button></div></section>';
   h += ttsPanel();
@@ -5037,8 +5145,8 @@ function renderSettings() {
 function keyHelp() {
   function k(x) { return '<kbd>' + x + '</kbd>'; }
   function row(keys, what) { return '<li><span class="kk">' + keys + '</span><span class="kw">' + what + '</span></li>'; }
-  function blk(t, rows) { return '<div class="kblock"><p class="kt">' + t + '</p><ul class="klist">' + rows.join('') + '</ul></div>'; }
-  return tx('<p class="hint">' + tm('keyHelp.macTeYaDa') + '</p>' + blk(tm('keyHelp.tekrarKarti'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.ingilizceyiGoster')), row(k('1') + k('2') + k('3') + k('4'), tm('keyHelp.puanVer1Tekrar')), row(k('G'), tm('keyHelp.bugunGecKartYarin'))]) + blk(tm('keyHelp.yeniCevapKontrol'), [row(k(tm('keyHelp.bosluk')), tm('keyHelp.ingilizceyiGoster')), row(k('1'), tm('keyHelp.bilemedimTekrarSor')), row(k('2'), tm('keyHelp.soyledimDevam'))]) + blk(tm('keyHelp.hizTesti'), [row(k(tm('keyHelp.bosluk')), tm('keyHelp.gosterSureDurur')), row(k('1'), tm('keyHelp.yanlis')), row(k('2'), tm('keyHelp.dogru'))]) + blk(tm('keyHelp.provaKalip'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.ornekCumleyiGoster')), row(k('1'), tm('keyHelp.kuramadim')), row(k('2'), tm('keyHelp.kurdum'))]) + blk(tm('keyHelp.provaIskeletTuru'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.duraklariGosterSonraTam'))]) + blk('{pk}', [row(k('P'), tm('keyHelp.pekistirIAcDugme')), row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.33TeGoster')), row(k('R'), tm('keyHelp.birTurDaha')), row(k(tm('keyHelp.esc')), tm('btn.toCard'))]) + blk(tm('keyHelp.dinleCalarken'), [row(k('←'), tm('keyHelp.oncekiKart')), row(k('→'), tm('keyHelp.sonrakiKart')), row(k(tm('keyHelp.bosluk')), tm('keyHelp.duraklatDevamEt')), row(k('1'), tm('keyHelp.bModundaNoBilemedim')), row(k('2'), tm('keyHelp.bModundaOkBildim'))]) + blk(tm('keyHelp.kulaklikVeKilitEkrani'), [row(k('⏭'), tm('keyHelp.sonrakiKart')), row(k('⏮'), tm('keyHelp.oncekiKart')), row(k('⏯'), tm('keyHelp.duraklatKaldigiYerdenDevam'))]) + blk('AirPods', [row('Pro, 3, 4', tm('keyHelp.sapa2KezBas')), row('1, 2', tm('keyHelp.ciftDokunusaSonrakiParca'))]));
+  function blk(t, rows) { if (t === false) return ''; return '<div class="kblock"><p class="kt">' + t + '</p><ul class="klist">' + rows.join('') + '</ul></div>'; }
+  return tx('<p class="hint">' + tm('keyHelp.macTeYaDa') + '</p>' + blk(tm('keyHelp.tekrarKarti'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.ingilizceyiGoster')), row(k('1') + k('2') + k('3') + k('4'), tm('keyHelp.puanVer1Tekrar')), row(k('G'), tm('keyHelp.bugunGecKartYarin'))]) + blk(tm('keyHelp.yeniCevapKontrol'), [row(k(tm('keyHelp.bosluk')), tm('keyHelp.ingilizceyiGoster')), row(k('1'), tm('keyHelp.bilemedimTekrarSor')), row(k('2'), tm('keyHelp.soyledimDevam'))]) + blk(tm('keyHelp.hizTesti'), [row(k(tm('keyHelp.bosluk')), tm('keyHelp.gosterSureDurur')), row(k('1'), tm('keyHelp.yanlis')), row(k('2'), tm('keyHelp.dogru'))]) + blk(appHas('kalip') && tm('keyHelp.provaKalip'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.ornekCumleyiGoster')), row(k('1'), tm('keyHelp.kuramadim')), row(k('2'), tm('keyHelp.kurdum'))]) + blk(appHas('skeleton') && tm('keyHelp.provaIskeletTuru'), [row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.duraklariGosterSonraTam'))]) + blk('{pk}', [row(k('P'), tm('keyHelp.pekistirIAcDugme')), row(tm('keyHelp.yaDa', { k: k(tm('keyHelp.bosluk')), k2: k('Enter') }), tm('keyHelp.33TeGoster')), row(k('R'), tm('keyHelp.birTurDaha')), row(k(tm('keyHelp.esc')), tm('btn.toCard'))]) + blk(tm('keyHelp.dinleCalarken'), [row(k('←'), tm('keyHelp.oncekiKart')), row(k('→'), tm('keyHelp.sonrakiKart')), row(k(tm('keyHelp.bosluk')), tm('keyHelp.duraklatDevamEt')), row(k('1'), tm('keyHelp.bModundaNoBilemedim')), row(k('2'), tm('keyHelp.bModundaOkBildim'))]) + blk(tm('keyHelp.kulaklikVeKilitEkrani'), [row(k('⏭'), tm('keyHelp.sonrakiKart')), row(k('⏮'), tm('keyHelp.oncekiKart')), row(k('⏯'), tm('keyHelp.duraklatKaldigiYerdenDevam'))]) + blk('AirPods', [row('Pro, 3, 4', tm('keyHelp.sapa2KezBas')), row('1, 2', tm('keyHelp.ciftDokunusaSonrakiParca'))]));
 }
 /* progress reset: review schedule, learned lines, rehearsals, tests and daily counts.
    Answers, edits, settings, sound and the passphrase stay. A backup is kept so the reset can be undone. */
@@ -5080,14 +5188,15 @@ function helpPanel() {
   function sub(t, a) { return '<p class="k">' + t + '</p>' + ul(a); }
   var gNames = grpList().map(function (g) { return esc(grpLabel(g.id)); }).join(' · ');
   return tx('<section class="panel set" id="help"><h2>' + tm('helpPanel.nasilCalisir') + '</h2>' +
-    d(tm('help.hizliBaslangic'), '<p>' + tm('help.giris') + '</p><ol>' + [tm('help.hb1'), tm('help.hb2'), tm('help.hb3'), tm('help.hb4'), tm('help.hb5')].map(function (k) { return '<li>' + k + '</li>'; }).join('') + '</ol>', true) +
+    d(tm('help.hizliBaslangic'), '<p>' + tm('help.giris') + '</p><ol>' + [tm('help.hb1'), tm('help.hb2'), appHas('rehearse') ? tm('help.hb3') : '', tm('help.hb4'), tm('help.hb5')].filter(Boolean).map(function (k) { return '<li>' + k + '</li>'; }).join('') + '</ol>', true) +
     d(tm('help.birGun'), '<ul class="help"><li>' + tm('help.gunSira') + '</li><li>' + tm('help.gunEkran') + '</li><li>' + tm('help.gunGrup', { v: gNames }) + '</li><li>' + tm('help.gunErken') + '</li></ul>') +
     d(tm('help.yeniSatir'), ul([tm('help.yTur'), tm('help.yAdim'), tm('help.yNeden'), tm('help.yGolge'), tm('help.yImge'), tm('help.yHatirla'), tm('help.yKontrol'), tm('help.yAtla'), tm('help.yDevam')])) +
     d(tm('help.tekrarPuan'), ul([tm('help.tTur'), tm('help.tPuan'), tm('help.tAralik'), tm('help.tSira'), tm('help.tGec'), tm('help.tPk')])) +
     d(tm('help.soyleKontrol'), ul([tm('help.sKlavye'), tm('help.sKarsi'), tm('help.sTur'), tm('help.sSayi')])) +
     d(tm('helpPanel.zorlandiklarim'), ul([tm('help.zGir'), tm('help.zNerede')])) +
     d(tm('btn.tabTrack'), ul([tm('help.dA'), tm('help.dB'), tm('help.dAkis'), tm('help.dKilit')])) +
-    d(tm('help.provaVd'), ul([tm('help.pProva'), tm('help.pIskelet'), tm('help.pMulakat'), tm('help.pHiz'), tm('help.pKalip')])) +
+    (appHas('rehearse') ? d(tm('help.provaVd'), ul([tm('help.pProva'), tm('help.pIskelet'), tm('help.pMulakat'), tm('help.pHiz'), tm('help.pKalip')]))
+      : d(tm('renderReh.hizTesti'), ul([tm('help.pHiz')]))) +
     d(tm('help.cumleDuzen'), ul([tm('help.cGor'), tm('help.cDuzenle'), tm('help.cDegisti'), tm('help.cEkle')])) +
     d(tm('help.kayitCihaz'), ul([tm('help.kCihaz'), tm('help.kAna'), tm('help.kAyri'), tm('help.kTasi'), tm('help.kGuncel'), tm('help.kSifirla')])) +
     d(tm('helpPanel.kisayollar'), keyHelp()) +
@@ -5096,7 +5205,7 @@ function helpPanel() {
         tm('helpPanel.herTarayiciVeUygulama'), tm('helpPanel.parolaHerCihazdaBir'), tm('helpPanel.ilerlemeyiSifirlaTekrarTakvimi')]) +
       sub(tm('help.aYeni'), [tm('helpPanel.nedenBuSiraDinle'), tm('helpPanel.hatirlaTurkceyeBakipIngilizcesini'), tm('helpPanel.her45Satirda'), tm('helpPanel.yaridaBirakirsanBaskaSekme'),
         tm('helpPanel.kirmiziKenarliSatirEzber'), tm('helpPanel.maviKelimelerKalipBaska'), tm('helpPanel.duzenlerkenYaDaSatir'), tm('helpPanel.yeniDeKartinUstunde'),
-        tm('helpPanel.provaDaTamCevaptan'), tm('helpPanel.nedenUzunCevaptaTakilmanin'), tm('helpPanel.tekrarKontrolMulakatVe')]) +
+        appHas('skeleton') ? tm('helpPanel.provaDaTamCevaptan') : '', appHas('skeleton') ? tm('helpPanel.nedenUzunCevaptaTakilmanin') : '', tm('helpPanel.tekrarKontrolMulakatVe')].filter(Boolean)) +
       sub(tm('help.aTekrar'), [tm('helpPanel.siraOnceAraligiKisa'), tm('helpPanel.gosterDenOnceYa'), tm('helpPanel.dinleBDekiOk'), tm('helpPanel.hatirlaDaHerZaman')]) +
       sub(tm('help.aKontrol'), [tm('helpPanel.tekrarDakiTrEn'), tm('helpPanel.sonucBirOneridirPuani'), tm('helpPanel.onceAyniBicimYazim'), tm('helpPanel.ezberSatiriKelimeKelime'),
         tm('helpPanel.farkliAyniKelimeninBaska'), tm('helpPanel.duyulduguGibiYazilanIsim'), tm('helpPanel.dogruSoylenenKelimeIsme'), tm('helpPanel.dogruSoylenenKelimeIsme2'),
@@ -5105,8 +5214,8 @@ function helpPanel() {
         tm('helpPanel.ayrintiHerZorlanmaPuan')]) +
       sub(tm('help.aDinle'), [tm('helpPanel.onceTurkceAOtomatik'), tm('helpPanel.sonTurEszamanliA'), tm('helpPanel.bSesliRecallTurkce'), tm('helpPanel.yanlisIsaretDoluKutuya'),
         tm('helpPanel.kapsamBugunCalisilacaklarVadesi'), tm('helpPanel.calarkenOncekiDuraklatDevam')]) +
-      sub(tm('help.aProva'), [tm('helpPanel.prova3Tur4'), tm('helpPanel.kayitProvaYalnizcaYa'), tm('helpPanel.iskeletTuruCevapProvasi'), tm('helpPanel.kalipOgrendiginSatirlarinKaliplariyla'),
-        tm('helpPanel.hizTestiTurkceyiGor'), tm('helpPanel.usttekiGrupButonlariListeyi')]) +
+      sub(tm('help.aProva'), appHas('rehearse') ? [tm('helpPanel.prova3Tur4'), tm('helpPanel.kayitProvaYalnizcaYa'), tm('helpPanel.iskeletTuruCevapProvasi'), tm('helpPanel.kalipOgrendiginSatirlarinKaliplariyla'),
+        tm('helpPanel.hizTestiTurkceyiGor'), tm('helpPanel.usttekiGrupButonlariListeyi')] : [tm('helpPanel.hizTestiTurkceyiGor'), tm('helpPanel.usttekiGrupButonlariListeyi')]) +
       sub(tm('help.aSure'), [tm('helpPanel.butunSenSoyleSureleri'), tm('helpPanel.tabanKelimeBasina0'), tm('helpPanel.tekrarEtGolgeleDinle'), tm('helpPanel.hafizadanSoyleHatirlaDinle'),
         tm('helpPanel.kartSayaciTekrarKontrol'), tm('helpPanel.hizTestiKartiBu'), tm('helpPanel.provaHedefiHicbirZaman')]) +
       sub(tm('help.aCumle'), [tm('helpPanel.soldaKodSagdaDurum'), tm('helpPanel.cevabiAcincaTurkceSoru'), tm('helpPanel.degistiYalnizcaSeninDegistirdigin')])) +
@@ -5208,6 +5317,8 @@ var ACT = {
   resetUndo: resetUndo,
   thinkSet: function (el) { U.settings.think = el.dataset.t; save('settings'); render(); },
   trFirstSet: function (el) { U.settings.srcFirst = el.dataset.t; save('settings'); render(); },
+  tgtSet: function (el) { if (el.dataset.l !== TGT) I18N.setTgt(el.dataset.l); },
+  genderSet: function (el) { if (el.dataset.g !== I18N.gender()) I18N.setGender(el.dataset.g); },
   repSet: function (el) { var n = +el.dataset.n; if (S.trackCfg.mode === 'A') U.settings.repA = n; else U.settings.repB = n; save('settings'); if (S.track) { trackStop(true); } render(); },
   trackPlay: function () { S.trackCfg.once = false; trackPlay(); },
   trackStop: function () { trackStop(); },

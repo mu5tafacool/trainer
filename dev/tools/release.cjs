@@ -16,3 +16,4 @@ if (!/var APP_VER = '[^']+';/.test(html) || !/var APP_BUILT = '[^']+';/.test(htm
 fs.writeFileSync(swFile, sw.replace(m[0], "const V = '" + next + "';"));
 fs.writeFileSync(htmlFile, html.replace(/var APP_VER = '[^']+';/, "var APP_VER = '" + next + "';").replace(/var APP_BUILT = '[^']+';/, "var APP_BUILT = '" + built + "';"));
 console.log(next, built, 'UTC');
+require('node:child_process').execFileSync(process.execPath, [path.join(__dirname, 'travel.cjs')], { stdio: 'inherit' }); // travel.html follows index.html

@@ -115,7 +115,7 @@ test('the interface language: own choice, then the browser, then Turkish; html l
   expect(block({ extra: en, languages: ['en-US'], store: { 'mt1:__ui': 'tr' } }).i18n.profile.ui).toBe('tr');
   expect(block({ extra: en, languages: ['tr'], store: { 'mt1:__ui': 'xx' } }).i18n.profile.ui).toBe('tr');
   expect(block({ extra: en, languages: ['en-US'] }).lang).toBe('en');
-  expect(i18n.profile).toEqual({ ui: 'tr', src: 'tr', tgt: 'en' });
+  expect(i18n.profile).toEqual({ ui: 'tr', src: 'tr', tgt: 'en', app: 'interview' }); expect(i18n.store).toBe('mt1:'); // no <meta name="mt-app">: the interview app
 });
 
 test('dates and numbers come from Intl in the interface language', () => {
