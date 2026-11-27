@@ -772,7 +772,7 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "renderTrack.buKapsamdaCumleninHazir": "Bu kapsamda {miss} cümlenin hazır sesi yok.",
     "renderTrack.ekranAcikKalmaliKilitlenince": "Ekran açık kalmalı; kilitlenince ses durur.{v}",
     "renderTrack.aGolgeleme": "A · Gölgeleme",
-    "renderTrack.bSesliRecall": "B · Sesli recall",
+    "renderTrack.bSesliRecall": "B · Hatırlama",
     "renderTrack.akis": "Akış",
     "renderTrack.dinleSekmesiOtomatikCalistigi": "Dinle sekmesi otomatik çalıştığı için cihaz sesini kullanır. Siri sesiyle pasif dinleme için Cümleler → Notlar'a aktar.",
     "renderTrack.onceTr": "Önce {src.code}",
@@ -1027,42 +1027,95 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "resetUndo.yedekOkunamadi": "Yedek okunamadı.",
     "resetUndo.sifirlamaGeriAlindi": "Sıfırlama geri alındı.",
     "helpPanel.nasilCalisir": "Nasıl çalışır",
-    "helpPanel.gunlukAkis": "Günlük akış",
-    "helpPanel.bugunSiraylaTekrarYeni": "<b>Bugün</b> sırayla: Tekrar → Yeni → Prova → Yolda dinle. Her şeyi sesli söyle.",
+    "help.hizliBaslangic": "Hızlı başlangıç",
+    "help.giris": "Bu uygulama cümleleri sesli söyleyerek ezberletir. Her gün <b>Bugün</b> sekmesini aç ve mavi düğmeye bas; sırayı uygulama getirir. Rehberi baştan okuman gerekmez, takıldığında bak.",
+    "help.hb1": "Bugün sekmesinde {startRev}: dünden kalan kartlar.",
+    "help.hb2": "{startNew}: 4–5 satırlık küçük paketler.",
+    "help.hb3": "{reh}: bir cevabı baştan sona sesli söyle.",
+    "help.hb4": "Yolda <b>Dinle</b>: kulaklıkla, ekran kilitliyken de.",
+    "help.hb5": "Her şeyi sesli söyle; içinden geçirmek yetmez.",
+    "help.birGun": "Bir gün nasıl geçer",
+    "help.gunSira": "Sıra: Tekrar → Yeni → Prova → Dinle.",
+    "help.gunEkran": "Çalışırken ve Dinle çalarken ekran açık kalır. Çalışırken 5 dakika hiç dokunmazsan telefonun kendi ayarına göre kararır.",
+    "help.gunGrup": "Yeni cevaplar gruplar halinde gelir, günde bir grup. İlk grubu Yeni bölümünde seçersin ({v}); bitince sıradaki ertesi gün gelir.",
+    "help.gunErken": "{startEarly}: bugünün grubu bitince sıradaki grubu yarını beklemeden açar.",
+    "help.yeniSatir": "Yeni satır öğrenmek",
+    "help.yTur": "İki tür satır var: <b>Ezber</b> satırı kelimesi kelimesine söylenir (kenarı kırmızı), <b>Anlam</b> satırında kendi cümlenle ana fikir yeter.",
+    "help.yAdim": "Her satır beş adım: Dinle → Anlam → 3 kez gölgele → 5 saniye imge → Hatırla.",
+    "help.yNeden": "<b>Neden bu sıra?</b> Önce duyar ve anlarsın, sonra cümle ağzına yerleşir. Kısa bir aradan sonra hafızadan söylemek onu kalıcı yapar.",
+    "help.yGolge": "<b>Gölgele:</b> sesi duy, aynen tekrar et. İlk turda metin görünür, sonra gizlenir. Üçüncü turda sesle birlikte söyle.",
+    "help.yImge": "<b>İmge:</b> cümleyi kendi hayatından bir sahneye bağla.",
+    "help.yHatirla": "<b>Hatırla:</b> {src.dat} bak, {tgt.possAcc} kendin söyle. Süre bitince doğrusu açılır. Oturmadıysa {pk}.",
+    "help.yKontrol": "Her 4–5 satırda kısa <b>Kontrol</b>: aynı satırlar karışık sırayla gelir.",
+    "help.yAtla": "Satırı zaten biliyorsan: Dinle ya da Anlam adımında {skipAll}, Gölgele ya da İmge adımında {skip}. İkisi de seni doğrudan Hatırla'ya götürür; Kontrol bu satırı yine sorar.",
+    "help.yDevam": "Yarıda bırakırsan yerin kaybolmaz: Bugün'de {resume}.",
+    "help.tekrarPuan": "Tekrar ve puan",
+    "help.tTur": "İki tür kart: {src.acc} gör, {tgt.possAcc} söyle; ya da {tgt.acc} duy, anlamını söyle.",
+    "help.tPuan": "{show}, sonra puan ver: Tekrar · Zor · İyi · Kolay. Düğmenin altında bir sonraki tekrarın günü yazar.",
+    "help.tAralik": "Bildikçe aralık uzar: 1 → 3 → 8 → 20 gün.",
+    "help.tSira": "Önce yeni öğrendiklerin gelir. Vaktin yoksa onları bitirip ara ver; kalanlar yarın gelir.",
+    "help.tGec": "{skipDay} kartı bugünün listesinden çıkarır; yarın yine gelir, tekrar günü değişmez.",
+    "help.tPk": "{pk} zorlandığın cümleyi hemen çalıştırır: metinle dinle, sesle birlikte söyle, sonra kendin söyle. Verdiğin puan ve tekrar günü değişmez.",
+    "help.soyleKontrol": "Söyle ve kontrol et",
+    "help.sKlavye": "Klavyeyi {tgt.nativeDat} al, klavyedeki mikrofonla söyle (ya da yaz), sonra {check}.",
+    "help.sKarsi": "Uygulama söylediğini cümleyle karşılaştırır: yüzde, eksik ve fazla kelimeler. Bir puan önerir; puanı sen seçersin.",
+    "help.sTur": "<b>Ezber</b> satırı kelimesi kelimesine. <b>Anlam</b> satırında ana fikir ve önemli kelimeler yeter.",
+    "help.sSayi": "Sayı, olumsuzluk ve zıt anlam her zaman önemlidir: “opens at 7” yerine “opens at eight” dersen öneri Tekrar olur.",
+    "help.zGir": "Zorlandığın satırlar bu listeye kendiliğinden girer. İki ayrı günde doğru söyleyince çıkar.",
+    "help.zNerede": "Dinle'de ve Hız testinde kapsam olarak seçebilirsin. En zoru önce gelir, en çok 15 satır.",
+    "help.dA": "<b>A · Gölgeleme:</b> {tgt.acc} duy, aynen tekrar et.",
+    "help.dB": "<b>B · Sesli hatırlama:</b> {src.acc} duy, {tgt.possAcc} sen söyle, sonra doğrusunu duy. Köşeden {:ok} <b>Bildim</b> ya da {:no} <b>Bilemedim</b> dersen tekrar takvimine işlenir.",
+    "help.dAkis": "<b>Akış:</b> cevabın tamamı, soruyla birlikte.",
+    "help.dKilit": "<b>Kilitte çal:</b> ekran kilitliyken de çalar. Kulaklıktan ve kilit ekranından Önceki, Duraklat, Sonraki çalışır.",
+    "help.provaVd": "Prova, Mülakat, Hız testi, Kalıp",
+    "help.pProva": "<b>Cevap provası:</b> soruyu duy, cevabın tamamını süreli söyle. Takılırsan ipucu aç. Üç turda hedef süre kısalır.",
+    "help.pIskelet": "<b>İskelet turu:</b> tam cevaptan önce, 20 saniyede cevabın duraklarını sırayla söyle. Durak, satırın cevaptaki görevidir: Açılış, Örnek, Sonuç gibi.",
+    "help.pMulakat": "<b>Mülakat:</b> art arda 5 soru; bir kısmı önceki cevabın takip sorusu.",
+    "help.pHiz": "<b>Hız testi:</b> {src.acc} gör, {tgt.possAcc} hızla söyle. Yanlışlar bugünkü tekrara eklenir.",
+    "help.pKalip": "<b>Kalıp:</b> öğrendiğin kalıplarla yeni cümle kur.",
+    "help.cumleDuzen": "Cümleler ve düzenleme",
+    "help.cGor": "Cevapları ve satırları burada görürsün; her cevabın yanında durumu yazar (✓ öğrenildi, +N öğrenilmemiş satır).",
+    "help.cDuzenle": "<b>Düzenle:</b> {tgt.name}, {src.name}, tür ve durak adı. {tgt.possAcc} değiştirirsen o satırın ilerlemesi sıfırlanır, yeniden öğrenirsin.",
+    "help.cDegisti": "<b>Değişti:</b> senin değiştirdiğin satır. Dokununca orijinali görünür; {revert} geri alır.",
+    "help.cEkle": "Kendi satırını da ekleyebilirsin.",
+    "help.kayitCihaz": "Kayıt, cihazlar, güncelleme",
+    "help.kCihaz": "İlerleme bu cihazda saklanır, internetsiz çalışır.",
+    "help.kAna": "Uygulama gibi açmak için: Safari → Paylaş → <b>Ana Ekrana Ekle</b>.",
+    "help.kAyri": "Her uygulama kendi kaydını tutar; hep aynı yerden aç.",
+    "help.kTasi": "Başka cihaza taşımak: {exp}, diğer cihazda <b>İçe aktar</b>.",
+    "help.kGuncel": "Güncellemeler kendiliğinden gelir; ilerlemen ve düzenlemelerin korunur.",
+    "help.kSifirla": "<b>İlerlemeyi sıfırla</b> önce yedek alır; geri alabilirsin.",
+    "help.ayrintilar": "Ayrıntılar",
+    "help.aEkran": "Ekran, ses ve kayıt",
+    "help.aYeni": "Yeni satır",
+    "help.aTekrar": "Tekrar",
+    "help.aKontrol": "Kontrolün kuralları",
+    "help.aZor": "Zorlandıklarım puanı",
+    "help.aDinle": "Dinle",
+    "help.aProva": "Prova, Hız testi, Kalıp",
+    "help.aSure": "Süreler",
+    "help.aCumle": "Cümleler",
     "helpPanel.tekrarDakiTrEn": "<b>{say}</b>: Tekrar'daki {src.code} → {tgt.code} kartında ve Prova'da klavyeyi {tgt.nativeDat} alıp klavyenin 🎤 tuşuyla söyle; uygulama söylediğini orijinalle kelime kelime karşılaştırır, yüzde ve eksik kelimeleri gösterir, Tekrar'da puan önerir. Büyük-küçük harf, noktalama, I'm = I am ve 1,500 = fifteen hundred fark sayılmaz.",
-    "helpPanel.prova3Tur4": "<b>Prova</b>: <b>3 tur (4/3/2)</b> ile aynı cevabı kısalan sürede tekrar anlat (2. tur 1. turun %85'i, 3. tur %70'i). <b>Takip soruları</b> açıkken puanladıktan sonra o cevabın takip sorusu gelir (en fazla 2). <b>Mülakat</b> 5 soruluk zincir: S1 ile başlar, sonraki sorular çoğunlukla takip sorusudur; 2. mülakat grubunda son soru H8.",
+    "helpPanel.prova3Tur4": "<b>Prova</b>: <b>3 tur (4/3/2)</b> ile aynı cevabı kısalan sürede tekrar anlat (2. tur 1. turun %85'i, 3. tur %70'i). <b>Takip soruları</b> açıkken puanladıktan sonra o cevabın takip sorusu gelir (en fazla 2). <b>Mülakat</b>: art arda 5 soru, çoğu önceki cevabın takip sorusu.",
     "helpPanel.ekranAcikKalirCalisirken": "<b>Ekran açık kalır</b>: çalışırken (Yeni, Tekrar, Prova, Hız testi) ve Dinle çalarken ekran kararmaz. 5 dk dokunmazsan normal kararır (Dinle çalarken hariç). iOS 18.4 ve sonrası.",
-    "helpPanel.yeniGundeBirGrup": "<b>Yeni</b>: günde bir grup yeni cevap. Nereden başlayacağını Yeni bölümündeki <b>{v}</b> butonlarıyla seç; o grup bitince diğerleri gelir. Daha hızlı ilerlemek için <b>Sıradakine erken başla</b>.",
-    "helpPanel.kodlarDokumandakiyleAyni": "Kodlar dokümandakiyle aynı: {v}.",
-    "helpPanel.yeniCevapNasilOgrenilir": "Yeni cevap nasıl öğrenilir",
-    "helpPanel.herSatirDinleAnlam": "Her satır: <b>Dinle → Anlam → 3× gölgele → 5 sn imge → Hatırla</b>. Gölgelemenin ilk turu metinle, sonrakiler metinsiz; 3. turda <b>sesle birlikte söyle</b> (boşluk yok).",
     "helpPanel.hatirlaTurkceyeBakipIngilizcesini": "<b>Hatırla</b>: {src.dat} bakıp {tgt.possAcc} kendin söyle; süre bitince (ya da <b>Göster</b> ile) doğrusu açılır ve çalar. Oturmadıysa <b>{pk}</b>. {:mic} ile kontrol edebilirsin; yüzde gösterilir, puan verilmez.",
     "helpPanel.her45Satirda": "Her 4–5 satırda kısa <b>Kontrol</b>: o satırlar karışık sırayla gelir; {src.acc} gör, {tgt.possAcc} söyle. {:mic} ile söylersen sonuç görünür ve {said} ya da {askAgain} önerilir; karar senin.",
     "helpPanel.nedenBuSiraDinle": "<b>Neden bu sıra?</b> Dinle ve Anlam cümleyi tanıtır. Gölgeleme ses ve ritmi oturtur; 3. turda sesle birlikte söylemek akıcılık katar. İmge cümleyi kendi hayatından bir sahneye bağlar ve kısa bir ara verir; bu yüzden Hatırla'da cümle kulağındaki yankıdan değil hafızadan gelir (imgeyi ipucu olarak kullan). Kontrol aynı satırları biraz sonra, karışık sırayla yeniden çağırır: aralık ve karışıklık kalıcılığı artırır. Sonraki günlerde Tekrar, aralıkları büyüterek aynı işi sürdürür.",
-    "helpPanel.dinleVeAnlamDa": "<b>{skipAll}</b> (Dinle ve Anlam'da): bildiğin satırın bütün adımlarını geçer. <b>{skip}</b> (Gölgele ve İmge'de): yalnız o adımı geçer, <b>Hatırla</b> gelir. İkisinde de satır Kontrol'de sorulur.",
     "helpPanel.yaridaBirakirsanBaskaSekme": "Yarıda bırakırsan (başka sekme, <b>{pause}</b> ya da uygulamayı kapatma) yer kaybolmaz: Bugün → Yeni'de <b>Kaldığın yerden devam</b> aynı satır ya da kontrolden sürdürür (o gün içinde).",
     "helpPanel.kirmiziKenarliSatirEzber": "<b>Kırmızı kenarlı satır = ezber</b> (kelimesi kelimesine; açılış, kapanış, ana cümle). Diğerleri <b>anlam</b>: ana fikir ve terimler yeter. Türü <b>Cümleler → Düzenle</b>'de değiştirebilirsin; <b>Boş</b> seçersen kartta etiket görünmez, kontrol Anlam gibi yapılır.",
     "helpPanel.maviKelimelerKalipBaska": "<b>Mavi kelimeler = kalıp</b>: başka cümlelerde de kullanacağın genel {tgt.name} çerçeve. Öğrenme, tekrar, hız testi ve Dinle ekranlarında görünür; Ayarlar → Akış → <b>Kalıp vurgusu</b> ile kapatılır.",
     "helpPanel.duzenlerkenYaDaSatir": "Düzenlerken ya da satır eklerken kalıbı <b>[köşeli parantez]</b> içine alabilirsin (en fazla 2, en az 2 kelime). Parantez yoksa uygulama bilinen kalıplardan kendisi bulur.",
-    "helpPanel.niyetVeIskelet": "Niyet ve iskelet",
-    "helpPanel.herSatirin13": "Her satırın 1–3 kelimelik bir <b>durak adı</b> var: o satır cevapta ne işe yarıyor (örneğin “Açılış”, “Örnek”, “Sonuç”). {tgt.possAcc} ele vermez; cevabın sırasını hatırlatır.",
     "helpPanel.yeniDeKartinUstunde": "<b>Yeni</b>'de kartın üstünde: çizgi cevabın tüm satırları (yeşil = geçtiğin, mavi = şimdiki), altında <b>Durak 4/13</b> · önceki › <b>şimdiki</b> › sonraki.",
     "helpPanel.provaDaTamCevaptan": "<b>Prova</b>'da tam cevaptan önce 20 sn'lik <b>iskelet turu</b>: durakları sırayla söylersin, sonra listeyle karşılaştırırsın. Cevabın sonunda her satırın üstünde durak adı yazar.",
     "helpPanel.nedenUzunCevaptaTakilmanin": "<b>Neden?</b> Uzun cevapta takılmanın asıl sebebi çoğu zaman cümle değil sıradır: “şimdi ne gelecekti?”. Önce iskeleti oturtmak, cümleleri doğru sırayla çağırmayı kolaylaştırır.",
-    "helpPanel.tekrarKontrolMulakatVe": "Tekrar, Kontrol, Mülakat ve Dinle'de görünmez; oralarda cümlenin kendisi çalışılır. Durak adını <b>Cümleler</b>'de satırı düzenleyerek değiştirebilirsin; seed güncellemesi senin yazdığını ezmez. Kapatmak: Ayarlar → Akış → <b>Niyet ve iskelet</b>.",
-    "helpPanel.tekrarNasilCalisir": "Tekrar nasıl çalışır",
-    "helpPanel.ikiKartTuruTr": "İki kart türü: <b>{src.code} → {tgt.code}</b> ({src.acc} gör, {tgt.possAcc} sesli söyle) ve <b>{tgt.code} ses → {src.code}</b> (dinle, anlamını söyle).",
-    "helpPanel.puanTekrarBugunYine": "Puan: <b>Tekrar</b> (bugün yine gelir) · <b>Zor</b> · <b>İyi</b> · <b>Kolay</b>. Butonların altında bir sonraki tekrarın kaç gün sonra olduğu yazar.",
-    "helpPanel.bildikceAralikUzarOrnegin": "Bildikçe aralık uzar (örneğin 1 → 3 → 8 → 20 gün); bilemeyince kısa aralığa döner. Bugünün kartları bitince yeni kart yarın gelir.",
+    "helpPanel.tekrarKontrolMulakatVe": "Tekrar, Kontrol, Mülakat ve Dinle'de görünmez; oralarda cümlenin kendisi çalışılır. Durak adını <b>Cümleler</b>'de satırı düzenleyerek değiştirebilirsin; cümle güncellemesi senin yazdığını ezmez. Kapatmak: Ayarlar → Akış → <b>Niyet ve iskelet</b>.",
     "helpPanel.siraOnceAraligiKisa": "<b>Sıra</b>: önce aralığı kısa olan kartlar (dün, önceki gün öğrendiklerin ya da Tekrar dediklerin), sonra eskiler. Taze kart bir gün gecikince çok unutulur, oturmuş kart az. Hepsini bitiremeyeceğin gün tazeleri yapıp Bitir de; kalanlar yarın gelir. Aynı aralıktaki kartlar karışık gelir, cevaplar sırayla.",
     "helpPanel.gosterDenOnceYa": "<b>{skipDay}</b> (Göster'den önce, ya da G): kart bugünkü listeden çıkar, puanı ve takvimi değişmez, yarın yine gelir. Aynı kartı 3 gün üst üste geçersen kartın üstünde not çıkar; puan verince sayım sıfırlanır.",
     "helpPanel.dinleBDekiOk": "Dinle B'deki {:ok} ve {:no}, ayrıca Hız testindeki yanlışlar da aynı takvime işlenir.",
     "helpPanel.hatirlaDaHerZaman": "<b>{pk}</b> (Hatırla'da her zaman; Kontrol ve Tekrar'da {:mic} sonucu Zor ya da Tekrar ise): ~20 sn. 1/3 metinle dinle ve aynen tekrar et (eksik kalıp kelimeleri turuncu), 2/3 metinsiz sesle birlikte söyle, 3/3 bir kez kendin söyle ({:mic} sadece yüzde). Puan ilk denemene göre kalır. Siri modunda da hazır sesi çalar.",
-    "helpPanel.soyleVeKontrolEt": "Söyle ve kontrol et nasıl karşılaştırır",
     "helpPanel.sonucBirOneridirPuani": "Sonuç bir <b>öneridir</b>; puanı sen seçersin. Aşağıdaki cümleler yalnız örnektir.",
     "helpPanel.onceAyniBicimYazim": "<b>Önce aynı biçim</b>: yazım farkı hata sayılmaz. Hedef “closes at 5”, dikte “closes at five” yazarsa aynıdır.",
     "helpPanel.ezberSatiriKelimeKelime": "<b>Ezber</b> satırı kelime kelime karşılaştırılır: %94 ve üstü İyi, %70 ve üstü Zor. Mavi kalıptan bir kelime eksikse en fazla Zor. <b>Anlam</b> satırında sıra ve ekler (pan / pans) sorun değil; ana fikir ve terimler yeter.",
-    "helpPanel.sayiOlumsuzlukVeZit": "<b>Sayı, olumsuzluk ve zıt anlam</b> her satırda önemlidir: hedef “opens at 7”, sen “opens at eight” dersen öneri Tekrar olur.",
     "helpPanel.farkliAyniKelimeninBaska": "<b>Farklı</b>: aynı kelimenin başka halini söylersen tek satırda görünür. Hedef “wash the <b>pan</b>”, sen “wash the <b>pans</b>” → <b>Farklı: pan → pans</b>. Yalnız gösterim böyledir; puan yine yukarıdaki kurala göre çıkar. Başka kelimeler <b>Eksik</b> ve <b>Fazla</b> olarak kalır.",
     "helpPanel.duyulduguGibiYazilanIsim": "<b>Duyulduğu gibi yazılan isim</b>: dikte bilmediği bir adı sese göre yazabilir. Hedef “The parts came from <b>Paris</b>”, dikte “the parts came from <b>pairs</b>” → Paris sayılır.",
     "helpPanel.dogruSoylenenKelimeIsme": "<b>Doğru söylenen kelime isme çevrilmez</b> (1): satırın kendi kelimesinin başka hali olduğu gibi kalır. Hedef “The <b>parts</b> came from Paris”, sen “the <b>part</b> came from Paris” → part, Paris yapılmaz; Ezber'de Farklı: parts → part.",
@@ -1070,31 +1123,23 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "helpPanel.satirdaGecenIfadeBaska": "<b>Satırda geçen ifade başka terime çevrilmez</b> (3): “American” normalde US sayılır; ama hedef “An American friend lives in the US” ise ikisi de olduğu gibi kalır.",
     "helpPanel.siniriAdiHicSoylemezsen": "<b>Sınırı</b>: adı hiç söylemezsen ve benzer sesli, satırda olmayan bir kelime dersen yine ada çevrilebilir. Hedef “The boxes came from Paris”, sen “the parts came late” → parts, Paris sanılır.",
     "helpPanel.zorlandiklarim": "Zorlandıklarım",
-    "helpPanel.zorlandiginSatirlarBuradaToplanir": "Zorlandığın satırlar burada toplanır. Sen bir şey işaretlemezsin; uygulama kendisi ekler ve çıkarır.",
     "helpPanel.neZamanEklenirTekrar": "<b>Ne zaman eklenir?</b> Tekrar'da <b>Tekrar</b> dediğin satır hemen eklenir. <b>Zor</b>, Dinle'de {:no} ya da Kontrol'de <b>Tekrar sor</b> tek başına yetmez: aynı satırda yaklaşık bir hafta içinde ikinci kez olursa eklenir.",
     "helpPanel.neZamanCikarSatiri": "<b>Ne zaman çıkar?</b> Satırı <b>iki ayrı günde</b> doğru söyleyince: Tekrar'da İyi/Kolay, Dinle'de {:ok} ya da Hız testinde zamanında doğru. Tek bir {:ok} yetmez; aynı gün iki kez doğru söylemek de bir sayılır. Arada yine zorlanırsan sayım baştan başlar.",
     "helpPanel.ornekPazartesiTekrarDedin": "<b>Örnek</b>: Pazartesi Tekrar dedin → listeye girdi. Salı İyi dedin → 1/2. Perşembe Dinle'de {:ok} → listeden çıktı.",
-    "helpPanel.neredeDinleKapsamZorlandiklarim": "<b>Nerede?</b> Dinle → Kapsam → Zorlandıklarım ve Prova → Hız testi → Zorlandıklarım. En zoru önce gelir, en çok 15 satır.",
     "helpPanel.nedenZorBirSatir": "<b>Neden?</b> Zor bir satır, ayrı günlerde art arda doğru hatırlanınca kalıcı olur; bir kez doğru söylemek yetmez. Liste kısa tutulur ki her gün bitirebilesin.",
     "helpPanel.ayrintiHerZorlanmaPuan": "Ayrıntı: her zorlanma puan ekler (Tekrar 3, Zor 2, {:no} 2, Tekrar sor 2, Pekiştir 1, Hatırla'da Pekiştir 0,5). 3 puanda listeye girer; puanlar bir haftada yarıya iner, iki haftadan eskisi sayılmaz.",
-    "helpPanel.dinle": "Dinle",
-    "helpPanel.aGolgelemeIngilizceN": "<b>A · Gölgeleme</b>: {tgt.name} N kez; her birinden sonra aynen tekrar et. İlk 2 turdan sonra metin gizlenir.",
     "helpPanel.onceTurkceAOtomatik": "<b>Önce {src.name}</b> (A): <b>Otomatik</b> = öğrenilmemiş ya da unutulmuş satırda cümle başında {src.name} 1× (anlam çapası), öğrendiğin satırda sadece {tgt.name}. <b>Her zaman</b> / <b>Kapalı</b> da seçilebilir. {src.name} turlar arasında çalmaz.",
     "helpPanel.sonTurEszamanliA": "<b>Son tur eşzamanlı</b> (A): son turda boşluk yok; sesle aynı anda söyle. Ritim ve vurgu için.",
-    "helpPanel.bSesliRecallTurkce": "<b>B · Sesli recall</b>: {src.name} → düşünme süresi içinde {tgt.possAcc} sen söyle → {tgt.name} N kez. Süre cümle uzunluğuna ve konuşma hızına göre, en az 3 sn (Süreler); Kısa / Normal / Uzun ile ayarlanır, kartta geri sayım görünür. {tgt.acc} duyunca kartın köşesinden işaretle: <b>{:ok} bildim</b> (sonraki karta geçer, tekrar ileri atılır), <b>{:no} bilemedim</b> (kart bu oturumda yeniden gelir). Hiç basmazsan bir şey değişmez.",
+    "helpPanel.bSesliRecallTurkce": "<b>B · Sesli hatırlama</b>: {src.name} → düşünme süresi içinde {tgt.possAcc} sen söyle → {tgt.name} N kez. Süre cümle uzunluğuna ve konuşma hızına göre, en az 3 sn (Süreler); Kısa / Normal / Uzun ile ayarlanır, kartta geri sayım görünür. {tgt.acc} duyunca kartın köşesinden işaretle: <b>{:ok} bildim</b> (sonraki karta geçer, tekrar ileri atılır), <b>{:no} bilemedim</b> (kart bu oturumda yeniden gelir). Hiç basmazsan bir şey değişmez.",
     "helpPanel.yanlisIsaretDoluKutuya": "Yanlış işaret: dolu kutuya yeniden bas, 5 sn görünen <b>Geri al</b>'a bas ya da Önceki ile dönüp kaldır.",
-    "helpPanel.akisCevabinTamamiSirayla": "<b>Akış</b>: cevabın tamamı sırayla, soruyla birlikte.",
     "helpPanel.kapsamBugunCalisilacaklarVadesi": "<b>Kapsam</b>: Bugün çalışılacaklar (vadesi gelenler; A ve B), öğrendiklerin, tümü, bir grup ya da tek cevap.",
     "helpPanel.calarkenOncekiDuraklatDevam": "Çalarken: <b>Önceki · Duraklat/Devam · Sonraki</b>; oturumu bitirmek için <b>Bitir</b>.",
     "helpPanel.kilitteCalVarsayilanAcik": "<b>Kilitte çal</b> (varsayılan açık): ekran kilitliyken de çalar; kilit ekranından ve kulaklıktan Önceki, Duraklat/Devam, Sonraki çalışır. Duraklattıktan sonra en az 5 dk kilit ekranından devam edebilirsin. Kapsamda hazır sesi olmayan cümle varsa (örneğin senin değiştirdiğin) ekran açık kalmalı.",
-    "helpPanel.provaVeHizTesti": "Prova ve Hız testi",
-    "helpPanel.cevapProvasiSoruyuDuy": "<b>Cevap provası</b>: soruyu duy → Başla → cevabı baştan sona söyle → Bitti. Takılırsan <b>ipucu göster</b> anahtar kelimeleri açar. Sonunda tüm satırlar (her birinin üstünde durak adı), ana cümle ve notlar görünür. Hedef: duraksamadan 60–90 sn.",
     "helpPanel.kayitProvaYalnizcaYa": "<b>Kayıt</b>: prova yalnızca <b>{stuck}</b> ya da <b>{fluent}</b> ile kaydedilir (tarih, süreler, söylenen yüzde). Uygulama birini çerçeveyle önerir: hedef süreyi aştıysan ya da {:mic} ile cevabın yarısından azı söylendiyse Takıldım, %85 ve üstü süresinde söylendiyse Akıcıydı; karar senin. Kaydetmeden <b>{end}</b> düğmesine basarsan önce sorar.",
     "helpPanel.iskeletTuruCevapProvasi": "<b>İskelet turu</b> (Cevap provası, 1. tur): <b>Başla · önce iskelet</b> ile 20 sn içinde cevabın duraklarını sırayla, birkaç kelimeyle söyle; sonra durak listesi açılır, <b>Tam cevaba başla</b> ile asıl turu başlat. Süre tam cevapta başlar. İstemezsen <b>İskeletsiz başla</b>. Mülakat modunda yok.",
     "helpPanel.kalipOgrendiginSatirlarinKaliplariyla": "<b>Kalıp</b>: öğrendiğin satırların kalıplarıyla <b>yeni</b> cümle kur. Kartta kalıp, geldiği orijinal cümle ve {src.name} bir durum var; durumu o kalıpla {tgt.name} söyle. <b>Göster</b> bir örnek cümle açar ve çalar. {:mic} ile söylersen uygulama kalıbın sabit parçalarının (mavi) sırayla geçip geçmediğine bakar ve {built} ya da {notBuilt} önerir; karar senin. Kuramadıkların bir sonraki oturumda önce gelir, her kalıbın durumları sırayla değişir. Tekrar takvimine ve Zorlandıklarım'a dokunmaz.",
     "helpPanel.hizTestiTurkceyiGor": "<b>Hız testi</b>: {src.acc} gör, {tgt.possAcc} söyle, biter bitmez Göster. Hedef: doğru ve süresinde: kısa cümlede ~3–4 sn, uzun cümlede daha fazla. Yanlışlar bugünkü tekrara eklenir.",
     "helpPanel.usttekiGrupButonlariListeyi": "Üstteki grup butonları listeyi ve testi o gruba daraltır.",
-    "helpPanel.sureler": "Süreler",
     "helpPanel.butunSenSoyleSureleri": "Bütün \"sen söyle\" süreleri tek bir hesaptan gelir, cümlenin uzunluğuna ve {tgt.name} konuşma hızına göre. Akış değişmez; sadece bekleme ve uyarı süreleri cümleye uyar.",
     "helpPanel.tabanKelimeBasina0": "<b>Taban</b>: kelime başına 0,42 sn ÷ konuşma hızı. 12 kelime: 1,0× hızda 5 sn, 0,7× hızda 7,2 sn.",
     "helpPanel.tekrarEtGolgeleDinle": "<b>Tekrar et</b> (Gölgele, Dinle A): duyduğun sesin süresi × 1,15 + 0,6 sn.",
@@ -1102,18 +1147,13 @@ table.keys tr + tr th, table.keys tr + tr td { border-top: 1px solid var(--rule)
     "helpPanel.kartSayaciTekrarKontrol": "<b>Kart sayacı</b> Tekrar, Kontrol ve Hız testinde bu süreye kadar gri, sonra turuncu. Sadece gösterge; puanı sen verirsin.",
     "helpPanel.hizTestiKartiBu": "<b>Hız testi</b>: kartı bu süre içinde ve doğru söylersen \"doğru ve süresinde\" sayılır.",
     "helpPanel.provaHedefiHicbirZaman": "<b>Prova</b> hedefi hiçbir zaman dakikada ~170 kelimeden hızlı değildir.",
-    "helpPanel.cumleler": "Cümleler",
     "helpPanel.soldaKodSagdaDurum": "Solda kod, sağda durum: <b>✓</b> öğrenildi · <b>+N</b> öğrenilmemiş satır · <b>#N</b> yeni cevap sırası, sonra satır sayısı.",
     "helpPanel.cevabiAcincaTurkceSoru": "Cevabı açınca: {src.name} soru, ana cümle, iskelet / anahtar kelimeler, net söylenecek kelimeler ve notlar.",
-    "helpPanel.duzenleIngilizceTurkceVe": "<b>Düzenle</b>: {tgt.name}, {src.name} ve tür (ezber/anlam). {tgt.poss} değişen satırın tekrar geçmişi sıfırlanır. Satır ekleyebilir, silebilirsin; güncellemeler düzenlemelerini korur.",
     "helpPanel.degistiYalnizcaSeninDegistirdigin": "<b>Değişti</b> yalnızca senin değiştirdiğin satırlarda çıkar: dokununca uygulamanın varsayılan cümlesi ({tgt.name} ve {src.name}) görünür. <b>Varsayılana dön</b> senin değişikliğini siler, satır yine güncellemeleri alır. Bir güncelleme varsayılanı değiştirirse kutuda <b>Varsayılan güncellendi</b> yazar; senin metnin olduğu gibi kalır.",
-    "helpPanel.notlarAAktarMetni": "<b>Notlar'a aktar</b>: metni Notlar'a yapıştır, Speak Screen ile Siri sesinde internetsiz dinle.",
+    "helpPanel.notlarAAktarMetni": "<b>Notlar'a aktar</b>: metni Notlar'a yapıştır, iPhone'un <b>Ekranı Seslendir</b> özelliğiyle (Ayarlar → Erişilebilirlik → Seslendirilen İçerik) Siri sesinde internetsiz dinle.",
     "helpPanel.kisayollar": "Kısayollar",
-    "helpPanel.kayitGuncellemeCihazlar": "Kayıt, güncelleme, cihazlar",
     "helpPanel.ilerlemeBuCihazdaSaklanir": "İlerleme bu cihazda saklanır, internetsiz çalışır. Telefonda Safari → Paylaş → <b>Ana Ekrana Ekle</b>, Mac'te Safari → Dosya → <b>Dock'a Ekle</b>, Chrome'da <b>Yükle</b> ile uygulama gibi açılır. Tarayıcı sekmesinde açınca alttan bir <b>yükleme penceresi</b> açılır: Chrome ve Edge'de <b>Yükle</b> düğmesi, iPhone Safari'de Paylaş → Ana Ekrana Ekle adımları. <b>Kapat</b> 7 gün gizler; yüklü uygulamada hiç çıkmaz.",
     "helpPanel.herTarayiciVeUygulama": "Her tarayıcı ve uygulama kendi kaydını tutar: iPhone'da Safari sekmesi ile ana ekran uygulamasının ilerlemesi ve parolası ayrıdır. Hep aynı yerden (ana ekran uygulaması) aç.",
-    "helpPanel.baskaCihazaTasimakBurada": "Başka cihaza taşımak: burada <b>İlerlemeyi dışa aktar</b>, kodu diğer cihazda <b>İçe aktar</b>.",
-    "helpPanel.guncellemelerKendiligindenGelirYeni": "Güncellemeler kendiliğinden gelir; yeni cevaplar eklenir, ilerleme ve düzenlemeler korunur. Sadece yeni ses dosyaları iner.",
     "helpPanel.parolaHerCihazdaBir": "Parola her cihazda bir kez sorulur. Cümleler ve sesler şifreli saklanır.",
     "helpPanel.ilerlemeyiSifirlaTekrarTakvimi": "<b>İlerlemeyi sıfırla</b>: tekrar takvimi, öğrenilen satırlar, prova ve test geçmişi silinir; cevaplar, düzenlemeler, ayarlar ve sesler kalır. Önce otomatik yedek alınır, <b>Sıfırlamayı geri al</b> ile dönebilirsin.",
     "tab.yeniOgrenmeDuraklatildiBugun": "Yeni öğrenme duraklatıldı. Bugün → Yeni'den devam et.",
@@ -4784,11 +4824,11 @@ function modelOff(kind, note) {
 /* ---- Hızı ölç: how fast the meaning model is on this phone. Made-up sentence pairs only; the report holds the app
    version, the OS and browser version and timings — no sentences, no names. Only the timings of the last 20 real checks
    (milliseconds) are kept on the device, and only while the model is on. ---- */
-var APP_VER = 'mt-v84'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
+var APP_VER = 'mt-v85'; // = V in sw.js (a test checks); set with dev/tools/release.cjs
 // shown as v0.NN while the core tasks are open; when they are done, main is merged and this becomes v1
 var APP_MAJOR = 0;
 function appVer() { return 'v' + APP_MAJOR + '.' + APP_VER.replace(/^mt-v/, ''); }
-var APP_BUILT = '2026-11-26 15:54'; // UTC, when this version was made (dev/tools/release.cjs)
+var APP_BUILT = '2026-11-27 09:22'; // UTC, when this version was made (dev/tools/release.cjs)
 /* Hızı ölç is hidden; opening the app once with #hiz shows it again (kept on this device until Gizle) */
 var SPEED_UI = 'mt1:__speed_ui';
 function speedOn() { try { return localStorage.getItem(SPEED_UI) === '1'; } catch (e) { return false; } }
@@ -4937,99 +4977,44 @@ function resetUndo() {
   render(); toast(tm('resetUndo.sifirlamaGeriAlindi'));
 }
 function helpPanel() {
+  /* v0.85 (v1 · 1/5): sections 1–11 are short and follow the app's own order; the older, longer texts live in 12 · Ayrıntılar
+     (closed). {key} in a text is a button (tx), {tgt.*} / {src.*} a language name (tm). */
   function d(t, body, open) { return '<details class="howto"' + (open ? ' open' : '') + '><summary>' + t + '</summary>' + body + '</details>'; }
   function ul(a) { return '<ul class="help">' + a.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'; }
-  var gl = grpList(), gNames = gl.map(function (g) { return grpLabel(g.id); });
-  var gCodes = gl.map(function (g) { return esc(codeRange(S.answers.filter(function (a) { return grpOf(a) === g.id; }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); })) + ' ' + grpLabel(g.id)); });
-  return tx('<section class="panel set" id="help"><h2>' + tm('helpPanel.nasilCalisir') + '</h2>' + d(tm('helpPanel.gunlukAkis'), ul([
-      tm('helpPanel.bugunSiraylaTekrarYeni'),
-      tm('helpPanel.tekrarDakiTrEn'),
-      tm('helpPanel.prova3Tur4'),
-      tm('helpPanel.ekranAcikKalirCalisirken'),
-      tm('helpPanel.yeniGundeBirGrup', { v: gNames.map(esc).join(' · ') }),
-      tm('helpPanel.kodlarDokumandakiyleAyni', { v: gCodes.join(', ') })
-    ]), true) + d(tm('helpPanel.yeniCevapNasilOgrenilir'), ul([
-      tm('helpPanel.herSatirDinleAnlam'),
-      tm('helpPanel.hatirlaTurkceyeBakipIngilizcesini'),
-      tm('helpPanel.her45Satirda'),
-      tm('helpPanel.nedenBuSiraDinle'),
-      tm('helpPanel.dinleVeAnlamDa'),
-      tm('helpPanel.yaridaBirakirsanBaskaSekme'),
-      tm('helpPanel.kirmiziKenarliSatirEzber'),
-      tm('helpPanel.maviKelimelerKalipBaska'),
-      tm('helpPanel.duzenlerkenYaDaSatir')
-    ])) + d(tm('helpPanel.niyetVeIskelet'), ul([
-      tm('helpPanel.herSatirin13'),
-      tm('helpPanel.yeniDeKartinUstunde'),
-      tm('helpPanel.provaDaTamCevaptan'),
-      tm('helpPanel.nedenUzunCevaptaTakilmanin'),
-      tm('helpPanel.tekrarKontrolMulakatVe')
-    ])) + d(tm('helpPanel.tekrarNasilCalisir'), ul([
-      tm('helpPanel.ikiKartTuruTr'),
-      tm('helpPanel.puanTekrarBugunYine'),
-      tm('helpPanel.bildikceAralikUzarOrnegin'),
-      tm('helpPanel.siraOnceAraligiKisa'),
-      tm('helpPanel.gosterDenOnceYa'),
-      tm('helpPanel.dinleBDekiOk'),
-      tm('helpPanel.hatirlaDaHerZaman')
-    ])) + d(tm('helpPanel.soyleVeKontrolEt'), ul([
-      tm('helpPanel.sonucBirOneridirPuani'),
-      tm('helpPanel.onceAyniBicimYazim'),
-      tm('helpPanel.ezberSatiriKelimeKelime'),
-      tm('helpPanel.sayiOlumsuzlukVeZit'),
-      tm('helpPanel.farkliAyniKelimeninBaska'),
-      tm('helpPanel.duyulduguGibiYazilanIsim'),
-      tm('helpPanel.dogruSoylenenKelimeIsme'),
-      tm('helpPanel.dogruSoylenenKelimeIsme2'),
-      tm('helpPanel.satirdaGecenIfadeBaska'),
-      tm('helpPanel.siniriAdiHicSoylemezsen')
-    ])) + d(tm('helpPanel.zorlandiklarim'), ul([
-      tm('helpPanel.zorlandiginSatirlarBuradaToplanir'),
-      tm('helpPanel.neZamanEklenirTekrar'),
-      tm('helpPanel.neZamanCikarSatiri'),
-      tm('helpPanel.ornekPazartesiTekrarDedin'),
-      tm('helpPanel.neredeDinleKapsamZorlandiklarim'),
-      tm('helpPanel.nedenZorBirSatir'),
-      ('<span class="hint">' + tm('helpPanel.ayrintiHerZorlanmaPuan') + '</span>')
-    ])) + d(tm('helpPanel.dinle'), ul([
-      tm('helpPanel.aGolgelemeIngilizceN'),
-      tm('helpPanel.onceTurkceAOtomatik'),
-      tm('helpPanel.sonTurEszamanliA'),
-      tm('helpPanel.bSesliRecallTurkce'),
-      tm('helpPanel.yanlisIsaretDoluKutuya'),
-      tm('helpPanel.akisCevabinTamamiSirayla'),
-      tm('helpPanel.kapsamBugunCalisilacaklarVadesi'),
-      tm('helpPanel.calarkenOncekiDuraklatDevam'),
-      tm('helpPanel.kilitteCalVarsayilanAcik')
-    ])) + d(tm('helpPanel.provaVeHizTesti'), ul([
-      tm('helpPanel.cevapProvasiSoruyuDuy'),
-      tm('helpPanel.kayitProvaYalnizcaYa'),
-      tm('helpPanel.iskeletTuruCevapProvasi'),
-      tm('helpPanel.kalipOgrendiginSatirlarinKaliplariyla'),
-      tm('helpPanel.hizTestiTurkceyiGor'),
-      tm('helpPanel.usttekiGrupButonlariListeyi')
-    ])) + d(tm('helpPanel.sureler'), ul([
-      tm('helpPanel.butunSenSoyleSureleri'),
-      tm('helpPanel.tabanKelimeBasina0'),
-      tm('helpPanel.tekrarEtGolgeleDinle'),
-      tm('helpPanel.hafizadanSoyleHatirlaDinle'),
-      tm('helpPanel.kartSayaciTekrarKontrol'),
-      tm('helpPanel.hizTestiKartiBu'),
-      tm('helpPanel.provaHedefiHicbirZaman')
-    ])) + d(tm('helpPanel.cumleler'), ul([
-      tm('helpPanel.soldaKodSagdaDurum'),
-      tm('helpPanel.cevabiAcincaTurkceSoru'),
-      tm('helpPanel.duzenleIngilizceTurkceVe'),
-      tm('helpPanel.degistiYalnizcaSeninDegistirdigin'),
-      tm('helpPanel.notlarAAktarMetni')
-    ])) + d(tm('helpPanel.kisayollar'), keyHelp()) + d(tm('helpPanel.kayitGuncellemeCihazlar'), ul([
-      tm('helpPanel.ilerlemeBuCihazdaSaklanir'),
-      tm('helpPanel.herTarayiciVeUygulama'),
-      tm('helpPanel.baskaCihazaTasimakBurada'),
-      tm('helpPanel.guncellemelerKendiligindenGelirYeni'),
-      tm('helpPanel.parolaHerCihazdaBir'),
-      tm('helpPanel.ilerlemeyiSifirlaTekrarTakvimi')
-    ])) + '</section>');
+  function sub(t, a) { return '<p class="k">' + t + '</p>' + ul(a); }
+  var gNames = grpList().map(function (g) { return esc(grpLabel(g.id)); }).join(' · ');
+  return tx('<section class="panel set" id="help"><h2>' + tm('helpPanel.nasilCalisir') + '</h2>' +
+    d(tm('help.hizliBaslangic'), '<p>' + tm('help.giris') + '</p><ol>' + [tm('help.hb1'), tm('help.hb2'), tm('help.hb3'), tm('help.hb4'), tm('help.hb5')].map(function (k) { return '<li>' + k + '</li>'; }).join('') + '</ol>', true) +
+    d(tm('help.birGun'), '<ul class="help"><li>' + tm('help.gunSira') + '</li><li>' + tm('help.gunEkran') + '</li><li>' + tm('help.gunGrup', { v: gNames }) + '</li><li>' + tm('help.gunErken') + '</li></ul>') +
+    d(tm('help.yeniSatir'), ul([tm('help.yTur'), tm('help.yAdim'), tm('help.yNeden'), tm('help.yGolge'), tm('help.yImge'), tm('help.yHatirla'), tm('help.yKontrol'), tm('help.yAtla'), tm('help.yDevam')])) +
+    d(tm('help.tekrarPuan'), ul([tm('help.tTur'), tm('help.tPuan'), tm('help.tAralik'), tm('help.tSira'), tm('help.tGec'), tm('help.tPk')])) +
+    d(tm('help.soyleKontrol'), ul([tm('help.sKlavye'), tm('help.sKarsi'), tm('help.sTur'), tm('help.sSayi')])) +
+    d(tm('helpPanel.zorlandiklarim'), ul([tm('help.zGir'), tm('help.zNerede')])) +
+    d(tm('btn.tabTrack'), ul([tm('help.dA'), tm('help.dB'), tm('help.dAkis'), tm('help.dKilit')])) +
+    d(tm('help.provaVd'), ul([tm('help.pProva'), tm('help.pIskelet'), tm('help.pMulakat'), tm('help.pHiz'), tm('help.pKalip')])) +
+    d(tm('help.cumleDuzen'), ul([tm('help.cGor'), tm('help.cDuzenle'), tm('help.cDegisti'), tm('help.cEkle')])) +
+    d(tm('help.kayitCihaz'), ul([tm('help.kCihaz'), tm('help.kAna'), tm('help.kAyri'), tm('help.kTasi'), tm('help.kGuncel'), tm('help.kSifirla')])) +
+    d(tm('helpPanel.kisayollar'), keyHelp()) +
+    d(tm('help.ayrintilar'),
+      sub(tm('help.aEkran'), [tm('helpPanel.ekranAcikKalirCalisirken'), tm('helpPanel.kilitteCalVarsayilanAcik'), tm('helpPanel.notlarAAktarMetni'), tm('helpPanel.ilerlemeBuCihazdaSaklanir'),
+        tm('helpPanel.herTarayiciVeUygulama'), tm('helpPanel.parolaHerCihazdaBir'), tm('helpPanel.ilerlemeyiSifirlaTekrarTakvimi')]) +
+      sub(tm('help.aYeni'), [tm('helpPanel.nedenBuSiraDinle'), tm('helpPanel.hatirlaTurkceyeBakipIngilizcesini'), tm('helpPanel.her45Satirda'), tm('helpPanel.yaridaBirakirsanBaskaSekme'),
+        tm('helpPanel.kirmiziKenarliSatirEzber'), tm('helpPanel.maviKelimelerKalipBaska'), tm('helpPanel.duzenlerkenYaDaSatir'), tm('helpPanel.yeniDeKartinUstunde'),
+        tm('helpPanel.provaDaTamCevaptan'), tm('helpPanel.nedenUzunCevaptaTakilmanin'), tm('helpPanel.tekrarKontrolMulakatVe')]) +
+      sub(tm('help.aTekrar'), [tm('helpPanel.siraOnceAraligiKisa'), tm('helpPanel.gosterDenOnceYa'), tm('helpPanel.dinleBDekiOk'), tm('helpPanel.hatirlaDaHerZaman')]) +
+      sub(tm('help.aKontrol'), [tm('helpPanel.tekrarDakiTrEn'), tm('helpPanel.sonucBirOneridirPuani'), tm('helpPanel.onceAyniBicimYazim'), tm('helpPanel.ezberSatiriKelimeKelime'),
+        tm('helpPanel.farkliAyniKelimeninBaska'), tm('helpPanel.duyulduguGibiYazilanIsim'), tm('helpPanel.dogruSoylenenKelimeIsme'), tm('helpPanel.dogruSoylenenKelimeIsme2'),
+        tm('helpPanel.satirdaGecenIfadeBaska'), tm('helpPanel.siniriAdiHicSoylemezsen')]) +
+      sub(tm('help.aZor'), [tm('helpPanel.neZamanEklenirTekrar'), tm('helpPanel.neZamanCikarSatiri'), tm('helpPanel.ornekPazartesiTekrarDedin'), tm('helpPanel.nedenZorBirSatir'),
+        tm('helpPanel.ayrintiHerZorlanmaPuan')]) +
+      sub(tm('help.aDinle'), [tm('helpPanel.onceTurkceAOtomatik'), tm('helpPanel.sonTurEszamanliA'), tm('helpPanel.bSesliRecallTurkce'), tm('helpPanel.yanlisIsaretDoluKutuya'),
+        tm('helpPanel.kapsamBugunCalisilacaklarVadesi'), tm('helpPanel.calarkenOncekiDuraklatDevam')]) +
+      sub(tm('help.aProva'), [tm('helpPanel.prova3Tur4'), tm('helpPanel.kayitProvaYalnizcaYa'), tm('helpPanel.iskeletTuruCevapProvasi'), tm('helpPanel.kalipOgrendiginSatirlarinKaliplariyla'),
+        tm('helpPanel.hizTestiTurkceyiGor'), tm('helpPanel.usttekiGrupButonlariListeyi')]) +
+      sub(tm('help.aSure'), [tm('helpPanel.butunSenSoyleSureleri'), tm('helpPanel.tabanKelimeBasina0'), tm('helpPanel.tekrarEtGolgeleDinle'), tm('helpPanel.hafizadanSoyleHatirlaDinle'),
+        tm('helpPanel.kartSayaciTekrarKontrol'), tm('helpPanel.hizTestiKartiBu'), tm('helpPanel.provaHedefiHicbirZaman')]) +
+      sub(tm('help.aCumle'), [tm('helpPanel.soldaKodSagdaDurum'), tm('helpPanel.cevabiAcincaTurkceSoru'), tm('helpPanel.degistiYalnizcaSeninDegistirdigin')])) +
+    '</section>');
 }
 
 /* ---------- events ---------- */

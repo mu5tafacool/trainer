@@ -24,12 +24,22 @@ flowchart LR
 
 Why this order: listening and meaning introduce a line, shadowing sets its sound, the image ties it to your own life and leaves a short pause, so recall comes from memory; the check calls the lines back later and mixed, and review keeps spacing them out (1 → 3 → 8 → 20 days).
 
+## Quick start
+
+1. **Today** tab → *Start reviews*: the cards left from earlier days.
+2. *Start a new answer*: small packs of 4–5 lines.
+3. *Rehearse*: say one answer from start to finish.
+4. On the go, **Listen**: with headphones, also with the screen locked.
+5. Say everything out loud; going over it in your head is not enough.
+
+The in-app guide (Settings → *Nasıl çalışır*) follows the app in 12 sections: quick start, a day, new lines, review, say and check, struggled lines, Listen, rehearse and the other modes, lines and editing, saving and devices, shortcuts, and a closed *Ayrıntılar* (details: timing, the check's rules, the struggled-lines score). It names no sentence set, so another set can use the same guide.
+
 ## How a day works
 
 The **Today** tab (Bugün) lays out the day in order:
 
 1. **Review** (Tekrar): the cards whose date has come.
-2. **New** (Yeni): one group of new answers per day. One button per group chooses where new answers start: the basics (S0–S12), the preparation set (S13–S22) or the second-interview set (H1–H17). When the chosen group is finished, the others follow. "Start the next one early" adds another group the same day.
+2. **New** (Yeni): one group of new answers per day. One button per group chooses where new answers start. When the chosen group is finished, the others follow. "Start the next one early" adds another group the same day.
 3. **Rehearse** (Prova): a suggested answer to say from start to finish.
 4. **Listen on the go** (Yolda dinle): a shortcut to recall-mode listening.
 
@@ -38,7 +48,7 @@ The **Today** tab (Bugün) lays out the day in order:
 ### Answers, lines and groups
 
 - Each answer is a question plus short lines (about 20 words or fewer), each with a Turkish translation.
-- Every answer has a code from the source document: **S0–S12** basics, **S13–S22** preparation set, **H1–H17** second-interview set.
+- Every answer has a short code, shown on the Lines tab.
 - Answers carry a group tag, shown as a chip and usable as a filter on every list.
 - Settings uses switch rows: the whole row toggles, with a short line saying what it does.
 - Listen keeps its controls compact so the card stays high on the screen: scope on one row, then value pickers (Turkish first, repeats, thinking time) and on/off chips (text, shuffle, simultaneous, play while locked) on one or two rows. The idle card explains the current mode. Listen options are remembered.
@@ -143,7 +153,7 @@ Every "say it" time comes from one place, so all screens agree. It follows the s
   - **3 rounds (4/3/2)**: after the first round, tell the same answer again in less time. Round 2 aims for 85% of round 1 and round 3 for 70% (rounded to 5 seconds, never faster than about 170 words a minute). A bar shows the time left; the result lists all rounds.
   - **Follow-up questions** (on by default): after you mark an answer, a follow-up question an interviewer would ask next comes in, taken from your other answers (up to two). *End chain* stops it and shows a summary.
 - **Patterns** (*Kalıp*): build a **new** sentence with a pattern from a line you have learned. A card shows the pattern, its original line and a Turkish situation (read aloud when *Read Turkish aloud* is on); say the situation in English with that pattern. *Show* opens and plays an example. With 🎤 the app checks that the pattern's fixed parts (blue) were said, in order (same word rules as the other checks), and frames *Built it* or *Couldn't*; the choice stays yours. Up to 6 patterns a session; the ones you could not build come first next time, and each pattern's situations rotate. Kept apart from the review schedule and *Struggled lines*. Patterns ship with the encrypted answer set (seed v11+) and open as their source lines are learned.
-- **Mock interview**: a five-question chain like a real interview. It starts with *Tell me about yourself* (or the first answer of the chosen group), and most next questions follow up on the previous answer. In the second-interview group the last question is "Do you have any questions for me?".
+- **Mock interview**: a five-question chain like a real interview. It starts with the first answer of the chosen group, and most next questions follow up on the previous answer.
 - **Say and check** (🎤, Settings → Flow): on review TR → EN cards and in rehearsal, switch the keyboard to English and dictate with the keyboard microphone (or type). The browser's own speech recognition is not used: it is unreliable in Home Screen apps on iPhone, while keyboard dictation works everywhere.
   - Both texts are first brought to one form: case, punctuation, contractions (*I'm* = *I am*, also without the apostrophe), number words (*three and a half* = *3.5*, *fifteen hundred* = *1,500*, *seven hundred and twenty* = *720*, *twenty thirty-one* = *2031*, *quantity one* = *quantity 1*), *1st* = *first*, *+* = *plus*, *%* = *percent*, hyphens, fillers (*um*, *so*), self-corrections (*forty, sorry, fourteen* = *14*), repeated words and common dictation spellings of technical terms (*sauce* = *SaaS*, *play right* = *Playwright*).
   - **Word-for-word lines**: a weighted word error rate (numbers and negations count double, articles and prepositions half). Good from 94%, Hard from 70%. A missing word of a pattern chunk keeps it at Hard. One dropped a / an / the is Good when it is the only difference, the words are 90%+ right and it is outside the pattern chunks; the rule reads only the line's text, chunks and tier, so new and edited lines follow it too.
